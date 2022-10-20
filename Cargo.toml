@@ -1,0 +1,10 @@
+[workspace]
+
+members = [
+    "overwatch",
+    "overwatch-derive",
+]
+
+[profile.release-opt]
+inherits = "release"
+lto = true

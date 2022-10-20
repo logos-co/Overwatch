@@ -1,0 +1,19 @@
+[package]
+name = "overwatch-derive"
+version = "0.1.0"
+edition = "2021"
+authors = [
+    "Daniel Sanchez Quiros <danielsq@status.im>"
+]
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+[lib]
+proc-macro = true
+
+[dependencies]
+heck = "0.4"
+syn = "1.0"
+quote = "1.0"
+proc-macro2 = "1.0"
+proc-macro-error = "1.0"
+tracing = "0.1"

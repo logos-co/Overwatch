@@ -1,0 +1,22 @@
+[package]
+name = "overwatch"
+version = "0.1.0"
+edition = "2021"
+authors = [
+    "Daniel Sanchez Quiros <danielsq@status.im>"
+]
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+overwatch-derive = { path = "../overwatch-derive" }
+const-str = "0.3"
+async-trait = "0.1"
+futures = "0.3"
+thiserror = "1.0"
+tokio = { version = "1.17", features = ["rt-multi-thread", "sync", "time"] }
+tokio-stream = {version ="0.1", features = ["sync"] }
+tracing = "0.1"
+
+[dev-dependencies]
+tokio = { version = "1.17", features = ["rt-multi-thread", "sync", "time", "io-std", "io-util", "macros"] }
