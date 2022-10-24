@@ -3,6 +3,7 @@
 members = [
     "overwatch",
     "overwatch-derive",
+    "examples/waku-chat"
 ]
 
 [profile.release-opt]
