@@ -10,7 +10,6 @@ use clap::Parser;
 use network::*;
 use overwatch::{overwatch::*, services::handle::ServiceHandle};
 use overwatch_derive::*;
-use tracing_subscriber;
 
 /// Simple program to greet a person
 #[derive(Parser, Debug)]

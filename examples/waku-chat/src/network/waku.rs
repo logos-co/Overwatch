@@ -12,8 +12,10 @@ pub struct Waku {
 
 impl NetworkBackend for Waku {
     fn new(config: NetworkConfig) -> Self {
-        let mut waku_config = WakuNodeConfig::default();
-        waku_config.port = Some(config.port as usize);
+        let waku_config = WakuNodeConfig {
+            port: Some(config.port.into()),
+            ..Default::default()
+        };
         let waku = waku_new(Some(waku_config)).unwrap().start().unwrap();
         for peer in config.peers {
             let addr = Multiaddr::from_str(&peer).unwrap();
