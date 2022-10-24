@@ -53,26 +53,25 @@ impl ServiceCore for ChatService {
             .unwrap();
 
         // send new messages
-        tokio::spawn(async move {
-            loop {
-                let mut input = String::new();
-                std::io::stdin()
-                    .read_line(&mut input)
-                    .expect("error reading message");
-                input.truncate(input.trim().len());
-                network_relay
-                    .send(NetworkMsg::Broadcast(
-                        bincode::serialize(&Message {
-                            user,
-                            msg: input.as_bytes().to_vec().into_boxed_slice(),
-                        })
-                        .unwrap()
-                        .into_boxed_slice(),
-                    ))
-                    .await
-                    .unwrap();
-                tracing::debug!("[sending]: {}...", input.trim());
-            }
+        // for interactive stdin I/O it's recommended to
+        // use an external thread, see https://docs.rs/tokio/latest/tokio/io/struct.Stdin.html
+        std::thread::spawn(move || loop {
+            let mut input = String::new();
+            std::io::stdin()
+                .read_line(&mut input)
+                .expect("error reading message");
+            input.truncate(input.trim().len());
+            network_relay
+                .blocking_send(NetworkMsg::Broadcast(
+                    bincode::serialize(&Message {
+                        user,
+                        msg: input.as_bytes().to_vec().into_boxed_slice(),
+                    })
+                    .unwrap()
+                    .into_boxed_slice(),
+                ))
+                .unwrap();
+            tracing::debug!("[sending]: {}...", input);
         });
 
         // print received messages

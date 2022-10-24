@@ -164,6 +164,18 @@ impl<S: ServiceCore> Relay<S> {
         }
     }
 
+    #[instrument(skip_all, err(Debug))]
+    pub fn blocking_send(&mut self, message: S::Message) -> Result<(), RelayError> {
+        if let RelayState::Connected(outbound_relay) = &mut self.state {
+            outbound_relay
+                .sender
+                .blocking_send(message)
+                .map_err(|_| RelayError::Send)
+        } else {
+            Err(RelayError::Disconnected)
+        }
+    }
+
     async fn request_relay(&mut self, reply: oneshot::Sender<RelayResult>) {
         let relay_command = OverwatchCommand::Relay(RelayCommand {
             service_id: S::SERVICE_ID,
