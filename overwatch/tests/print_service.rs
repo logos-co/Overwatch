@@ -90,7 +90,7 @@ fn derive_print_service() {
     let mut print_service_relay = handle.relay::<PrintService>();
 
     overwatch.spawn(async move {
-        print_service_relay
+        let print_service_relay = print_service_relay
             .connect()
             .await
             .expect("A connection to the print service is established");
