@@ -1,7 +1,7 @@
 use crate::network::*;
 use async_trait::async_trait;
 use overwatch::services::handle::ServiceStateHandle;
-use overwatch::services::relay::{NoMessage, Relay};
+use overwatch::services::relay::{NoMessage, OutboundRelay};
 use overwatch::services::state::{NoOperator, NoState};
 use overwatch::services::{ServiceCore, ServiceData, ServiceId};
 use serde::{Deserialize, Serialize};
@@ -38,10 +38,13 @@ impl ServiceCore for ChatService {
             mut service_state, ..
         } = self;
         // TODO: waku should not end up in the public interface of the network service, at least not as a type
-        let mut network_relay: Relay<NetworkService<waku::Waku>> =
-            service_state.overwatch_handle.relay();
+        let mut network_relay = service_state
+            .overwatch_handle
+            .relay::<NetworkService<waku::Waku>>()
+            .connect()
+            .await
+            .unwrap();
         let user = service_state.settings_reader.get_updated_settings();
-        network_relay.connect().await.unwrap();
         let (sender, mut receiver) = channel(1);
         // TODO: typestate so I can't call send if it's not connected
         network_relay

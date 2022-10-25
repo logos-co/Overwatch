@@ -1,6 +1,7 @@
 // std
 use std::any::Any;
 use std::fmt::Debug;
+use std::marker::PhantomData;
 // crates
 use thiserror::Error;
 use tokio::sync::mpsc::{channel, Receiver, Sender};
@@ -47,21 +48,8 @@ pub type RelayResult = Result<AnyMessage, RelayError>;
 /// Notice that it is bound to 'static.
 pub trait RelayMessage: 'static {}
 
-enum RelayState<M> {
-    Disconnected,
-    Connected(OutboundRelay<M>),
-}
-
-impl<M> Clone for RelayState<M> {
-    fn clone(&self) -> Self {
-        match self {
-            RelayState::Disconnected => RelayState::Disconnected,
-            RelayState::Connected(outbound) => RelayState::Connected(outbound.clone()),
-        }
-    }
-}
-
 /// Channel receiver of a relay connection
+#[derive(Debug)]
 pub struct InboundRelay<M> {
     receiver: Receiver<M>,
     _stats: (), // placeholder
@@ -73,16 +61,26 @@ pub struct OutboundRelay<M> {
     _stats: (), // placeholder
 }
 
+#[derive(Debug)]
 pub struct Relay<S: ServiceCore> {
-    state: RelayState<S::Message>,
+    _marker: PhantomData<S>,
     overwatch_handle: OverwatchHandle,
 }
 
 impl<S: ServiceCore> Clone for Relay<S> {
     fn clone(&self) -> Self {
         Self {
-            state: self.state.clone(),
+            _marker: PhantomData,
             overwatch_handle: self.overwatch_handle.clone(),
+        }
+    }
+}
+
+impl<M> Clone for OutboundRelay<M> {
+    fn clone(&self) -> Self {
+        Self {
+            sender: self.sender.clone(),
+            _stats: (),
         }
     }
 }
@@ -109,71 +107,44 @@ impl<M> InboundRelay<M> {
 
 impl<M> OutboundRelay<M> {
     /// Send a message to the relay connection
-    pub async fn send(&mut self, message: M) -> Result<(), (RelayError, M)> {
+    pub async fn send(&self, message: M) -> Result<(), (RelayError, M)> {
         self.sender
             .send(message)
             .await
             .map_err(|e| (RelayError::Send, e.0))
     }
-}
 
-impl<M> Clone for OutboundRelay<M> {
-    fn clone(&self) -> Self {
-        Self {
-            sender: self.sender.clone(),
-            _stats: (),
-        }
+    /// Send a message to the relay connection in a blocking fashion.
+    ///
+    /// The intended usage of this function is for sending data from
+    /// synchronous code to asynchronous code.
+    ///
+    /// # Panics
+    ///
+    /// This function panics if called within an asynchronous execution
+    /// context.
+    ///
+    /// # Exa
+    pub fn blocking_send(&self, message: M) -> Result<(), (RelayError, M)> {
+        self.sender
+            .blocking_send(message)
+            .map_err(|e| (RelayError::Send, e.0))
     }
 }
 
 impl<S: ServiceCore> Relay<S> {
     pub fn new(overwatch_handle: OverwatchHandle) -> Self {
         Self {
-            state: RelayState::Disconnected,
             overwatch_handle,
+            _marker: PhantomData,
         }
     }
 
     #[instrument(skip(self), err(Debug))]
-    pub async fn connect(&mut self) -> Result<(), RelayError> {
-        if let RelayState::Disconnected = self.state {
-            let (reply, receiver) = oneshot::channel();
-            self.request_relay(reply).await;
-            self.handle_relay_response(receiver).await
-        } else {
-            Err(RelayError::AlreadyConnected)
-        }
-    }
-
-    #[instrument(skip(self), err(Debug))]
-    pub fn disconnect(&mut self) -> Result<(), RelayError> {
-        self.state = RelayState::Disconnected;
-        Ok(())
-    }
-
-    #[instrument(skip_all, err(Debug))]
-    pub async fn send(&mut self, message: S::Message) -> Result<(), RelayError> {
-        // TODO: we could make a retry system and/or add timeouts
-        if let RelayState::Connected(outbound_relay) = &mut self.state {
-            outbound_relay
-                .send(message)
-                .await
-                .map_err(|(e, _message)| e)
-        } else {
-            Err(RelayError::Disconnected)
-        }
-    }
-
-    #[instrument(skip_all, err(Debug))]
-    pub fn blocking_send(&mut self, message: S::Message) -> Result<(), RelayError> {
-        if let RelayState::Connected(outbound_relay) = &mut self.state {
-            outbound_relay
-                .sender
-                .blocking_send(message)
-                .map_err(|_| RelayError::Send)
-        } else {
-            Err(RelayError::Disconnected)
-        }
+    pub async fn connect(&mut self) -> Result<OutboundRelay<S::Message>, RelayError> {
+        let (reply, receiver) = oneshot::channel();
+        self.request_relay(reply).await;
+        self.handle_relay_response(receiver).await
     }
 
     async fn request_relay(&mut self, reply: oneshot::Sender<RelayResult>) {
@@ -188,14 +159,11 @@ impl<S: ServiceCore> Relay<S> {
     async fn handle_relay_response(
         &mut self,
         receiver: oneshot::Receiver<RelayResult>,
-    ) -> Result<(), RelayError> {
+    ) -> Result<OutboundRelay<S::Message>, RelayError> {
         let response = receiver.await;
         match response {
             Ok(Ok(message)) => match message.downcast::<OutboundRelay<S::Message>>() {
-                Ok(channel) => {
-                    self.state = RelayState::Connected(*channel);
-                    Ok(())
-                }
+                Ok(channel) => Ok(*channel),
                 Err(m) => Err(RelayError::InvalidMessage {
                     type_id: format!("{:?}", m.type_id()),
                     service_id: S::SERVICE_ID,
