@@ -2,7 +2,7 @@
 use std::marker::PhantomData;
 // crates
 use futures::future::{abortable, AbortHandle};
-use tokio::runtime::{Handle, Runtime};
+use tokio::runtime::Handle;
 use tracing::instrument;
 // internal
 use crate::overwatch::handle::OverwatchHandle;
@@ -19,8 +19,6 @@ use crate::services::{ServiceCore, ServiceId, ServiceState};
 pub struct ServiceHandle<S: ServiceCore> {
     /// Service id (must match `<ServiceCore::ServiceId>`)
     id: ServiceId,
-    /// Service runtime handle
-    runtime: Handle,
     /// Message channel relay
     /// Would be None if service is not running
     /// Will contain the channel if service is running
@@ -35,8 +33,6 @@ pub struct ServiceHandle<S: ServiceCore> {
 /// Service core resources
 /// It contains whatever is necessary to start a new service runner
 pub struct ServiceStateHandle<S: ServiceCore> {
-    /// Service runtime handler
-    pub runtime: Handle,
     /// Relay channel to communicate with the service runner
     pub inbound_relay: InboundRelay<S::Message>,
     /// Overwatch handle
@@ -49,37 +45,25 @@ pub struct ServiceStateHandle<S: ServiceCore> {
 /// Main service executor
 /// It is the object that hold the necessary information for the service to run
 pub struct ServiceRunner<S: ServiceCore> {
-    #[allow(unused)]
-    overwatch_handle: OverwatchHandle,
     service_state: ServiceStateHandle<S>,
     state_handle: StateHandle<S::State, S::StateOperator>,
 }
 
 impl<S: ServiceCore> ServiceHandle<S> {
-    pub fn new(
-        settings: S::Settings,
-        overwatch_handle: OverwatchHandle,
-    ) -> (Option<Runtime>, Self) {
+    pub fn new(settings: S::Settings, overwatch_handle: OverwatchHandle) -> Self {
         let id = S::SERVICE_ID;
-        let runtime = S::service_runtime(&settings, overwatch_handle.runtime());
-
         let initial_state: S::State = S::State::from_settings(&settings);
 
-        let handle = runtime.handle();
         let settings = SettingsUpdater::new(settings);
 
-        (
-            runtime.runtime(),
-            Self {
-                id,
-                runtime: handle,
-                outbound_relay: None,
-                settings,
-                initial_state,
-                overwatch_handle,
-                _marker: PhantomData::default(),
-            },
-        )
+        Self {
+            id,
+            outbound_relay: None,
+            settings,
+            initial_state,
+            overwatch_handle,
+            _marker: PhantomData::default(),
+        }
     }
 
     pub fn id(&self) -> ServiceId {
@@ -89,7 +73,7 @@ impl<S: ServiceCore> ServiceHandle<S> {
     /// Service runtime getter
     /// it is easily cloneable and can be done on demand
     pub fn runtime(&self) -> &Handle {
-        &self.runtime
+        self.overwatch_handle.runtime()
     }
 
     /// Overwatch handle
@@ -121,7 +105,6 @@ impl<S: ServiceCore> ServiceHandle<S> {
             StateHandle::<S::State, S::StateOperator>::new(self.initial_state.clone(), operator);
 
         let service_state = ServiceStateHandle {
-            runtime: self.runtime.clone(),
             inbound_relay,
             overwatch_handle: self.overwatch_handle.clone(),
             state_updater,
@@ -130,7 +113,6 @@ impl<S: ServiceCore> ServiceHandle<S> {
         };
 
         ServiceRunner {
-            overwatch_handle: self.overwatch_handle().clone(),
             service_state,
             state_handle,
         }
@@ -154,7 +136,7 @@ impl<S: ServiceCore> ServiceRunner<S> {
             ..
         } = self;
 
-        let runtime = service_state.runtime.clone();
+        let runtime = service_state.overwatch_handle.runtime().clone();
         let service = S::init(service_state);
         let (runner, abortable_handle) = abortable(service.run());
 

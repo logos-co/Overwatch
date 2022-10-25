@@ -45,18 +45,6 @@ pub trait ServiceCore: ServiceData + Send + Sized + 'static {
     /// Initialize the service with the given state
     fn init(service_state: ServiceStateHandle<Self>) -> Self;
 
-    /// Service default runtime
-    fn service_runtime(_settings: &Self::Settings, _parent: &runtime::Handle) -> ServiceRuntime {
-        let id = Self::SERVICE_ID;
-        ServiceRuntime::Custom(
-            runtime::Builder::new_multi_thread()
-                .enable_all()
-                .thread_name(id)
-                .build()
-                .unwrap_or_else(|_| panic!("Async runtime for service {id} didn't build properly")),
-        )
-    }
-
     /// Service main loop
     async fn run(mut self);
 }

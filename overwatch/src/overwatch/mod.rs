@@ -3,7 +3,6 @@ pub mod handle;
 // std
 
 use std::any::Any;
-use std::collections::HashMap;
 use std::fmt::Debug;
 use std::future::Future;
 
@@ -55,10 +54,7 @@ pub trait Services: Send + Sync {
     /// It returns a `(ServiceId, Runtime)` where Runtime is the `tokio::runtime::Runtime` attached for each
     /// service.
     /// It also returns an instance of the implementing type.
-    fn new(
-        settings: Self::Settings,
-        overwatch_handle: OverwatchHandle,
-    ) -> (HashMap<ServiceId, Option<Runtime>>, Self);
+    fn new(settings: Self::Settings, overwatch_handle: OverwatchHandle) -> Self;
 
     /// Start a services attached to the trait implementer
     fn start(&mut self, service_id: ServiceId) -> Result<(), Error>;
@@ -106,7 +102,7 @@ where
         let (finish_signal_sender, finish_runner_signal) = tokio::sync::oneshot::channel();
         let (commands_sender, commands_receiver) = tokio::sync::mpsc::channel(16);
         let handle = OverwatchHandle::new(runtime.handle().clone(), commands_sender);
-        let (services_runtimes, services) = S::new(settings, handle.clone());
+        let services = S::new(settings, handle.clone());
         let runner = OverwatchRunner {
             services,
             handle: handle.clone(),
@@ -115,7 +111,6 @@ where
         runtime.spawn(async move { runner.run_(commands_receiver).await });
         Overwatch {
             runtime,
-            services_runtimes,
             handle,
             finish_runner_signal,
         }
@@ -189,8 +184,6 @@ where
 /// It manages the overwatch runtime and handle
 pub struct Overwatch {
     runtime: Runtime,
-    #[allow(unused)]
-    services_runtimes: HashMap<ServiceId, Option<Runtime>>,
     handle: OverwatchHandle,
     finish_runner_signal: oneshot::Receiver<FinishOverwatchSignal>,
 }
@@ -236,9 +229,7 @@ mod test {
     use crate::overwatch::{Error, OverwatchRunner, Services};
     use crate::services::relay::{RelayError, RelayResult};
     use crate::services::ServiceId;
-    use std::collections::HashMap;
     use std::time::Duration;
-    use tokio::runtime::Runtime;
     use tokio::time::sleep;
 
     struct EmptyServices;
@@ -246,11 +237,8 @@ mod test {
     impl Services for EmptyServices {
         type Settings = ();
 
-        fn new(
-            _settings: Self::Settings,
-            _overwatch_handle: OverwatchHandle,
-        ) -> (HashMap<ServiceId, Option<Runtime>>, Self) {
-            (HashMap::new(), EmptyServices)
+        fn new(_settings: Self::Settings, _overwatch_handle: OverwatchHandle) -> Self {
+            EmptyServices
         }
 
         fn start(&mut self, service_id: ServiceId) -> Result<(), Error> {

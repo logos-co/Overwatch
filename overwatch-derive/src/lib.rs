@@ -142,32 +142,26 @@ fn generate_new_impl(fields: &Punctuated<Field, Comma>) -> proc_macro2::TokenStr
         let settings_field_identifier = service_settings_field_identifier_from(field_identifier);
         quote! {
             #field_identifier: {
-                let (runtime, manager) =
+                let manager =
                     ::overwatch::services::handle::ServiceHandle::<#service_type>::new(
                         #settings_field_identifier, overwatch_handle.clone(),
                 );
-                runtimes.insert(<#service_type as ::overwatch::services::ServiceData>::SERVICE_ID, runtime);
                 manager
             }
         }
     });
 
     quote! {
-        fn new(settings: Self::Settings, overwatch_handle: ::overwatch::overwatch::handle::OverwatchHandle) -> (
-            std::collections::HashMap<::overwatch::services::ServiceId, ::std::option::Option<::tokio::runtime::Runtime>>,
-            Self
-        ) {
+        fn new(settings: Self::Settings, overwatch_handle: ::overwatch::overwatch::handle::OverwatchHandle) -> Self {
             let Self::Settings {
                 #( #fields_settings ),*
             } = settings;
-
-            let mut runtimes = ::std::collections::HashMap::new();
 
             let app = Self {
                 #( #managers ),*
             };
 
-            (runtimes, app)
+            app
         }
     }
 }
