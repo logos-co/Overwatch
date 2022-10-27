@@ -17,8 +17,6 @@ use crate::services::{ServiceCore, ServiceId, ServiceState};
 /// Service handle
 /// This is used to access different parts of the service
 pub struct ServiceHandle<S: ServiceCore> {
-    /// Service id (must match `<ServiceCore::ServiceId>`)
-    id: ServiceId,
     /// Message channel relay
     /// Would be None if service is not running
     /// Will contain the channel if service is running
@@ -51,13 +49,11 @@ pub struct ServiceRunner<S: ServiceCore> {
 
 impl<S: ServiceCore> ServiceHandle<S> {
     pub fn new(settings: S::Settings, overwatch_handle: OverwatchHandle) -> Self {
-        let id = S::SERVICE_ID;
         let initial_state: S::State = S::State::from_settings(&settings);
 
         let settings = SettingsUpdater::new(settings);
 
         Self {
-            id,
             outbound_relay: None,
             settings,
             initial_state,
@@ -67,7 +63,7 @@ impl<S: ServiceCore> ServiceHandle<S> {
     }
 
     pub fn id(&self) -> ServiceId {
-        self.id
+        S::SERVICE_ID
     }
 
     /// Service runtime getter
