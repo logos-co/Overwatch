@@ -10,7 +10,7 @@ tokio = { version = "1", features = ["rt"] }
 waku = { git = "https://github.com/waku-org/waku-rust-bindings" }
 serde = "1"
 bincode = "1"
-overwatch = { path = "../../overwatch" }
+overwatch-rs = { path = "../../overwatch-rs" }
 overwatch-derive = { path = "../../overwatch-derive" }
 tracing = "*"
 async-trait = "0.1"

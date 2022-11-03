@@ -1,9 +1,20 @@
 [package]
-name = "overwatch"
+name = "overwatch-rs"
 version = "0.1.0"
 edition = "2021"
 authors = [
     "Daniel Sanchez Quiros <danielsq@status.im>"
+]
+license-file = "LICENSE"
+homepage = "https://github.com/logos-co/Overwatch"
+repository = "https://github.com/logos-co/Overwatch"
+description = "Overwatch is a framework to easily construct applications that requires of several independent parts that needs communication between them. Everything is self-contained, and it matches somewhat the advantages of microservices."
+readme = "README.md"
+keywords = ["async", "services"]
+categories = ["Asynchronous"]
+exclude = [
+    "./tests",
+    ".github",
 ]
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html

@@ -1,7 +1,7 @@
 [workspace]
 
 members = [
-    "overwatch",
+    "overwatch-rs",
     "overwatch-derive",
     "examples/waku-chat"
 ]

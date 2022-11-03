@@ -10,7 +10,7 @@ mod chat;
 use chat::*;
 use clap::Parser;
 use network::*;
-use overwatch::{overwatch::*, services::handle::ServiceHandle};
+use overwatch_rs::{overwatch::*, services::handle::ServiceHandle};
 use overwatch_derive::*;
 
 /// Simple program to greet a person
