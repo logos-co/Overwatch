@@ -6,13 +6,13 @@ on:
 name: CI
 
 jobs:
-  name: Release
-  steps:
-    - uses: actions/checkout@v2
-    - uses: actions-rs/toolchain@v1
-      with:
-        toolchain: stable
-        override: true
-    - uses: katyo/publish-crates@v1
-      with:
-        registry-token: ${{ secrets.CARGO_REGISTRY_TOKEN }}
+  release:
+    steps:
+      - uses: actions/checkout@v2
+      - uses: actions-rs/toolchain@v1
+        with:
+          toolchain: stable
+          override: true
+      - uses: katyo/publish-crates@v1
+        with:
+          registry-token: ${{ secrets.CARGO_REGISTRY_TOKEN }}
