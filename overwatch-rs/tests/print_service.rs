@@ -1,11 +1,11 @@
 use async_trait::async_trait;
 use futures::future::select;
+use overwatch_derive::Services;
 use overwatch_rs::overwatch::OverwatchRunner;
 use overwatch_rs::services::handle::{ServiceHandle, ServiceStateHandle};
 use overwatch_rs::services::relay::RelayMessage;
 use overwatch_rs::services::state::{NoOperator, NoState};
 use overwatch_rs::services::{ServiceCore, ServiceData, ServiceId};
-use overwatch_derive::Services;
 use std::time::Duration;
 use tokio::time::sleep;
 
