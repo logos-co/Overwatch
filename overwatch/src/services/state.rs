@@ -35,8 +35,15 @@ pub trait StateOperator: Send {
 }
 
 /// Operator that doesn't perform any operation upon state update
-#[derive(Clone, Copy)]
+#[derive(Copy)]
 pub struct NoOperator<StateInput>(PhantomData<StateInput>);
+
+// auto derive introduces unnecessary Clone bound on T
+impl<T> Clone for NoOperator<T> {
+    fn clone(&self) -> Self {
+        Self(PhantomData)
+    }
+}
 
 #[async_trait]
 impl<StateInput: ServiceState> StateOperator for NoOperator<StateInput> {
@@ -50,8 +57,15 @@ impl<StateInput: ServiceState> StateOperator for NoOperator<StateInput> {
 }
 
 /// Empty state
-#[derive(Clone, Copy)]
+#[derive(Copy)]
 pub struct NoState<Settings>(PhantomData<Settings>);
+
+// auto derive introduces unnecessary Clone bound on T
+impl<T> Clone for NoState<T> {
+    fn clone(&self) -> Self {
+        Self(PhantomData)
+    }
+}
 
 impl<Settings: Send + Sync + 'static> ServiceState for NoState<Settings> {
     type Settings = Settings;
@@ -64,23 +78,51 @@ impl<Settings: Send + Sync + 'static> ServiceState for NoState<Settings> {
 /// Receiver part of the state handling mechanism.
 /// A state handle watches a stream of incoming states and triggers the attached operator handling
 /// method over it.
-#[derive(Clone)]
 pub struct StateHandle<S: ServiceState, Operator: StateOperator<StateInput = S>> {
     watcher: StateWatcher<S>,
     operator: Operator,
 }
 
+// auto derive introduces unnecessary Clone bound on T
+impl<S: ServiceState, Operator: StateOperator<StateInput = S>> Clone for StateHandle<S, Operator>
+where
+    Operator: Clone,
+{
+    fn clone(&self) -> Self {
+        Self {
+            watcher: self.watcher.clone(),
+            operator: self.operator.clone(),
+        }
+    }
+}
+
 /// Sender part of the state handling mechanism.
 /// Update the current state and notifies the [`StateHandle`].
-#[derive(Clone)]
 pub struct StateUpdater<S> {
     sender: Arc<Sender<S>>,
 }
 
+// auto derive introduces unnecessary Clone bound on T
+impl<T> Clone for StateUpdater<T> {
+    fn clone(&self) -> Self {
+        Self {
+            sender: self.sender.clone(),
+        }
+    }
+}
+
 /// Wrapper over [`tokio::sync::watch::Receiver`]
-#[derive(Clone)]
 pub struct StateWatcher<S> {
     receiver: Receiver<S>,
+}
+
+// auto derive introduces unnecessary Clone bound on T
+impl<T> Clone for StateWatcher<T> {
+    fn clone(&self) -> Self {
+        Self {
+            receiver: self.receiver.clone(),
+        }
+    }
 }
 
 impl<S: ServiceState> StateUpdater<S> {
