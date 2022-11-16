@@ -698,7 +698,19 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "b15813163c1d831bf4a13c3610c05c0d03b39feb07f7e09fa234dac9b15aaf39"
 
 [[package]]
-name = "overwatch"
+name = "overwatch-derive"
+version = "0.1.0"
+dependencies = [
+ "heck",
+ "proc-macro-error",
+ "proc-macro2",
+ "quote",
+ "syn",
+ "tracing",
+]
+
+[[package]]
+name = "overwatch-rs"
 version = "0.1.0"
 dependencies = [
  "async-trait",
@@ -708,18 +720,6 @@ dependencies = [
  "thiserror",
  "tokio",
  "tokio-stream",
- "tracing",
-]
-
-[[package]]
-name = "overwatch-derive"
-version = "0.1.0"
-dependencies = [
- "heck",
- "proc-macro-error",
- "proc-macro2",
- "quote",
- "syn",
  "tracing",
 ]
 
@@ -1296,8 +1296,8 @@ dependencies = [
  "async-trait",
  "bincode",
  "clap 4.0.18",
- "overwatch",
  "overwatch-derive",
+ "overwatch-rs",
  "rand",
  "serde",
  "tokio",

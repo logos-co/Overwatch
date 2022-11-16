@@ -1,9 +1,9 @@
 pub mod waku;
 use async_trait::async_trait;
-use overwatch::services::handle::ServiceStateHandle;
-use overwatch::services::relay::RelayMessage;
-use overwatch::services::state::{NoOperator, NoState};
-use overwatch::services::{ServiceCore, ServiceData, ServiceId};
+use overwatch_rs::services::handle::ServiceStateHandle;
+use overwatch_rs::services::relay::RelayMessage;
+use overwatch_rs::services::state::{NoOperator, NoState};
+use overwatch_rs::services::{ServiceCore, ServiceData, ServiceId};
 use std::fmt::Debug;
 use tokio::sync::mpsc::Sender;
 
