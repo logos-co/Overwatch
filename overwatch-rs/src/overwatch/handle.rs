@@ -63,7 +63,7 @@ impl OverwatchHandle {
 
     /// Send an overwatch command to the overwatch runner
     #[instrument(name = "overwatch-command-send", skip(self))]
-    pub async fn send(&mut self, command: OverwatchCommand) {
+    pub async fn send(&self, command: OverwatchCommand) {
         if let Err(e) = self.sender.send(command).await {
             error!(error=?e, "Error sending overwatch command");
         }
