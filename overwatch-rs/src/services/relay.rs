@@ -141,13 +141,13 @@ impl<S: ServiceCore> Relay<S> {
     }
 
     #[instrument(skip(self), err(Debug))]
-    pub async fn connect(&mut self) -> Result<OutboundRelay<S::Message>, RelayError> {
+    pub async fn connect(&self) -> Result<OutboundRelay<S::Message>, RelayError> {
         let (reply, receiver) = oneshot::channel();
         self.request_relay(reply).await;
         self.handle_relay_response(receiver).await
     }
 
-    async fn request_relay(&mut self, reply: oneshot::Sender<RelayResult>) {
+    async fn request_relay(&self, reply: oneshot::Sender<RelayResult>) {
         let relay_command = OverwatchCommand::Relay(RelayCommand {
             service_id: S::SERVICE_ID,
             reply_channel: ReplyChannel(reply),
@@ -157,7 +157,7 @@ impl<S: ServiceCore> Relay<S> {
 
     #[instrument(skip_all, err(Debug))]
     async fn handle_relay_response(
-        &mut self,
+        &self,
         receiver: oneshot::Receiver<RelayResult>,
     ) -> Result<OutboundRelay<S::Message>, RelayError> {
         let response = receiver.await;

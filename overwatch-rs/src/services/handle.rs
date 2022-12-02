@@ -1,5 +1,3 @@
-// std
-use std::marker::PhantomData;
 // crates
 use futures::future::{abortable, AbortHandle};
 use tokio::runtime::Handle;
@@ -25,7 +23,6 @@ pub struct ServiceHandle<S: ServiceCore> {
     overwatch_handle: OverwatchHandle,
     settings: SettingsUpdater<S::Settings>,
     initial_state: S::State,
-    _marker: PhantomData<S>,
 }
 
 /// Service core resources
@@ -58,7 +55,6 @@ impl<S: ServiceCore> ServiceHandle<S> {
             settings,
             initial_state,
             overwatch_handle,
-            _marker: PhantomData::default(),
         }
     }
 

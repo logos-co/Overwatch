@@ -86,8 +86,8 @@ struct TestApp {
 fn derive_print_service() {
     let settings: TestAppServiceSettings = TestAppServiceSettings { print_service: () };
     let overwatch = OverwatchRunner::<TestApp>::run(settings, None);
-    let mut handle = overwatch.handle().clone();
-    let mut print_service_relay = handle.relay::<PrintService>();
+    let handle = overwatch.handle().clone();
+    let print_service_relay = handle.relay::<PrintService>();
 
     overwatch.spawn(async move {
         let print_service_relay = print_service_relay
