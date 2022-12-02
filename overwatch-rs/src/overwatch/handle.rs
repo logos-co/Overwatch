@@ -34,7 +34,7 @@ impl OverwatchHandle {
     }
 
     /// Send a shutdown signal to the overwatch runner
-    pub async fn shutdown(&mut self) {
+    pub async fn shutdown(&self) {
         info!("Shutting down Overwatch");
         if let Err(e) = self
             .sender
@@ -48,7 +48,7 @@ impl OverwatchHandle {
     }
 
     /// Send a kill signal to the overwatch runner
-    pub async fn kill(&mut self) {
+    pub async fn kill(&self) {
         info!("Killing Overwatch");
         if let Err(e) = self
             .sender
@@ -70,7 +70,7 @@ impl OverwatchHandle {
     }
 
     #[instrument(skip(self))]
-    pub async fn update_settings<S: Services>(&mut self, settings: S::Settings) {
+    pub async fn update_settings<S: Services>(&self, settings: S::Settings) {
         if let Err(e) = self
             .sender
             .send(OverwatchCommand::Settings(SettingsCommand(Box::new(

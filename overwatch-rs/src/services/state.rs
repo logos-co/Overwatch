@@ -127,7 +127,7 @@ impl<T> Clone for StateWatcher<T> {
 
 impl<S: ServiceState> StateUpdater<S> {
     /// Send a new state and notify the [`StateWatcher`]
-    pub fn update(&mut self, new_state: S) {
+    pub fn update(&self, new_state: S) {
         self.sender.send(new_state).unwrap_or_else(|_e| {
             error!("Error updating state");
         });
@@ -227,7 +227,7 @@ mod test {
     #[tokio::test]
     #[should_panic]
     async fn state_stream_collects() {
-        let (handle, mut updater): (
+        let (handle, updater): (
             StateHandle<UsizeCounter, PanicOnGreaterThanTen>,
             StateUpdater<UsizeCounter>,
         ) = StateHandle::new(

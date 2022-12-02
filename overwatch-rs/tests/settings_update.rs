@@ -35,11 +35,9 @@ impl ServiceCore for SettingsService {
 
     async fn run(mut self) {
         let Self {
-            state:
-                ServiceStateHandle {
-                    mut settings_reader,
-                    ..
-                },
+            state: ServiceStateHandle {
+                settings_reader, ..
+            },
         } = self;
 
         let print = async move {
@@ -72,7 +70,7 @@ fn settings_service_update_settings() {
     };
     let overwatch = OverwatchRunner::<TestApp>::run(settings.clone(), None);
     let handle = overwatch.handle().clone();
-    let mut handle2 = handle.clone();
+    let handle2 = handle.clone();
     settings.settings_service = "New settings".to_string();
     overwatch.spawn(async move { handle.clone().update_settings::<TestApp>(settings).await });
 
