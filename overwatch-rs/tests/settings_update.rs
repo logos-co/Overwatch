@@ -29,11 +29,13 @@ impl ServiceData for SettingsService {
 
 #[async_trait]
 impl ServiceCore for SettingsService {
-    fn init(state: ServiceStateHandle<Self>) -> Self {
-        Self { state }
+    fn init(
+        state: ServiceStateHandle<Self>,
+    ) -> Result<Self, Box<dyn std::error::Error + Send + Sync + 'static>> {
+        Ok(Self { state })
     }
 
-    async fn run(mut self) {
+    async fn run(mut self) -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>> {
         let Self {
             state: ServiceStateHandle {
                 settings_reader, ..
@@ -55,6 +57,7 @@ impl ServiceCore for SettingsService {
             assert!(asserted);
         };
         print.await;
+        Ok(())
     }
 }
 
@@ -68,7 +71,7 @@ fn settings_service_update_settings() {
     let mut settings: TestAppServiceSettings = TestAppServiceSettings {
         settings_service: SettingsServiceSettings::default(),
     };
-    let overwatch = OverwatchRunner::<TestApp>::run(settings.clone(), None);
+    let overwatch = OverwatchRunner::<TestApp>::run(settings.clone(), None).unwrap();
     let handle = overwatch.handle().clone();
     let handle2 = handle.clone();
     settings.settings_service = "New settings".to_string();

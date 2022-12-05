@@ -29,11 +29,13 @@ impl ServiceData for ChatService {
 
 #[async_trait]
 impl ServiceCore for ChatService {
-    fn init(service_state: ServiceStateHandle<Self>) -> Self {
-        Self { service_state }
+    fn init(
+        service_state: ServiceStateHandle<Self>,
+    ) -> Result<Self, Box<dyn std::error::Error + Send + Sync + 'static>> {
+        Ok(Self { service_state })
     }
 
-    async fn run(self) {
+    async fn run(self) -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>> {
         let Self {
             mut service_state, ..
         } = self;
@@ -89,5 +91,6 @@ impl ServiceCore for ChatService {
                 }
             }
         }
+        Ok(())
     }
 }

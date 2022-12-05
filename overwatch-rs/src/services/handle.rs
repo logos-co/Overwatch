@@ -121,7 +121,7 @@ impl<S: ServiceCore> ServiceRunner<S> {
     /// Spawn the service main loop and handle it lifecycle
     /// Return a handle to abort execution manually
     #[instrument(skip(self), fields(service_id=S::SERVICE_ID))]
-    pub fn run(self) -> AbortHandle {
+    pub fn run(self) -> Result<AbortHandle, Box<dyn std::error::Error + Send + Sync + 'static>> {
         let ServiceRunner {
             service_state,
             state_handle,
@@ -129,7 +129,7 @@ impl<S: ServiceCore> ServiceRunner<S> {
         } = self;
 
         let runtime = service_state.overwatch_handle.runtime().clone();
-        let service = S::init(service_state);
+        let service = S::init(service_state)?;
         let (runner, abortable_handle) = abortable(service.run());
 
         runtime.spawn(runner);
@@ -137,6 +137,6 @@ impl<S: ServiceCore> ServiceRunner<S> {
 
         // TODO: Handle service lifecycle
         // TODO: this handle should not scape this scope, it should actually be handled in the lifecycle part mentioned above
-        abortable_handle
+        Ok(abortable_handle)
     }
 }

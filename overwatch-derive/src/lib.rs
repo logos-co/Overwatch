@@ -152,7 +152,7 @@ fn generate_new_impl(fields: &Punctuated<Field, Comma>) -> proc_macro2::TokenStr
     });
 
     quote! {
-        fn new(settings: Self::Settings, overwatch_handle: ::overwatch_rs::overwatch::handle::OverwatchHandle) -> Self {
+        fn new(settings: Self::Settings, overwatch_handle: ::overwatch_rs::overwatch::handle::OverwatchHandle) -> ::std::result::Result<Self, ::std::boxed::Box<dyn ::std::error::Error + ::std::marker::Send + ::std::marker::Sync + 'static>> {
             let Self::Settings {
                 #( #fields_settings ),*
             } = settings;
@@ -161,7 +161,7 @@ fn generate_new_impl(fields: &Punctuated<Field, Comma>) -> proc_macro2::TokenStr
                 #( #managers ),*
             };
 
-            app
+            Ok(app)
         }
     }
 }
@@ -170,7 +170,7 @@ fn generate_start_all_impl(fields: &Punctuated<Field, Comma>) -> proc_macro2::To
     let call_start = fields.iter().map(|field| {
         let field_identifier = field.ident.as_ref().expect("A struct attribute identifier");
         quote! {
-            self.#field_identifier.service_runner().run();
+            self.#field_identifier.service_runner().run()?;
         }
     });
 
@@ -189,7 +189,7 @@ fn generate_start_impl(fields: &Punctuated<Field, Comma>) -> proc_macro2::TokenS
         let type_id = utils::extract_type_from(&field.ty);
         quote! {
             <#type_id as ::overwatch_rs::services::ServiceData>::SERVICE_ID => {
-                self.#field_identifier.service_runner().run();
+                self.#field_identifier.service_runner().run()?;
                 Ok(())
             }
         }
