@@ -265,7 +265,7 @@ mod test {
     #[test]
     fn run_overwatch_then_stop() {
         let overwatch = OverwatchRunner::<EmptyServices>::run((), None);
-        let mut handle = overwatch.handle().clone();
+        let handle = overwatch.handle().clone();
 
         overwatch.spawn(async move {
             sleep(Duration::from_millis(500)).await;
@@ -278,7 +278,7 @@ mod test {
     #[test]
     fn run_overwatch_then_kill() {
         let overwatch = OverwatchRunner::<EmptyServices>::run((), None);
-        let mut handle = overwatch.handle().clone();
+        let handle = overwatch.handle().clone();
 
         overwatch.spawn(async move {
             sleep(Duration::from_millis(500)).await;

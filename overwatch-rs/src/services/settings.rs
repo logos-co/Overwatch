@@ -22,7 +22,7 @@ impl<S: Clone> SettingsNotifier<S> {
     // of the method. Another option would be to spawn a task that updates a settings local value
     // each time an updated settings is received. This could not be so easy to do, since it will
     // need to hold a &mut to the holder (or needed to use a Cell/RefCell).
-    pub fn get_updated_settings(&mut self) -> S {
+    pub fn get_updated_settings(&self) -> S {
         self.notifier_channel.borrow().clone()
     }
 }
@@ -67,7 +67,7 @@ mod test {
     #[tokio::test]
     async fn settings_updater_sequence() {
         let updater = SettingsUpdater::new(10usize);
-        let mut notifier = updater.notifier();
+        let notifier = updater.notifier();
         let values = [10, 0usize];
         let mut seq = HashSet::from(values);
         let handle = tokio::spawn(timeout(Duration::from_secs(3), async move {

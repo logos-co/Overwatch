@@ -69,9 +69,7 @@ impl ServiceCore for UpdateStateService {
 
     async fn run(mut self) {
         let Self {
-            state: ServiceStateHandle {
-                mut state_updater, ..
-            },
+            state: ServiceStateHandle { state_updater, .. },
         } = self;
         for value in 0..10 {
             state_updater.update(CounterState { value });
@@ -91,7 +89,7 @@ fn state_update_service() {
         update_state_service: (),
     };
     let overwatch = OverwatchRunner::<TestApp>::run(settings, None);
-    let mut handle = overwatch.handle().clone();
+    let handle = overwatch.handle().clone();
 
     overwatch.spawn(async move {
         sleep(Duration::from_secs(1)).await;
