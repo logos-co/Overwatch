@@ -29,13 +29,11 @@ impl ServiceData for SettingsService {
 
 #[async_trait]
 impl ServiceCore for SettingsService {
-    fn init(
-        state: ServiceStateHandle<Self>,
-    ) -> Result<Self, Box<dyn std::error::Error + Send + Sync + 'static>> {
+    fn init(state: ServiceStateHandle<Self>) -> Result<Self, overwatch_rs::DynError> {
         Ok(Self { state })
     }
 
-    async fn run(mut self) -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>> {
+    async fn run(mut self) -> Result<(), overwatch_rs::DynError> {
         let Self {
             state: ServiceStateHandle {
                 settings_reader, ..

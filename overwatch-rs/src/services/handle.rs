@@ -1,7 +1,6 @@
 // crates
 use futures::future::{abortable, AbortHandle};
 use tokio::runtime::Handle;
-use tracing::instrument;
 // internal
 use crate::overwatch::handle::OverwatchHandle;
 use crate::services::relay::{relay, InboundRelay, OutboundRelay};
@@ -120,8 +119,8 @@ impl<S: ServiceCore> ServiceStateHandle<S> {
 impl<S: ServiceCore> ServiceRunner<S> {
     /// Spawn the service main loop and handle it lifecycle
     /// Return a handle to abort execution manually
-    #[instrument(skip(self), fields(service_id=S::SERVICE_ID))]
-    pub fn run(self) -> Result<AbortHandle, Box<dyn std::error::Error + Send + Sync + 'static>> {
+
+    pub fn run(self) -> Result<AbortHandle, crate::DynError> {
         let ServiceRunner {
             service_state,
             state_handle,

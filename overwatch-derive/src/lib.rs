@@ -152,7 +152,7 @@ fn generate_new_impl(fields: &Punctuated<Field, Comma>) -> proc_macro2::TokenStr
     });
 
     quote! {
-        fn new(settings: Self::Settings, overwatch_handle: ::overwatch_rs::overwatch::handle::OverwatchHandle) -> ::std::result::Result<Self, ::std::boxed::Box<dyn ::std::error::Error + ::std::marker::Send + ::std::marker::Sync + 'static>> {
+        fn new(settings: Self::Settings, overwatch_handle: ::overwatch_rs::overwatch::handle::OverwatchHandle) -> ::std::result::Result<Self, ::overwatch_rs::DynError> {
             let Self::Settings {
                 #( #fields_settings ),*
             } = settings;
@@ -161,7 +161,7 @@ fn generate_new_impl(fields: &Punctuated<Field, Comma>) -> proc_macro2::TokenStr
                 #( #managers ),*
             };
 
-            Ok(app)
+            ::std::result::Result::Ok(app)
         }
     }
 }
@@ -170,7 +170,7 @@ fn generate_start_all_impl(fields: &Punctuated<Field, Comma>) -> proc_macro2::To
     let call_start = fields.iter().map(|field| {
         let field_identifier = field.ident.as_ref().expect("A struct attribute identifier");
         quote! {
-            self.#field_identifier.service_runner().run()?;
+            self.#field_identifier.service_runner().run().map_err(::overwatch_rs::overwatch::Error::from)?;
         }
     });
 
@@ -178,7 +178,8 @@ fn generate_start_all_impl(fields: &Punctuated<Field, Comma>) -> proc_macro2::To
         #[::tracing::instrument(skip(self), err)]
         fn start_all(&mut self) -> Result<(), ::overwatch_rs::overwatch::Error> {
             #( #call_start )*
-            Ok(())
+
+            ::std::result::Result::Ok(())
         }
     }
 }
@@ -190,7 +191,7 @@ fn generate_start_impl(fields: &Punctuated<Field, Comma>) -> proc_macro2::TokenS
         quote! {
             <#type_id as ::overwatch_rs::services::ServiceData>::SERVICE_ID => {
                 self.#field_identifier.service_runner().run()?;
-                Ok(())
+                ::std::result::Result::Ok(())
             }
         }
     });
@@ -200,7 +201,7 @@ fn generate_start_impl(fields: &Punctuated<Field, Comma>) -> proc_macro2::TokenS
         fn start(&mut self, service_id: ::overwatch_rs::services::ServiceId) -> Result<(), ::overwatch_rs::overwatch::Error> {
             match service_id {
                 #( #cases ),*
-                service_id => Err(::overwatch_rs::overwatch::Error::Unavailable { service_id })
+                service_id => ::std::result::Result::Err(::overwatch_rs::overwatch::Error::Unavailable { service_id })
             }
         }
     }
@@ -221,7 +222,7 @@ fn generate_stop_impl(fields: &Punctuated<Field, Comma>) -> proc_macro2::TokenSt
         fn stop(&mut self, service_id: ::overwatch_rs::services::ServiceId) -> Result<(), ::overwatch_rs::overwatch::Error> {
             match service_id {
                 #( #cases ),*
-                service_id => Err(::overwatch_rs::overwatch::Error::Unavailable { service_id })
+                service_id => ::std::result::Result::Err(::overwatch_rs::overwatch::Error::Unavailable { service_id })
             }
         }
     }
@@ -233,7 +234,7 @@ fn generate_request_relay_impl(fields: &Punctuated<Field, Comma>) -> proc_macro2
         let type_id = utils::extract_type_from(&field.ty);
         quote! {
             <#type_id as ::overwatch_rs::services::ServiceData>::SERVICE_ID => {
-                Ok(::std::boxed::Box::new(
+                ::std::result::Result::Ok(::std::boxed::Box::new(
                     self.#field_identifier
                         .relay_with()
                         .expect("An open relay to service is established")
@@ -248,7 +249,7 @@ fn generate_request_relay_impl(fields: &Punctuated<Field, Comma>) -> proc_macro2
             {
                 match service_id {
                     #( #cases )*
-                    service_id => Err(::overwatch_rs::services::relay::RelayError::Unavailable { service_id })
+                    service_id => ::std::result::Result::Err(::overwatch_rs::services::relay::RelayError::Unavailable { service_id })
                 }
             }
         }
@@ -281,7 +282,7 @@ fn generate_update_settings_impl(fields: &Punctuated<Field, Comma>) -> proc_macr
 
             #( #update_settings_call )*
 
-            Ok(())
+            ::std::result::Result::Ok(())
         }
     }
 }

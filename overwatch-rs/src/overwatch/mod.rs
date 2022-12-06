@@ -36,7 +36,7 @@ pub enum Error {
     Unavailable { service_id: ServiceId },
 
     #[error(transparent)]
-    Any(Box<dyn std::error::Error + Send + Sync + 'static>),
+    Any(super::DynError),
 }
 
 impl Error {
@@ -45,8 +45,8 @@ impl Error {
     }
 }
 
-impl From<Box<dyn std::error::Error + Send + Sync + 'static>> for Error {
-    fn from(err: Box<dyn std::error::Error + Send + Sync + 'static>) -> Self {
+impl From<super::DynError> for Error {
+    fn from(err: super::DynError) -> Self {
         Self::Any(err)
     }
 }
@@ -72,7 +72,7 @@ pub trait Services: Sized + Send + Sync {
     fn new(
         settings: Self::Settings,
         overwatch_handle: OverwatchHandle,
-    ) -> std::result::Result<Self, Box<dyn std::error::Error + Send + Sync + 'static>>;
+    ) -> std::result::Result<Self, super::DynError>;
 
     /// Start a services attached to the trait implementer
     fn start(&mut self, service_id: ServiceId) -> Result<(), Error>;
@@ -117,7 +117,7 @@ where
     pub fn run(
         settings: S::Settings,
         runtime: Option<Runtime>,
-    ) -> std::result::Result<Overwatch, Box<dyn std::error::Error + Send + Sync + 'static>> {
+    ) -> std::result::Result<Overwatch, super::DynError> {
         let runtime = runtime.unwrap_or_else(default_multithread_runtime);
 
         let (finish_signal_sender, finish_runner_signal) = tokio::sync::oneshot::channel();

@@ -49,9 +49,7 @@ impl<I: NetworkBackend + Send + 'static> ServiceData for NetworkService<I> {
 
 #[async_trait]
 impl<I: NetworkBackend + Send + 'static> ServiceCore for NetworkService<I> {
-    fn init(
-        mut service_state: ServiceStateHandle<Self>,
-    ) -> Result<Self, Box<dyn std::error::Error + Send + Sync + 'static>> {
+    fn init(mut service_state: ServiceStateHandle<Self>) -> Result<Self, overwatch_rs::DynError> {
         Ok(Self {
             implem: <I as NetworkBackend>::new(
                 service_state.settings_reader.get_updated_settings(),
@@ -60,7 +58,7 @@ impl<I: NetworkBackend + Send + 'static> ServiceCore for NetworkService<I> {
         })
     }
 
-    async fn run(mut self) -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>> {
+    async fn run(mut self) -> Result<(), overwatch_rs::DynError> {
         let Self {
             service_state,
             mut implem,
