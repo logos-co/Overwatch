@@ -43,10 +43,10 @@ pub trait ServiceData {
 #[async_trait]
 pub trait ServiceCore: ServiceData + Send + Sized + 'static {
     /// Initialize the service with the given state
-    fn init(service_state: ServiceStateHandle<Self>) -> Self;
+    fn init(service_state: ServiceStateHandle<Self>) -> Result<Self, super::DynError>;
 
     /// Service main loop
-    async fn run(mut self);
+    async fn run(mut self) -> Result<(), super::DynError>;
 }
 
 #[derive(Error, Debug)]

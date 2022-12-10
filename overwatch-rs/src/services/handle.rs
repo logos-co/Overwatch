@@ -1,7 +1,6 @@
 // crates
 use futures::future::{abortable, AbortHandle};
 use tokio::runtime::Handle;
-use tracing::instrument;
 // internal
 use crate::overwatch::handle::OverwatchHandle;
 use crate::services::relay::{relay, InboundRelay, OutboundRelay};
@@ -45,17 +44,16 @@ pub struct ServiceRunner<S: ServiceCore> {
 }
 
 impl<S: ServiceCore> ServiceHandle<S> {
-    pub fn new(settings: S::Settings, overwatch_handle: OverwatchHandle) -> Self {
-        let initial_state: S::State = S::State::from_settings(&settings);
-
-        let settings = SettingsUpdater::new(settings);
-
-        Self {
+    pub fn new(
+        settings: S::Settings,
+        overwatch_handle: OverwatchHandle,
+    ) -> Result<Self, <S::State as ServiceState>::Error> {
+        S::State::from_settings(&settings).map(|initial_state| Self {
             outbound_relay: None,
-            settings,
-            initial_state,
             overwatch_handle,
-        }
+            settings: SettingsUpdater::new(settings),
+            initial_state,
+        })
     }
 
     pub fn id(&self) -> ServiceId {
@@ -120,8 +118,8 @@ impl<S: ServiceCore> ServiceStateHandle<S> {
 impl<S: ServiceCore> ServiceRunner<S> {
     /// Spawn the service main loop and handle it lifecycle
     /// Return a handle to abort execution manually
-    #[instrument(skip(self), fields(service_id=S::SERVICE_ID))]
-    pub fn run(self) -> AbortHandle {
+
+    pub fn run(self) -> Result<AbortHandle, crate::DynError> {
         let ServiceRunner {
             service_state,
             state_handle,
@@ -129,7 +127,7 @@ impl<S: ServiceCore> ServiceRunner<S> {
         } = self;
 
         let runtime = service_state.overwatch_handle.runtime().clone();
-        let service = S::init(service_state);
+        let service = S::init(service_state)?;
         let (runner, abortable_handle) = abortable(service.run());
 
         runtime.spawn(runner);
@@ -137,6 +135,6 @@ impl<S: ServiceCore> ServiceRunner<S> {
 
         // TODO: Handle service lifecycle
         // TODO: this handle should not scape this scope, it should actually be handled in the lifecycle part mentioned above
-        abortable_handle
+        Ok(abortable_handle)
     }
 }

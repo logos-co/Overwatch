@@ -141,7 +141,7 @@ impl<S: ServiceCore> Relay<S> {
     }
 
     #[instrument(skip(self), err(Debug))]
-    pub async fn connect(&self) -> Result<OutboundRelay<S::Message>, RelayError> {
+    pub async fn connect(self) -> Result<OutboundRelay<S::Message>, RelayError> {
         let (reply, receiver) = oneshot::channel();
         self.request_relay(reply).await;
         self.handle_relay_response(receiver).await

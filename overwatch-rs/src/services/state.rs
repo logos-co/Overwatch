@@ -15,11 +15,13 @@ use tracing::error;
 /// It defines what is needed for a service state to be initialized.
 /// Need what set of settings information is required for it to be initialized [`ServiceState::Settings`]
 /// which usually is bound to the service itself [`crate::services::ServiceData::Settings`]
-pub trait ServiceState: Send + Sync + 'static {
+pub trait ServiceState: Sized + Send + Sync + 'static {
     /// Settings object that the state can be initialized from
     type Settings;
+    /// Errors that can occur during state initialization
+    type Error;
     /// Initialize a stage upon the provided settings
-    fn from_settings(settings: &Self::Settings) -> Self;
+    fn from_settings(settings: &Self::Settings) -> Result<Self, Self::Error>;
 }
 
 /// A state operator is an entity that can handle a state in a point of time
@@ -70,8 +72,10 @@ impl<T> Clone for NoState<T> {
 impl<Settings: Send + Sync + 'static> ServiceState for NoState<Settings> {
     type Settings = Settings;
 
-    fn from_settings(_settings: &Self::Settings) -> Self {
-        Self(Default::default())
+    type Error = crate::DynError;
+
+    fn from_settings(_settings: &Self::Settings) -> Result<Self, Self::Error> {
+        Ok(Self(Default::default()))
     }
 }
 
@@ -197,9 +201,9 @@ mod test {
 
     impl ServiceState for UsizeCounter {
         type Settings = ();
-
-        fn from_settings(_settings: &Self::Settings) -> Self {
-            Self(0)
+        type Error = crate::DynError;
+        fn from_settings(_settings: &Self::Settings) -> Result<Self, crate::DynError> {
+            Ok(Self(0))
         }
     }
 
@@ -231,7 +235,7 @@ mod test {
             StateHandle<UsizeCounter, PanicOnGreaterThanTen>,
             StateUpdater<UsizeCounter>,
         ) = StateHandle::new(
-            UsizeCounter::from_settings(&()),
+            UsizeCounter::from_settings(&()).unwrap(),
             PanicOnGreaterThanTen::from_settings(()),
         );
         tokio::task::spawn(async move {

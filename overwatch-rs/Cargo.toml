@@ -22,6 +22,7 @@ exclude = [
 [dependencies]
 overwatch-derive = { path = "../overwatch-derive" }
 const-str = "0.3"
+color-eyre = "0.6"
 async-trait = "0.1"
 futures = "0.3"
 thiserror = "1.0"
