@@ -44,17 +44,16 @@ pub struct ServiceRunner<S: ServiceCore> {
 }
 
 impl<S: ServiceCore> ServiceHandle<S> {
-    pub fn new(settings: S::Settings, overwatch_handle: OverwatchHandle) -> Self {
-        let initial_state: S::State = S::State::from_settings(&settings);
-
-        let settings = SettingsUpdater::new(settings);
-
-        Self {
+    pub fn new(
+        settings: S::Settings,
+        overwatch_handle: OverwatchHandle,
+    ) -> Result<Self, <S::State as ServiceState>::Error> {
+        S::State::from_settings(&settings).map(|initial_state| Self {
             outbound_relay: None,
-            settings,
-            initial_state,
             overwatch_handle,
-        }
+            settings: SettingsUpdater::new(settings),
+            initial_state,
+        })
     }
 
     pub fn id(&self) -> ServiceId {

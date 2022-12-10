@@ -18,6 +18,17 @@ pub struct UpdateStateServiceMessage(String);
 
 impl RelayMessage for UpdateStateServiceMessage {}
 
+#[derive(Debug)]
+pub struct UnitError;
+
+impl core::fmt::Display for UnitError {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        write!(f, "UnitError")
+    }
+}
+
+impl std::error::Error for UnitError {}
+
 #[derive(Clone)]
 pub struct CounterState {
     value: usize,
@@ -25,9 +36,10 @@ pub struct CounterState {
 
 impl ServiceState for CounterState {
     type Settings = ();
+    type Error = UnitError;
 
-    fn from_settings(_settings: &Self::Settings) -> Self {
-        Self { value: 0 }
+    fn from_settings(_settings: &Self::Settings) -> Result<Self, Self::Error> {
+        Ok(Self { value: 0 })
     }
 }
 

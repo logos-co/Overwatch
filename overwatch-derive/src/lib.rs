@@ -145,7 +145,7 @@ fn generate_new_impl(fields: &Punctuated<Field, Comma>) -> proc_macro2::TokenStr
                 let manager =
                     ::overwatch_rs::services::handle::ServiceHandle::<#service_type>::new(
                         #settings_field_identifier, overwatch_handle.clone(),
-                );
+                )?;
                 manager
             }
         }
@@ -170,7 +170,7 @@ fn generate_start_all_impl(fields: &Punctuated<Field, Comma>) -> proc_macro2::To
     let call_start = fields.iter().map(|field| {
         let field_identifier = field.ident.as_ref().expect("A struct attribute identifier");
         quote! {
-            self.#field_identifier.service_runner().run().map_err(::overwatch_rs::overwatch::Error::from)?;
+            self.#field_identifier.service_runner().run()?;
         }
     });
 
