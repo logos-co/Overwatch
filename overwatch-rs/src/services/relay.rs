@@ -135,7 +135,7 @@ impl<M: Send + 'static> OutboundRelay<M> {
             .map_err(|e| (RelayError::Send, e.0))
     }
 
-    pub fn into_sink(self) -> impl Sink<M> + Send + 'static {
+    pub fn into_sink(self) -> impl Sink<M> {
         PollSender::new(self.sender)
     }
 }
