@@ -2,10 +2,14 @@
 use std::any::Any;
 use std::fmt::Debug;
 use std::marker::PhantomData;
+use std::pin::Pin;
+use std::task::{Context, Poll};
 // crates
+use futures::{Sink, Stream};
 use thiserror::Error;
 use tokio::sync::mpsc::{channel, Receiver, Sender};
 use tokio::sync::oneshot;
+use tokio_util::sync::PollSender;
 use tracing::{error, instrument};
 // internal
 use crate::overwatch::commands::{OverwatchCommand, RelayCommand, ReplyChannel};
@@ -105,7 +109,7 @@ impl<M> InboundRelay<M> {
     }
 }
 
-impl<M> OutboundRelay<M> {
+impl<M: Send + 'static> OutboundRelay<M> {
     /// Send a message to the relay connection
     pub async fn send(&self, message: M) -> Result<(), (RelayError, M)> {
         self.sender
@@ -129,6 +133,10 @@ impl<M> OutboundRelay<M> {
         self.sender
             .blocking_send(message)
             .map_err(|e| (RelayError::Send, e.0))
+    }
+
+    pub fn into_sink(self) -> impl Sink<M> {
+        PollSender::new(self.sender)
     }
 }
 
@@ -172,5 +180,13 @@ impl<S: ServiceCore> Relay<S> {
             Ok(Err(e)) => Err(e),
             Err(e) => Err(RelayError::Receiver(Box::new(e))),
         }
+    }
+}
+
+impl<M> Stream for InboundRelay<M> {
+    type Item = M;
+
+    fn poll_next(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Option<Self::Item>> {
+        self.receiver.poll_recv(cx)
     }
 }
