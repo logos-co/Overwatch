@@ -1,6 +1,4 @@
-# TODO: pull_request is only for testing, will be removed once coverage and badges are configured in PR.
 on:
-  pull_request:
   push:
     branches:
       - main
