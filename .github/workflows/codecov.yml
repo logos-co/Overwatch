@@ -1,0 +1,38 @@
+# TODO: pull_request is only for testing, will be removed once coverage and badges are configured in PR.
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+
+name: Codecov
+
+jobs:
+  test:
+    name: Test
+    env:
+      RUSTFLAGS: -C instrument-coverage
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+        with:
+          submodules: true
+      - uses: actions-rs/toolchain@v1
+        with:
+          profile: minimal
+          toolchain: stable
+          override: true
+          components: llvm-tools-preview
+      - uses: actions-rs/cargo@v1
+        continue-on-error: true
+      - run: |
+          cargo install grcov;
+          cargo test --all-features;
+          mkdir /tmp/cov;
+          grcov . --binary-path ./target/debug/ -s . -t lcov --branch --ignore-not-existing --ignore '../*' --ignore "/*" -o /tmp/cov/tests.lcov;
+      - uses: codecov/codecov-action@v3
+        with:
+          directory: /tmp/cov/
+          name: overwatch-codecov
+          fail_ci_if_error: true
+

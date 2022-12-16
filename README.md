@@ -1,5 +1,16 @@
 # Overwatch
 
+[![MIT licensed][mit-badge]][mit-url]
+[![Build Status][actions-badge]][actions-url]
+[![Codecov Status][codecov-badge]][codecov-url]
+
+[mit-badge]: https://img.shields.io/badge/license-MIT-blue.svg
+[mit-url]: https://github.com/logos-co/Overwatch/blob/master/LICENSE
+[actions-badge]: https://github.com/logos-co/Overwatch/workflows/CI/badge.svg
+[actions-url]: https://github.com/logos-co/Overwatch/actions/workflows/main.yml?query=workflow%3ACI+branch%3Amain
+[codecov-badge]: https://codecov.io/github/logos-co/Overwatch/branch/main/graph/badge.svg?token=H4CQWRUCUS
+[codecov-url]: https://codecov.io/github/logos-co/Overwatch
+
 Overwatch is a framework to easily construct applications that requires of several independent
 parts that needs communication between them.
 Everything is self-contained, and it matches somewhat the advantages of microservices.
