@@ -109,7 +109,7 @@ impl<M> InboundRelay<M> {
     }
 }
 
-impl<M: Send + 'static> OutboundRelay<M> {
+impl<M> OutboundRelay<M> {
     /// Send a message to the relay connection
     pub async fn send(&self, message: M) -> Result<(), (RelayError, M)> {
         self.sender
@@ -134,7 +134,9 @@ impl<M: Send + 'static> OutboundRelay<M> {
             .blocking_send(message)
             .map_err(|e| (RelayError::Send, e.0))
     }
+}
 
+impl<M: Send + 'static> OutboundRelay<M> {
     pub fn into_sink(self) -> impl Sink<M> {
         PollSender::new(self.sender)
     }
