@@ -41,7 +41,7 @@ pub trait ServiceData {
 
 /// Main trait for Services initialization and main loop hook
 #[async_trait]
-pub trait ServiceCore: ServiceData + Send + Sized + 'static {
+pub trait ServiceCore: Sized + ServiceData {
     /// Initialize the service with the given state
     fn init(service_state: ServiceStateHandle<Self>) -> Result<Self, super::DynError>;
 

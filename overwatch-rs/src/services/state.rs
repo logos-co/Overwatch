@@ -15,7 +15,7 @@ use tracing::error;
 /// It defines what is needed for a service state to be initialized.
 /// Need what set of settings information is required for it to be initialized [`ServiceState::Settings`]
 /// which usually is bound to the service itself [`crate::services::ServiceData::Settings`]
-pub trait ServiceState: Sized + Send + Sync + 'static {
+pub trait ServiceState: Sized {
     /// Settings object that the state can be initialized from
     type Settings;
     /// Errors that can occur during state initialization
@@ -27,7 +27,7 @@ pub trait ServiceState: Sized + Send + Sync + 'static {
 /// A state operator is an entity that can handle a state in a point of time
 /// to perform any operation based on it.
 #[async_trait]
-pub trait StateOperator: Send {
+pub trait StateOperator {
     /// The type of state that the operator can handle
     type StateInput: ServiceState;
     /// Operator initialization method. Can be implemented over some subset of settings
@@ -38,7 +38,13 @@ pub trait StateOperator: Send {
 
 /// Operator that doesn't perform any operation upon state update
 #[derive(Copy)]
-pub struct NoOperator<StateInput>(PhantomData<StateInput>);
+pub struct NoOperator<StateInput>(PhantomData<*const StateInput>);
+
+// NoOperator does not actually hold anything and is thus Sync.
+// Note that we don't use PhantomData<StateInput> as that would
+// suggest we indeed hold an instance of StateInput, see
+// https://doc.rust-lang.org/std/marker/struct.PhantomData.html#ownership-and-the-drop-check
+unsafe impl<T> Send for NoOperator<T> {}
 
 // auto derive introduces unnecessary Clone bound on T
 impl<T> Clone for NoOperator<T> {
@@ -48,7 +54,7 @@ impl<T> Clone for NoOperator<T> {
 }
 
 #[async_trait]
-impl<StateInput: ServiceState> StateOperator for NoOperator<StateInput> {
+impl<StateInput: ServiceState + Send> StateOperator for NoOperator<StateInput> {
     type StateInput = StateInput;
 
     fn from_settings<Settings>(_settings: Settings) -> Self {
@@ -69,7 +75,7 @@ impl<T> Clone for NoState<T> {
     }
 }
 
-impl<Settings: Send + Sync + 'static> ServiceState for NoState<Settings> {
+impl<Settings> ServiceState for NoState<Settings> {
     type Settings = Settings;
 
     type Error = crate::DynError;
@@ -82,15 +88,15 @@ impl<Settings: Send + Sync + 'static> ServiceState for NoState<Settings> {
 /// Receiver part of the state handling mechanism.
 /// A state handle watches a stream of incoming states and triggers the attached operator handling
 /// method over it.
-pub struct StateHandle<S: ServiceState, Operator: StateOperator<StateInput = S>> {
+pub struct StateHandle<S, Operator> {
     watcher: StateWatcher<S>,
     operator: Operator,
 }
 
 // auto derive introduces unnecessary Clone bound on T
-impl<S: ServiceState, Operator: StateOperator<StateInput = S>> Clone for StateHandle<S, Operator>
+impl<S, O> Clone for StateHandle<S, O>
 where
-    Operator: Clone,
+    O: Clone,
 {
     fn clone(&self) -> Self {
         Self {
@@ -159,12 +165,8 @@ where
     }
 }
 
-impl<S, Operator> StateHandle<S, Operator>
-where
-    S: ServiceState + Clone,
-    Operator: StateOperator<StateInput = S>,
-{
-    pub fn new(initial_state: S, operator: Operator) -> (Self, StateUpdater<S>) {
+impl<S, O> StateHandle<S, O> {
+    pub fn new(initial_state: S, operator: O) -> (Self, StateUpdater<S>) {
         let (sender, receiver) = channel(initial_state);
         let watcher = StateWatcher { receiver };
         let updater = StateUpdater {
@@ -173,7 +175,13 @@ where
 
         (Self { watcher, operator }, updater)
     }
+}
 
+impl<S, Operator> StateHandle<S, Operator>
+where
+    S: ServiceState + Clone + Send + Sync + 'static,
+    Operator: StateOperator<StateInput = S>,
+{
     /// Wait for new state updates and run the operator handling method
     pub async fn run(self) {
         let Self {

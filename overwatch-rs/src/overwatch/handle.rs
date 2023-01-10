@@ -70,7 +70,10 @@ impl OverwatchHandle {
     }
 
     #[instrument(skip(self))]
-    pub async fn update_settings<S: Services>(&self, settings: S::Settings) {
+    pub async fn update_settings<S: Services>(&self, settings: S::Settings)
+    where
+        S::Settings: Send,
+    {
         if let Err(e) = self
             .sender
             .send(OverwatchCommand::Settings(SettingsCommand(Box::new(

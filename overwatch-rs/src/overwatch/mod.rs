@@ -55,15 +55,15 @@ impl From<super::DynError> for Error {
 type FinishOverwatchSignal = ();
 
 /// Marker trait for settings related elements
-pub type AnySettings = Box<dyn Any + Send + 'static>;
+pub type AnySettings = Box<dyn Any + Send>;
 
 /// An overwatch run anything that implements this trait
 /// An implementor of this trait would have to handle the inner [`ServiceCore`](crate::services::ServiceCore)
 #[async_trait]
-pub trait Services: Sized + Send + Sync {
+pub trait Services: Sized {
     /// Inner [`ServiceCore::Settings`](crate::services::ServiceCore) grouping type.
     /// Normally this will be a settings object that group all the inner services settings.
-    type Settings: Debug + Send + 'static;
+    type Settings: Debug + 'static; // 'static is required for cast to `AnySetting`
 
     /// Spawn a new instance of the Services object
     /// It returns a `(ServiceId, Runtime)` where Runtime is the `tokio::runtime::Runtime` attached for each
@@ -108,7 +108,7 @@ pub const OVERWATCH_THREAD_NAME: &str = "Overwatch";
 
 impl<S> OverwatchRunner<S>
 where
-    S: Services + 'static,
+    S: Services + Send + 'static,
 {
     /// Start the Overwatch runner process
     /// It creates the `tokio::runtime::Runtime`, initialize the [`Services`] and start listening for
