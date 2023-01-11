@@ -9,7 +9,6 @@ use tracing::{error, info, instrument};
 
 // internal
 use crate::services::relay::Relay;
-use crate::services::ServiceCore;
 
 /// Handler object over the main Overwatch runner
 /// It handles communications to the main Overwatch runner.
@@ -28,8 +27,8 @@ impl OverwatchHandle {
         }
     }
 
-    /// Request for a relay to an specific service by type
-    pub fn relay<S: ServiceCore>(&self) -> Relay<S> {
+    /// Request for a relay
+    pub fn relay(&self) -> Relay {
         Relay::new(self.clone())
     }
 

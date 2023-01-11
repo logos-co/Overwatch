@@ -1,7 +1,6 @@
 // std
 use std::any::Any;
 use std::fmt::Debug;
-use std::marker::PhantomData;
 use std::pin::Pin;
 use std::task::{Context, Poll};
 // crates
@@ -14,7 +13,7 @@ use tracing::{error, instrument};
 // internal
 use crate::overwatch::commands::{OverwatchCommand, RelayCommand, ReplyChannel};
 use crate::overwatch::handle::OverwatchHandle;
-use crate::services::{ServiceCore, ServiceId};
+use crate::services::{ServiceData, ServiceId};
 
 #[derive(Error, Debug)]
 pub enum RelayError {
@@ -66,18 +65,8 @@ pub struct OutboundRelay<M> {
 }
 
 #[derive(Debug)]
-pub struct Relay<S: ServiceCore> {
-    _marker: PhantomData<S>,
+pub struct Relay {
     overwatch_handle: OverwatchHandle,
-}
-
-impl<S: ServiceCore> Clone for Relay<S> {
-    fn clone(&self) -> Self {
-        Self {
-            _marker: PhantomData,
-            overwatch_handle: self.overwatch_handle.clone(),
-        }
-    }
 }
 
 impl<M> Clone for OutboundRelay<M> {
@@ -142,22 +131,19 @@ impl<M: Send + 'static> OutboundRelay<M> {
     }
 }
 
-impl<S: ServiceCore> Relay<S> {
+impl Relay {
     pub fn new(overwatch_handle: OverwatchHandle) -> Self {
-        Self {
-            overwatch_handle,
-            _marker: PhantomData,
-        }
+        Self { overwatch_handle }
     }
 
     #[instrument(skip(self), err(Debug))]
-    pub async fn connect(self) -> Result<OutboundRelay<S::Message>, RelayError> {
+    pub async fn connect<S: ServiceData>(self) -> Result<OutboundRelay<S::Message>, RelayError> {
         let (reply, receiver) = oneshot::channel();
-        self.request_relay(reply).await;
-        self.handle_relay_response(receiver).await
+        self.request_relay::<S>(reply).await;
+        self.handle_relay_response::<S>(receiver).await
     }
 
-    async fn request_relay(&self, reply: oneshot::Sender<RelayResult>) {
+    async fn request_relay<S: ServiceData>(&self, reply: oneshot::Sender<RelayResult>) {
         let relay_command = OverwatchCommand::Relay(RelayCommand {
             service_id: S::SERVICE_ID,
             reply_channel: ReplyChannel(reply),
@@ -166,7 +152,7 @@ impl<S: ServiceCore> Relay<S> {
     }
 
     #[instrument(skip_all, err(Debug))]
-    async fn handle_relay_response(
+    async fn handle_relay_response<S: ServiceData>(
         &self,
         receiver: oneshot::Receiver<RelayResult>,
     ) -> Result<OutboundRelay<S::Message>, RelayError> {
