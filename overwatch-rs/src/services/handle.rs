@@ -115,7 +115,12 @@ impl<S: ServiceCore> ServiceStateHandle<S> {
     }
 }
 
-impl<S: ServiceCore> ServiceRunner<S> {
+impl<S> ServiceRunner<S>
+where
+    S::State: Send + Sync + 'static,
+    S::StateOperator: Send + 'static,
+    S: ServiceCore + 'static,
+{
     /// Spawn the service main loop and handle it lifecycle
     /// Return a handle to abort execution manually
 
