@@ -14,7 +14,7 @@ use tracing::{error, instrument};
 // internal
 use crate::overwatch::commands::{OverwatchCommand, RelayCommand, ReplyChannel};
 use crate::overwatch::handle::OverwatchHandle;
-use crate::services::{ServiceCore, ServiceId};
+use crate::services::{ServiceData, ServiceId};
 
 #[derive(Error, Debug)]
 pub enum RelayError {
@@ -66,19 +66,20 @@ pub struct OutboundRelay<M> {
 }
 
 #[derive(Debug)]
-pub struct Relay<S: ServiceCore> {
-    _marker: PhantomData<S>,
+pub struct Relay<S> {
     overwatch_handle: OverwatchHandle,
+    _bound: PhantomBound<S>,
 }
 
-impl<S: ServiceCore> Clone for Relay<S> {
-    fn clone(&self) -> Self {
-        Self {
-            _marker: PhantomData,
-            overwatch_handle: self.overwatch_handle.clone(),
-        }
-    }
+// Like PhantomData<T> but without
+// ownership of T
+#[derive(Debug)]
+struct PhantomBound<T> {
+    _inner: PhantomData<*const T>,
 }
+
+unsafe impl<T> Send for PhantomBound<T> {}
+unsafe impl<T> Sync for PhantomBound<T> {}
 
 impl<M> Clone for OutboundRelay<M> {
     fn clone(&self) -> Self {
@@ -142,11 +143,13 @@ impl<M: Send + 'static> OutboundRelay<M> {
     }
 }
 
-impl<S: ServiceCore> Relay<S> {
+impl<S: ServiceData> Relay<S> {
     pub fn new(overwatch_handle: OverwatchHandle) -> Self {
         Self {
             overwatch_handle,
-            _marker: PhantomData,
+            _bound: PhantomBound {
+                _inner: PhantomData,
+            },
         }
     }
 

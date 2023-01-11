@@ -1,7 +1,7 @@
 // std
 use std::marker::PhantomData;
+use std::pin::Pin;
 use std::sync::Arc;
-
 // crates
 use async_trait::async_trait;
 use futures::StreamExt;
@@ -54,14 +54,23 @@ impl<T> Clone for NoOperator<T> {
 }
 
 #[async_trait]
-impl<StateInput: ServiceState + Send> StateOperator for NoOperator<StateInput> {
+impl<StateInput: ServiceState> StateOperator for NoOperator<StateInput> {
     type StateInput = StateInput;
 
     fn from_settings<Settings>(_settings: Settings) -> Self {
         NoOperator(PhantomData::default())
     }
 
-    async fn run(&mut self, _state: Self::StateInput) {}
+    fn run<'borrow, 'fut>(
+        &'borrow mut self,
+        _state: Self::StateInput,
+    ) -> Pin<Box<dyn std::future::Future<Output = ()> + Send + 'fut>>
+    where
+        'borrow: 'fut,
+        Self: 'fut,
+    {
+        Box::pin(async {})
+    }
 }
 
 /// Empty state

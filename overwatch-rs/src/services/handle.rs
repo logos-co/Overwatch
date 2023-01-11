@@ -6,14 +6,14 @@ use crate::overwatch::handle::OverwatchHandle;
 use crate::services::relay::{relay, InboundRelay, OutboundRelay};
 use crate::services::settings::{SettingsNotifier, SettingsUpdater};
 use crate::services::state::{StateHandle, StateOperator, StateUpdater};
-use crate::services::{ServiceCore, ServiceId, ServiceState};
+use crate::services::{ServiceCore, ServiceData, ServiceId, ServiceState};
 
 // TODO: Abstract handle over state, to diferentiate when the service is running and when it is not
 // that way we can expose a better API depending on what is happenning. Would get rid of the probably
 // unnecessary Option and cloning.
 /// Service handle
 /// This is used to access different parts of the service
-pub struct ServiceHandle<S: ServiceCore> {
+pub struct ServiceHandle<S: ServiceData> {
     /// Message channel relay
     /// Would be None if service is not running
     /// Will contain the channel if service is running
@@ -26,7 +26,7 @@ pub struct ServiceHandle<S: ServiceCore> {
 
 /// Service core resources
 /// It contains whatever is necessary to start a new service runner
-pub struct ServiceStateHandle<S: ServiceCore> {
+pub struct ServiceStateHandle<S: ServiceData> {
     /// Relay channel to communicate with the service runner
     pub inbound_relay: InboundRelay<S::Message>,
     /// Overwatch handle
@@ -38,12 +38,12 @@ pub struct ServiceStateHandle<S: ServiceCore> {
 
 /// Main service executor
 /// It is the object that hold the necessary information for the service to run
-pub struct ServiceRunner<S: ServiceCore> {
+pub struct ServiceRunner<S: ServiceData> {
     service_state: ServiceStateHandle<S>,
     state_handle: StateHandle<S::State, S::StateOperator>,
 }
 
-impl<S: ServiceCore> ServiceHandle<S> {
+impl<S: ServiceData> ServiceHandle<S> {
     pub fn new(
         settings: S::Settings,
         overwatch_handle: OverwatchHandle,
@@ -109,7 +109,7 @@ impl<S: ServiceCore> ServiceHandle<S> {
     }
 }
 
-impl<S: ServiceCore> ServiceStateHandle<S> {
+impl<S: ServiceData> ServiceStateHandle<S> {
     pub fn id(&self) -> ServiceId {
         S::SERVICE_ID
     }
