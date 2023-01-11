@@ -1,6 +1,7 @@
 // std
 use std::any::Any;
 use std::fmt::Debug;
+use std::marker::PhantomData;
 use std::pin::Pin;
 use std::task::{Context, Poll};
 // crates
@@ -65,9 +66,20 @@ pub struct OutboundRelay<M> {
 }
 
 #[derive(Debug)]
-pub struct Relay {
+pub struct Relay<S> {
     overwatch_handle: OverwatchHandle,
+    _bound: PhantomBound<S>,
 }
+
+// Like PhantomData<T> but without
+// ownership of T
+#[derive(Debug)]
+struct PhantomBound<T> {
+    _inner: PhantomData<*const T>,
+}
+
+unsafe impl<T> Send for PhantomBound<T> {}
+unsafe impl<T> Sync for PhantomBound<T> {}
 
 impl<M> Clone for OutboundRelay<M> {
     fn clone(&self) -> Self {
@@ -131,19 +143,24 @@ impl<M: Send + 'static> OutboundRelay<M> {
     }
 }
 
-impl Relay {
+impl<S: ServiceData> Relay<S> {
     pub fn new(overwatch_handle: OverwatchHandle) -> Self {
-        Self { overwatch_handle }
+        Self {
+            overwatch_handle,
+            _bound: PhantomBound {
+                _inner: PhantomData,
+            },
+        }
     }
 
     #[instrument(skip(self), err(Debug))]
-    pub async fn connect<S: ServiceData>(self) -> Result<OutboundRelay<S::Message>, RelayError> {
+    pub async fn connect(self) -> Result<OutboundRelay<S::Message>, RelayError> {
         let (reply, receiver) = oneshot::channel();
-        self.request_relay::<S>(reply).await;
-        self.handle_relay_response::<S>(receiver).await
+        self.request_relay(reply).await;
+        self.handle_relay_response(receiver).await
     }
 
-    async fn request_relay<S: ServiceData>(&self, reply: oneshot::Sender<RelayResult>) {
+    async fn request_relay(&self, reply: oneshot::Sender<RelayResult>) {
         let relay_command = OverwatchCommand::Relay(RelayCommand {
             service_id: S::SERVICE_ID,
             reply_channel: ReplyChannel(reply),
@@ -152,7 +169,7 @@ impl Relay {
     }
 
     #[instrument(skip_all, err(Debug))]
-    async fn handle_relay_response<S: ServiceData>(
+    async fn handle_relay_response(
         &self,
         receiver: oneshot::Receiver<RelayResult>,
     ) -> Result<OutboundRelay<S::Message>, RelayError> {

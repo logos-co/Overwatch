@@ -40,8 +40,8 @@ impl ServiceCore for ChatService {
         // TODO: waku should not end up in the public interface of the network service, at least not as a type
         let mut network_relay = service_state
             .overwatch_handle
-            .relay()
-            .connect::<NetworkService<waku::Waku>>()
+            .relay::<NetworkService<waku::Waku>>()
+            .connect()
             .await
             .unwrap();
         let user = service_state.settings_reader.get_updated_settings();

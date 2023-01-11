@@ -3,6 +3,7 @@
 // crates
 use crate::overwatch::commands::{OverwatchCommand, OverwatchLifeCycleCommand, SettingsCommand};
 use crate::overwatch::Services;
+use crate::services::ServiceData;
 use tokio::runtime::Handle;
 use tokio::sync::mpsc::Sender;
 use tracing::{error, info, instrument};
@@ -28,7 +29,7 @@ impl OverwatchHandle {
     }
 
     /// Request for a relay
-    pub fn relay(&self) -> Relay {
+    pub fn relay<S: ServiceData>(&self) -> Relay<S> {
         Relay::new(self.clone())
     }
 

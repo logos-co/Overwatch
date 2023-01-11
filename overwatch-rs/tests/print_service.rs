@@ -88,11 +88,11 @@ fn derive_print_service() {
     let settings: TestAppServiceSettings = TestAppServiceSettings { print_service: () };
     let overwatch = OverwatchRunner::<TestApp>::run(settings, None).unwrap();
     let handle = overwatch.handle().clone();
-    let print_service_relay = handle.relay();
+    let print_service_relay = handle.relay::<PrintService>();
 
     overwatch.spawn(async move {
         let print_service_relay = print_service_relay
-            .connect::<PrintService>()
+            .connect()
             .await
             .expect("A connection to the print service is established");
 
