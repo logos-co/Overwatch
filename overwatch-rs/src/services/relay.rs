@@ -71,6 +71,17 @@ pub struct Relay<S> {
     _bound: PhantomBound<S>,
 }
 
+impl<T> Clone for Relay<T> {
+    fn clone(&self) -> Self {
+        Self {
+            overwatch_handle: self.overwatch_handle.clone(),
+            _bound: PhantomBound {
+                _inner: PhantomData,
+            },
+        }
+    }
+}
+
 // Like PhantomData<T> but without
 // ownership of T
 #[derive(Debug)]
