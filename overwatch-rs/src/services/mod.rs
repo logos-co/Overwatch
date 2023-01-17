@@ -36,7 +36,7 @@ pub trait ServiceData {
     /// State operator
     type StateOperator: StateOperator<StateInput = Self::State> + Clone;
     /// Service messages that the service itself understands and can react to
-    type Message: RelayMessage + Debug + Send + Sync;
+    type Message: RelayMessage + Debug;
 }
 
 /// Main trait for Services initialization and main loop hook
