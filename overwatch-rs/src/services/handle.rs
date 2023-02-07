@@ -2,7 +2,7 @@
 use futures::future::{abortable, AbortHandle};
 use tokio::runtime::Handle;
 // internal
-use crate::overwatch::handle::OverwatchHandle;
+use crate::overwatch::handle::{OverwatchHandle, OverwatchHandler};
 use crate::services::relay::{relay, InboundRelay, OutboundRelay};
 use crate::services::settings::{SettingsNotifier, SettingsUpdater};
 use crate::services::state::{StateHandle, StateOperator, StateUpdater};

@@ -29,3 +29,4 @@ pub mod services;
 pub mod utils;
 
 pub type DynError = Box<dyn std::error::Error + Send + Sync + 'static>;
+pub use futures::future::BoxFuture;
