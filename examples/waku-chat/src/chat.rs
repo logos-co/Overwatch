@@ -2,6 +2,7 @@ use crate::network::*;
 use async_trait::async_trait;
 use overwatch_rs::services::handle::ServiceStateHandle;
 use overwatch_rs::services::relay::{NoMessage, OutboundRelay};
+use overwatch_rs::overwatch::handle::OverwatchHandler;
 use overwatch_rs::services::state::{NoOperator, NoState};
 use overwatch_rs::services::{ServiceCore, ServiceData, ServiceId};
 use serde::{Deserialize, Serialize};

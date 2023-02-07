@@ -16,13 +16,13 @@ pub trait OverwatchHandler {
     fn new(runtime_handle: Handle, sender: Sender<OverwatchCommand>) -> Self
     where
         Self: Sized;
-        
+
     /// Request for a relay
     fn relay<S: ServiceData>(&self) -> Relay<S>;
 
     /// Send a shutdown signal to the overwatch runner
     fn shutdown(&self) -> BoxFuture<'_, ()>;
-   
+
     /// Send a kill signal to the overwatch runner
     fn kill(&self) -> BoxFuture<'_, ()>;
 
@@ -59,7 +59,7 @@ impl OverwatchHandler for OverwatchHandle {
     }
 
     /// Send a shutdown signal to the overwatch runner
-    fn shutdown(&self) -> BoxFuture<'_, ()>{
+    fn shutdown(&self) -> BoxFuture<'_, ()> {
         Box::pin(async move {
             info!("Shutting down Overwatch");
             if let Err(e) = self
