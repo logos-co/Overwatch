@@ -13,7 +13,7 @@ use tokio_util::sync::PollSender;
 use tracing::{error, instrument};
 // internal
 use crate::overwatch::commands::{OverwatchCommand, RelayCommand, ReplyChannel};
-use crate::overwatch::handle::OverwatchHandle;
+use crate::overwatch::handle::{OverwatchHandle, OverwatchHandler};
 use crate::services::{ServiceData, ServiceId};
 
 #[derive(Error, Debug)]

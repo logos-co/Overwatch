@@ -26,6 +26,8 @@ use crate::services::relay::RelayResult;
 use crate::services::{ServiceError, ServiceId};
 use crate::utils::runtime::default_multithread_runtime;
 
+use self::handle::OverwatchHandler;
+
 /// Overwatch base error type
 #[derive(Error, Debug)]
 pub enum Error {
@@ -252,6 +254,8 @@ mod test {
     use crate::services::ServiceId;
     use std::time::Duration;
     use tokio::time::sleep;
+
+    use super::handle::OverwatchHandler;
 
     struct EmptyServices;
 

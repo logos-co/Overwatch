@@ -153,6 +153,8 @@ fn generate_new_impl(fields: &Punctuated<Field, Comma>) -> proc_macro2::TokenStr
 
     quote! {
         fn new(settings: Self::Settings, overwatch_handle: ::overwatch_rs::overwatch::handle::OverwatchHandle) -> ::std::result::Result<Self, ::overwatch_rs::DynError> {
+            use ::overwatch_rs::services::handle::ServiceHandler;
+
             let Self::Settings {
                 #( #fields_settings ),*
             } = settings;
@@ -177,6 +179,8 @@ fn generate_start_all_impl(fields: &Punctuated<Field, Comma>) -> proc_macro2::To
     quote! {
         #[::tracing::instrument(skip(self), err)]
         fn start_all(&mut self) -> Result<(), ::overwatch_rs::overwatch::Error> {
+            use ::overwatch_rs::services::handle::{ServiceHandler, ServiceHandleRunner};
+
             #( #call_start )*
 
             ::std::result::Result::Ok(())
@@ -199,6 +203,8 @@ fn generate_start_impl(fields: &Punctuated<Field, Comma>) -> proc_macro2::TokenS
     quote! {
         #[::tracing::instrument(skip(self), err)]
         fn start(&mut self, service_id: ::overwatch_rs::services::ServiceId) -> Result<(), ::overwatch_rs::overwatch::Error> {
+            use ::overwatch_rs::services::handle::{ServiceHandler, ServiceHandleRunner};
+
             match service_id {
                 #( #cases ),*
                 service_id => ::std::result::Result::Err(::overwatch_rs::overwatch::Error::Unavailable { service_id })
@@ -246,6 +252,7 @@ fn generate_request_relay_impl(fields: &Punctuated<Field, Comma>) -> proc_macro2
     quote! {
         #[::tracing::instrument(skip(self), err)]
         fn request_relay(&mut self, service_id: ::overwatch_rs::services::ServiceId) -> ::overwatch_rs::services::relay::RelayResult {
+            use ::overwatch_rs::services::handle::ServiceHandler;
             {
                 match service_id {
                     #( #cases )*
@@ -276,6 +283,8 @@ fn generate_update_settings_impl(fields: &Punctuated<Field, Comma>) -> proc_macr
     quote! {
         #[::tracing::instrument(skip(self, settings), err)]
         fn update_settings(&mut self, settings: Self::Settings) -> Result<(), ::overwatch_rs::overwatch::Error> {
+            use ::overwatch_rs::services::handle::ServiceHandler;
+
             let Self::Settings {
                 #( #fields_settings ),*
             } = settings;

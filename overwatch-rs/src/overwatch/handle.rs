@@ -11,6 +11,31 @@ use tracing::{error, info, instrument};
 // internal
 use crate::services::relay::Relay;
 
+#[async_trait::async_trait]
+pub trait OverwatchHandler {
+    fn new(runtime_handle: Handle, sender: Sender<OverwatchCommand>) -> Self
+    where
+        Self: Sized;
+
+    /// Request for a relay
+    fn relay<S: ServiceData>(&self) -> Relay<S>;
+
+    /// Send a shutdown signal to the overwatch runner
+    async fn shutdown(&self);
+
+    /// Send a kill signal to the overwatch runner
+    async fn kill(&self);
+
+    /// Send an overwatch command to the overwatch runner
+    async fn send(&self, command: OverwatchCommand);
+
+    async fn update_settings<S: Services>(&self, settings: S::Settings)
+    where
+        S::Settings: Send;
+
+    fn runtime(&self) -> &Handle;
+}
+
 /// Handler object over the main Overwatch runner
 /// It handles communications to the main Overwatch runner.
 #[derive(Clone, Debug)]
@@ -20,8 +45,9 @@ pub struct OverwatchHandle {
     sender: Sender<OverwatchCommand>,
 }
 
-impl OverwatchHandle {
-    pub fn new(runtime_handle: Handle, sender: Sender<OverwatchCommand>) -> Self {
+#[async_trait::async_trait]
+impl OverwatchHandler for OverwatchHandle {
+    fn new(runtime_handle: Handle, sender: Sender<OverwatchCommand>) -> Self {
         Self {
             runtime_handle,
             sender,
@@ -29,12 +55,12 @@ impl OverwatchHandle {
     }
 
     /// Request for a relay
-    pub fn relay<S: ServiceData>(&self) -> Relay<S> {
+    fn relay<S: ServiceData>(&self) -> Relay<S> {
         Relay::new(self.clone())
     }
 
     /// Send a shutdown signal to the overwatch runner
-    pub async fn shutdown(&self) {
+    async fn shutdown(&self) {
         info!("Shutting down Overwatch");
         if let Err(e) = self
             .sender
@@ -48,7 +74,7 @@ impl OverwatchHandle {
     }
 
     /// Send a kill signal to the overwatch runner
-    pub async fn kill(&self) {
+    async fn kill(&self) {
         info!("Killing Overwatch");
         if let Err(e) = self
             .sender
@@ -63,14 +89,14 @@ impl OverwatchHandle {
 
     /// Send an overwatch command to the overwatch runner
     #[instrument(name = "overwatch-command-send", skip(self))]
-    pub async fn send(&self, command: OverwatchCommand) {
+    async fn send(&self, command: OverwatchCommand) {
         if let Err(e) = self.sender.send(command).await {
             error!(error=?e, "Error sending overwatch command");
         }
     }
 
     #[instrument(skip(self))]
-    pub async fn update_settings<S: Services>(&self, settings: S::Settings)
+    async fn update_settings<S: Services>(&self, settings: S::Settings)
     where
         S::Settings: Send,
     {
@@ -85,7 +111,7 @@ impl OverwatchHandle {
         }
     }
 
-    pub fn runtime(&self) -> &Handle {
+    fn runtime(&self) -> &Handle {
         &self.runtime_handle
     }
 }
