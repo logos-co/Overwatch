@@ -10,8 +10,8 @@ use tracing::{error, info, instrument};
 
 // internal
 use crate::services::relay::Relay;
-use crate::BoxFuture;
 
+#[async_trait::async_trait]
 pub trait OverwatchHandler {
     fn new(runtime_handle: Handle, sender: Sender<OverwatchCommand>) -> Self
     where
@@ -21,15 +21,15 @@ pub trait OverwatchHandler {
     fn relay<S: ServiceData>(&self) -> Relay<S>;
 
     /// Send a shutdown signal to the overwatch runner
-    fn shutdown(&self) -> BoxFuture<'_, ()>;
+    async fn shutdown(&self);
 
     /// Send a kill signal to the overwatch runner
-    fn kill(&self) -> BoxFuture<'_, ()>;
+    async fn kill(&self);
 
     /// Send an overwatch command to the overwatch runner
-    fn send(&self, command: OverwatchCommand) -> BoxFuture<'_, ()>;
+    async fn send(&self, command: OverwatchCommand);
 
-    fn update_settings<S: Services>(&self, settings: S::Settings) -> BoxFuture<'_, ()>
+    async fn update_settings<S: Services>(&self, settings: S::Settings)
     where
         S::Settings: Send;
 
@@ -45,6 +45,7 @@ pub struct OverwatchHandle {
     sender: Sender<OverwatchCommand>,
 }
 
+#[async_trait::async_trait]
 impl OverwatchHandler for OverwatchHandle {
     fn new(runtime_handle: Handle, sender: Sender<OverwatchCommand>) -> Self {
         Self {
@@ -59,63 +60,55 @@ impl OverwatchHandler for OverwatchHandle {
     }
 
     /// Send a shutdown signal to the overwatch runner
-    fn shutdown(&self) -> BoxFuture<'_, ()> {
-        Box::pin(async move {
-            info!("Shutting down Overwatch");
-            if let Err(e) = self
-                .sender
-                .send(OverwatchCommand::OverwatchLifeCycle(
-                    OverwatchLifeCycleCommand::Shutdown,
-                ))
-                .await
-            {
-                dbg!(e);
-            }
-        })
+    async fn shutdown(&self) {
+        info!("Shutting down Overwatch");
+        if let Err(e) = self
+            .sender
+            .send(OverwatchCommand::OverwatchLifeCycle(
+                OverwatchLifeCycleCommand::Shutdown,
+            ))
+            .await
+        {
+            dbg!(e);
+        }
     }
 
     /// Send a kill signal to the overwatch runner
-    fn kill(&self) -> BoxFuture<'_, ()> {
-        Box::pin(async move {
-            info!("Killing Overwatch");
-            if let Err(e) = self
-                .sender
-                .send(OverwatchCommand::OverwatchLifeCycle(
-                    OverwatchLifeCycleCommand::Kill,
-                ))
-                .await
-            {
-                dbg!(e);
-            }
-        })
+    async fn kill(&self) {
+        info!("Killing Overwatch");
+        if let Err(e) = self
+            .sender
+            .send(OverwatchCommand::OverwatchLifeCycle(
+                OverwatchLifeCycleCommand::Kill,
+            ))
+            .await
+        {
+            dbg!(e);
+        }
     }
 
     /// Send an overwatch command to the overwatch runner
     #[instrument(name = "overwatch-command-send", skip(self))]
-    fn send(&self, command: OverwatchCommand) -> BoxFuture<'_, ()> {
-        Box::pin(async move {
-            if let Err(e) = self.sender.send(command).await {
-                error!(error=?e, "Error sending overwatch command");
-            }
-        })
+    async fn send(&self, command: OverwatchCommand) {
+        if let Err(e) = self.sender.send(command).await {
+            error!(error=?e, "Error sending overwatch command");
+        }
     }
 
     #[instrument(skip(self))]
-    fn update_settings<S: Services>(&self, settings: S::Settings) -> BoxFuture<'_, ()>
+    async fn update_settings<S: Services>(&self, settings: S::Settings)
     where
         S::Settings: Send,
     {
-        Box::pin(async move {
-            if let Err(e) = self
-                .sender
-                .send(OverwatchCommand::Settings(SettingsCommand(Box::new(
-                    settings,
-                ))))
-                .await
-            {
-                error!(error=?e, "Error updating settings")
-            }
-        })
+        if let Err(e) = self
+            .sender
+            .send(OverwatchCommand::Settings(SettingsCommand(Box::new(
+                settings,
+            ))))
+            .await
+        {
+            error!(error=?e, "Error updating settings")
+        }
     }
 
     fn runtime(&self) -> &Handle {
