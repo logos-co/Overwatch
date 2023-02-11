@@ -2,15 +2,19 @@
 use std::any::Any;
 use std::fmt::Debug;
 use std::marker::PhantomData;
+use std::pin::Pin;
+use std::task::{Context, Poll};
 // crates
+use futures::{Sink, Stream};
 use thiserror::Error;
 use tokio::sync::mpsc::{channel, Receiver, Sender};
 use tokio::sync::oneshot;
+use tokio_util::sync::PollSender;
 use tracing::{error, instrument};
 // internal
 use crate::overwatch::commands::{OverwatchCommand, RelayCommand, ReplyChannel};
 use crate::overwatch::handle::OverwatchHandle;
-use crate::services::{ServiceCore, ServiceId};
+use crate::services::{ServiceData, ServiceId};
 
 #[derive(Error, Debug)]
 pub enum RelayError {
@@ -62,19 +66,31 @@ pub struct OutboundRelay<M> {
 }
 
 #[derive(Debug)]
-pub struct Relay<S: ServiceCore> {
-    _marker: PhantomData<S>,
+pub struct Relay<S> {
     overwatch_handle: OverwatchHandle,
+    _bound: PhantomBound<S>,
 }
 
-impl<S: ServiceCore> Clone for Relay<S> {
+impl<T> Clone for Relay<T> {
     fn clone(&self) -> Self {
         Self {
-            _marker: PhantomData,
             overwatch_handle: self.overwatch_handle.clone(),
+            _bound: PhantomBound {
+                _inner: PhantomData,
+            },
         }
     }
 }
+
+// Like PhantomData<T> but without
+// ownership of T
+#[derive(Debug)]
+struct PhantomBound<T> {
+    _inner: PhantomData<*const T>,
+}
+
+unsafe impl<T> Send for PhantomBound<T> {}
+unsafe impl<T> Sync for PhantomBound<T> {}
 
 impl<M> Clone for OutboundRelay<M> {
     fn clone(&self) -> Self {
@@ -132,16 +148,24 @@ impl<M> OutboundRelay<M> {
     }
 }
 
-impl<S: ServiceCore> Relay<S> {
+impl<M: Send + 'static> OutboundRelay<M> {
+    pub fn into_sink(self) -> impl Sink<M> {
+        PollSender::new(self.sender)
+    }
+}
+
+impl<S: ServiceData> Relay<S> {
     pub fn new(overwatch_handle: OverwatchHandle) -> Self {
         Self {
             overwatch_handle,
-            _marker: PhantomData,
+            _bound: PhantomBound {
+                _inner: PhantomData,
+            },
         }
     }
 
     #[instrument(skip(self), err(Debug))]
-    pub async fn connect(&self) -> Result<OutboundRelay<S::Message>, RelayError> {
+    pub async fn connect(self) -> Result<OutboundRelay<S::Message>, RelayError> {
         let (reply, receiver) = oneshot::channel();
         self.request_relay(reply).await;
         self.handle_relay_response(receiver).await
@@ -172,5 +196,13 @@ impl<S: ServiceCore> Relay<S> {
             Ok(Err(e)) => Err(e),
             Err(e) => Err(RelayError::Receiver(Box::new(e))),
         }
+    }
+}
+
+impl<M> Stream for InboundRelay<M> {
+    type Item = M;
+
+    fn poll_next(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Option<Self::Item>> {
+        self.receiver.poll_recv(cx)
     }
 }

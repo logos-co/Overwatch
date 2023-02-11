@@ -28,11 +28,11 @@ impl ServiceData for PrintService {
 
 #[async_trait]
 impl ServiceCore for PrintService {
-    fn init(state: ServiceStateHandle<Self>) -> Self {
-        Self { state }
+    fn init(state: ServiceStateHandle<Self>) -> Result<Self, overwatch_rs::DynError> {
+        Ok(Self { state })
     }
 
-    async fn run(mut self) {
+    async fn run(mut self) -> Result<(), overwatch_rs::DynError> {
         use tokio::io::{self, AsyncWriteExt};
 
         let Self {
@@ -74,6 +74,7 @@ impl ServiceCore for PrintService {
         };
 
         select(Box::pin(print), Box::pin(idle)).await;
+        Ok(())
     }
 }
 
@@ -85,7 +86,7 @@ struct TestApp {
 #[test]
 fn derive_print_service() {
     let settings: TestAppServiceSettings = TestAppServiceSettings { print_service: () };
-    let overwatch = OverwatchRunner::<TestApp>::run(settings, None);
+    let overwatch = OverwatchRunner::<TestApp>::run(settings, None).unwrap();
     let handle = overwatch.handle().clone();
     let print_service_relay = handle.relay::<PrintService>();
 

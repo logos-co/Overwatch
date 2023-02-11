@@ -41,7 +41,8 @@ fn main() {
             network: NetworkConfig { peers, port },
         },
         None,
-    );
+    )
+    .unwrap();
     app.wait_finished();
 }
 

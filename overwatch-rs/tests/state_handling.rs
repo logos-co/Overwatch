@@ -18,6 +18,17 @@ pub struct UpdateStateServiceMessage(String);
 
 impl RelayMessage for UpdateStateServiceMessage {}
 
+#[derive(Debug)]
+pub struct UnitError;
+
+impl core::fmt::Display for UnitError {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        write!(f, "UnitError")
+    }
+}
+
+impl std::error::Error for UnitError {}
+
 #[derive(Clone)]
 pub struct CounterState {
     value: usize,
@@ -25,9 +36,10 @@ pub struct CounterState {
 
 impl ServiceState for CounterState {
     type Settings = ();
+    type Error = UnitError;
 
-    fn from_settings(_settings: &Self::Settings) -> Self {
-        Self { value: 0 }
+    fn from_settings(_settings: &Self::Settings) -> Result<Self, Self::Error> {
+        Ok(Self { value: 0 })
     }
 }
 
@@ -63,11 +75,11 @@ impl ServiceData for UpdateStateService {
 
 #[async_trait]
 impl ServiceCore for UpdateStateService {
-    fn init(state: ServiceStateHandle<Self>) -> Self {
-        Self { state }
+    fn init(state: ServiceStateHandle<Self>) -> Result<Self, overwatch_rs::DynError> {
+        Ok(Self { state })
     }
 
-    async fn run(mut self) {
+    async fn run(mut self) -> Result<(), overwatch_rs::DynError> {
         let Self {
             state: ServiceStateHandle { state_updater, .. },
         } = self;
@@ -75,6 +87,7 @@ impl ServiceCore for UpdateStateService {
             state_updater.update(CounterState { value });
             sleep(Duration::from_millis(50)).await;
         }
+        Ok(())
     }
 }
 
@@ -88,7 +101,7 @@ fn state_update_service() {
     let settings: TestAppServiceSettings = TestAppServiceSettings {
         update_state_service: (),
     };
-    let overwatch = OverwatchRunner::<TestApp>::run(settings, None);
+    let overwatch = OverwatchRunner::<TestApp>::run(settings, None).unwrap();
     let handle = overwatch.handle().clone();
 
     overwatch.spawn(async move {

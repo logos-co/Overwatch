@@ -1,20 +1,19 @@
 // crates
 use futures::future::{abortable, AbortHandle};
 use tokio::runtime::Handle;
-use tracing::instrument;
 // internal
 use crate::overwatch::handle::OverwatchHandle;
 use crate::services::relay::{relay, InboundRelay, OutboundRelay};
 use crate::services::settings::{SettingsNotifier, SettingsUpdater};
 use crate::services::state::{StateHandle, StateOperator, StateUpdater};
-use crate::services::{ServiceCore, ServiceId, ServiceState};
+use crate::services::{ServiceCore, ServiceData, ServiceId, ServiceState};
 
 // TODO: Abstract handle over state, to diferentiate when the service is running and when it is not
 // that way we can expose a better API depending on what is happenning. Would get rid of the probably
 // unnecessary Option and cloning.
 /// Service handle
 /// This is used to access different parts of the service
-pub struct ServiceHandle<S: ServiceCore> {
+pub struct ServiceHandle<S: ServiceData> {
     /// Message channel relay
     /// Would be None if service is not running
     /// Will contain the channel if service is running
@@ -27,7 +26,7 @@ pub struct ServiceHandle<S: ServiceCore> {
 
 /// Service core resources
 /// It contains whatever is necessary to start a new service runner
-pub struct ServiceStateHandle<S: ServiceCore> {
+pub struct ServiceStateHandle<S: ServiceData> {
     /// Relay channel to communicate with the service runner
     pub inbound_relay: InboundRelay<S::Message>,
     /// Overwatch handle
@@ -39,23 +38,22 @@ pub struct ServiceStateHandle<S: ServiceCore> {
 
 /// Main service executor
 /// It is the object that hold the necessary information for the service to run
-pub struct ServiceRunner<S: ServiceCore> {
+pub struct ServiceRunner<S: ServiceData> {
     service_state: ServiceStateHandle<S>,
     state_handle: StateHandle<S::State, S::StateOperator>,
 }
 
-impl<S: ServiceCore> ServiceHandle<S> {
-    pub fn new(settings: S::Settings, overwatch_handle: OverwatchHandle) -> Self {
-        let initial_state: S::State = S::State::from_settings(&settings);
-
-        let settings = SettingsUpdater::new(settings);
-
-        Self {
+impl<S: ServiceData> ServiceHandle<S> {
+    pub fn new(
+        settings: S::Settings,
+        overwatch_handle: OverwatchHandle,
+    ) -> Result<Self, <S::State as ServiceState>::Error> {
+        S::State::from_settings(&settings).map(|initial_state| Self {
             outbound_relay: None,
-            settings,
-            initial_state,
             overwatch_handle,
-        }
+            settings: SettingsUpdater::new(settings),
+            initial_state,
+        })
     }
 
     pub fn id(&self) -> ServiceId {
@@ -111,17 +109,22 @@ impl<S: ServiceCore> ServiceHandle<S> {
     }
 }
 
-impl<S: ServiceCore> ServiceStateHandle<S> {
+impl<S: ServiceData> ServiceStateHandle<S> {
     pub fn id(&self) -> ServiceId {
         S::SERVICE_ID
     }
 }
 
-impl<S: ServiceCore> ServiceRunner<S> {
+impl<S> ServiceRunner<S>
+where
+    S::State: Send + Sync + 'static,
+    S::StateOperator: Send + 'static,
+    S: ServiceCore + 'static,
+{
     /// Spawn the service main loop and handle it lifecycle
     /// Return a handle to abort execution manually
-    #[instrument(skip(self), fields(service_id=S::SERVICE_ID))]
-    pub fn run(self) -> AbortHandle {
+
+    pub fn run(self) -> Result<AbortHandle, crate::DynError> {
         let ServiceRunner {
             service_state,
             state_handle,
@@ -129,7 +132,7 @@ impl<S: ServiceCore> ServiceRunner<S> {
         } = self;
 
         let runtime = service_state.overwatch_handle.runtime().clone();
-        let service = S::init(service_state);
+        let service = S::init(service_state)?;
         let (runner, abortable_handle) = abortable(service.run());
 
         runtime.spawn(runner);
@@ -137,6 +140,6 @@ impl<S: ServiceCore> ServiceRunner<S> {
 
         // TODO: Handle service lifecycle
         // TODO: this handle should not scape this scope, it should actually be handled in the lifecycle part mentioned above
-        abortable_handle
+        Ok(abortable_handle)
     }
 }

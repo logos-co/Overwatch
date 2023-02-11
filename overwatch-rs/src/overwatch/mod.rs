@@ -34,27 +34,45 @@ pub enum Error {
 
     #[error("Service {service_id} is unavailable")]
     Unavailable { service_id: ServiceId },
+
+    #[error(transparent)]
+    Any(super::DynError),
+}
+
+impl Error {
+    pub fn any<T: std::error::Error + Send + Sync + 'static>(err: T) -> Self {
+        Self::Any(Box::new(err))
+    }
+}
+
+impl From<super::DynError> for Error {
+    fn from(err: super::DynError) -> Self {
+        Self::Any(err)
+    }
 }
 
 /// Signal sent so overwatch finish execution
 type FinishOverwatchSignal = ();
 
 /// Marker trait for settings related elements
-pub type AnySettings = Box<dyn Any + Send + 'static>;
+pub type AnySettings = Box<dyn Any + Send>;
 
 /// An overwatch run anything that implements this trait
 /// An implementor of this trait would have to handle the inner [`ServiceCore`](crate::services::ServiceCore)
 #[async_trait]
-pub trait Services: Send + Sync {
+pub trait Services: Sized {
     /// Inner [`ServiceCore::Settings`](crate::services::ServiceCore) grouping type.
     /// Normally this will be a settings object that group all the inner services settings.
-    type Settings: Debug + Send + 'static;
+    type Settings: Debug + 'static; // 'static is required for cast to `AnySetting`
 
     /// Spawn a new instance of the Services object
     /// It returns a `(ServiceId, Runtime)` where Runtime is the `tokio::runtime::Runtime` attached for each
     /// service.
     /// It also returns an instance of the implementing type.
-    fn new(settings: Self::Settings, overwatch_handle: OverwatchHandle) -> Self;
+    fn new(
+        settings: Self::Settings,
+        overwatch_handle: OverwatchHandle,
+    ) -> std::result::Result<Self, super::DynError>;
 
     /// Start a services attached to the trait implementer
     fn start(&mut self, service_id: ServiceId) -> Result<(), Error>;
@@ -90,30 +108,33 @@ pub const OVERWATCH_THREAD_NAME: &str = "Overwatch";
 
 impl<S> OverwatchRunner<S>
 where
-    S: Services + 'static,
+    S: Services + Send + 'static,
 {
     /// Start the Overwatch runner process
     /// It creates the `tokio::runtime::Runtime`, initialize the [`Services`] and start listening for
     /// Overwatch related tasks.
     /// Returns the [`Overwatch`] instance that handles this runner.
-    pub fn run(settings: S::Settings, runtime: Option<Runtime>) -> Overwatch {
+    pub fn run(
+        settings: S::Settings,
+        runtime: Option<Runtime>,
+    ) -> std::result::Result<Overwatch, super::DynError> {
         let runtime = runtime.unwrap_or_else(default_multithread_runtime);
 
         let (finish_signal_sender, finish_runner_signal) = tokio::sync::oneshot::channel();
         let (commands_sender, commands_receiver) = tokio::sync::mpsc::channel(16);
         let handle = OverwatchHandle::new(runtime.handle().clone(), commands_sender);
-        let services = S::new(settings, handle.clone());
+        let services = S::new(settings, handle.clone())?;
         let runner = OverwatchRunner {
             services,
             handle: handle.clone(),
             finish_signal_sender,
         };
         runtime.spawn(async move { runner.run_(commands_receiver).await });
-        Overwatch {
+        Ok(Overwatch {
             runtime,
             handle,
             finish_runner_signal,
-        }
+        })
     }
 
     #[instrument(name = "overwatch-run", skip_all)]
@@ -237,8 +258,11 @@ mod test {
     impl Services for EmptyServices {
         type Settings = ();
 
-        fn new(_settings: Self::Settings, _overwatch_handle: OverwatchHandle) -> Self {
-            EmptyServices
+        fn new(
+            _settings: Self::Settings,
+            _overwatch_handle: OverwatchHandle,
+        ) -> Result<Self, Box<dyn std::error::Error + Send + Sync + 'static>> {
+            Ok(EmptyServices)
         }
 
         fn start(&mut self, service_id: ServiceId) -> Result<(), Error> {
@@ -264,7 +288,7 @@ mod test {
 
     #[test]
     fn run_overwatch_then_stop() {
-        let overwatch = OverwatchRunner::<EmptyServices>::run((), None);
+        let overwatch = OverwatchRunner::<EmptyServices>::run((), None).unwrap();
         let handle = overwatch.handle().clone();
 
         overwatch.spawn(async move {
@@ -277,7 +301,7 @@ mod test {
 
     #[test]
     fn run_overwatch_then_kill() {
-        let overwatch = OverwatchRunner::<EmptyServices>::run((), None);
+        let overwatch = OverwatchRunner::<EmptyServices>::run((), None).unwrap();
         let handle = overwatch.handle().clone();
 
         overwatch.spawn(async move {
