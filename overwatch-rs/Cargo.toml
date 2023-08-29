@@ -18,9 +18,12 @@ exclude = [
 ]
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+[features]
+default = ["derive"]
+derive = ["dep:overwatch-derive"]
 
 [dependencies]
-overwatch-derive = { path = "../overwatch-derive" }
+overwatch-derive = { path = "../overwatch-derive", optional = true }
 const-str = "0.3"
 color-eyre = "0.6"
 async-trait = "0.1"
@@ -33,3 +36,4 @@ tracing = "0.1"
 
 [dev-dependencies]
 tokio = { version = "1.17", features = ["rt-multi-thread", "sync", "time", "io-std", "io-util", "macros"] }
+overwatch-derive = { path = "../overwatch-derive" }
