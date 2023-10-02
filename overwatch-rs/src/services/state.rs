@@ -58,7 +58,7 @@ impl<StateInput: ServiceState> StateOperator for NoOperator<StateInput> {
     type StateInput = StateInput;
 
     fn from_settings<Settings>(_settings: Settings) -> Self {
-        NoOperator(PhantomData::default())
+        NoOperator(PhantomData)
     }
 
     fn run<'borrow, 'fut>(

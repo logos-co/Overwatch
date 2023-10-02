@@ -130,10 +130,33 @@ where
             finish_signal_sender,
         };
         runtime.spawn(async move { runner.run_(commands_receiver).await });
+
+        let h = handle.clone();
+        // 1 is enough, we never send single, just call the close method on the sender.
+        let (shutdown_tx, shutdown_rx) = async_channel::bounded(1);
+        // spawn a task to listen on the shutdown signal
+        runtime.spawn(async move {
+            loop {
+                tokio::select! {
+                    _ = shutdown_rx.recv() => {
+                        info!("Received shutdown signal, shutting down overwatch...");
+                        h.shutdown().await;
+                        return;
+                    }
+                    _ = tokio::signal::ctrl_c() => {
+                        info!("Received ctrl-c signal, shutting down overwatch...");
+                        h.shutdown().await;
+                        return;
+                    }
+                }
+            }
+        });
+
         Ok(Overwatch {
             runtime,
             handle,
             finish_runner_signal,
+            shutdown_tx,
         })
     }
 
@@ -207,6 +230,7 @@ pub struct Overwatch {
     runtime: Runtime,
     handle: OverwatchHandle,
     finish_runner_signal: oneshot::Receiver<FinishOverwatchSignal>,
+    shutdown_tx: async_channel::Sender<()>,
 }
 
 impl Overwatch {
@@ -228,6 +252,11 @@ impl Overwatch {
         F::Output: Send + 'static,
     {
         self.runtime.spawn(future)
+    }
+
+    /// Shutdown the Overwatch
+    pub fn shutdown(self) {
+        self.shutdown_tx.close();
     }
 
     /// Block until Overwatch finish its execution
