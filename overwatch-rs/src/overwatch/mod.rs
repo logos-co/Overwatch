@@ -254,9 +254,10 @@ impl Overwatch {
         self.runtime.spawn(future)
     }
 
-    /// Shutdown the Overwatch
+    /// Shutdown the Overwatch and wait overwatch to finish
     pub fn shutdown(self) {
         self.shutdown_tx.close();
+        self.wait_finished();
     }
 
     /// Block until Overwatch finish its execution
