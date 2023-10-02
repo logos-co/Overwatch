@@ -1,6 +1,7 @@
 // crates
 use futures::future::{abortable, AbortHandle};
 use tokio::runtime::Handle;
+use crate::Signal;
 // internal
 use crate::overwatch::handle::OverwatchHandle;
 use crate::services::relay::{relay, InboundRelay, OutboundRelay};
@@ -41,6 +42,7 @@ pub struct ServiceStateHandle<S: ServiceData> {
 pub struct ServiceRunner<S: ServiceData> {
     service_state: ServiceStateHandle<S>,
     state_handle: StateHandle<S::State, S::StateOperator>,
+    shutdown_signal: Signal,
 }
 
 impl<S: ServiceData> ServiceHandle<S> {
@@ -83,7 +85,7 @@ impl<S: ServiceData> ServiceHandle<S> {
     }
 
     /// Build a runner for this service
-    pub fn service_runner(&mut self) -> ServiceRunner<S> {
+    pub fn service_runner(&mut self, shutdown_signal: Signal) -> ServiceRunner<S> {
         // TODO: add proper status handling here, a service should be able to produce a runner if it is already running.
         let (inbound_relay, outbound_relay) = relay::<S::Message>(S::SERVICE_RELAY_BUFFER_SIZE);
         let settings_reader = self.settings.notifier();
@@ -105,6 +107,7 @@ impl<S: ServiceData> ServiceHandle<S> {
         ServiceRunner {
             service_state,
             state_handle,
+            shutdown_signal,
         }
     }
 }
@@ -128,12 +131,12 @@ where
         let ServiceRunner {
             service_state,
             state_handle,
-            ..
+            shutdown_signal
         } = self;
 
         let runtime = service_state.overwatch_handle.runtime().clone();
         let service = S::init(service_state)?;
-        let (runner, abortable_handle) = abortable(service.run());
+        let (runner, abortable_handle) = abortable(service.run(shutdown_signal));
 
         runtime.spawn(runner);
         runtime.spawn(state_handle.run());

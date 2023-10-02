@@ -11,6 +11,7 @@ use async_trait::async_trait;
 use thiserror::Error;
 use tokio::runtime;
 
+use crate::Signal;
 // internal
 use crate::services::relay::RelayError;
 use crate::services::state::StateOperator;
@@ -46,7 +47,7 @@ pub trait ServiceCore: Sized + ServiceData {
     fn init(service_state: ServiceStateHandle<Self>) -> Result<Self, super::DynError>;
 
     /// Service main loop
-    async fn run(mut self) -> Result<(), super::DynError>;
+    async fn run(mut self, shutdown_signal: Signal) -> Result<(), super::DynError>;
 }
 
 #[derive(Error, Debug)]

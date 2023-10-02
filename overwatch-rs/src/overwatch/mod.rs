@@ -18,6 +18,7 @@ use tracing::{info, instrument};
 
 // internal
 
+use crate::{Signal, shutdown_signal, Trigger};
 use crate::overwatch::commands::{
     OverwatchCommand, OverwatchLifeCycleCommand, RelayCommand, SettingsCommand,
 };
@@ -79,7 +80,7 @@ pub trait Services: Sized {
 
     // TODO: this probably will be removed once the services lifecycle is implemented
     /// Start all services attached to the trait implementer
-    fn start_all(&mut self) -> Result<(), Error>;
+    fn start_all(&mut self, signal: Signal) -> Result<(), Error>;
 
     /// Stop a service attached to the trait implementer
     fn stop(&mut self, service_id: ServiceId) -> Result<(), Error>;
@@ -124,28 +125,30 @@ where
         let (commands_sender, commands_receiver) = tokio::sync::mpsc::channel(16);
         let handle = OverwatchHandle::new(runtime.handle().clone(), commands_sender);
         let services = S::new(settings, handle.clone())?;
+        let (trigger, signal) = shutdown_signal();
         let runner = OverwatchRunner {
             services,
             handle: handle.clone(),
             finish_signal_sender,
         };
-        runtime.spawn(async move { runner.run_(commands_receiver).await });
+        runtime.spawn(async move { runner.run_(commands_receiver, signal).await });
         Ok(Overwatch {
             runtime,
             handle,
             finish_runner_signal,
+            trigger,
         })
     }
 
     #[instrument(name = "overwatch-run", skip_all)]
-    async fn run_(self, mut receiver: Receiver<OverwatchCommand>) {
+    async fn run_(self, mut receiver: Receiver<OverwatchCommand>, signal: Signal) {
         let Self {
             mut services,
             handle: _,
             finish_signal_sender,
         } = self;
         // TODO: this probably need to be manually done, or at least handled by a flag
-        services.start_all().expect("Services to start running");
+        services.start_all(signal).expect("Services to start running");
         while let Some(command) = receiver.recv().await {
             info!(command = ?command, "Overwatch command received");
             match command {
@@ -207,6 +210,7 @@ pub struct Overwatch {
     runtime: Runtime,
     handle: OverwatchHandle,
     finish_runner_signal: oneshot::Receiver<FinishOverwatchSignal>,
+    trigger: Trigger,
 }
 
 impl Overwatch {
@@ -230,6 +234,12 @@ impl Overwatch {
         self.runtime.spawn(future)
     }
 
+    /// Gracefully shutdown all the running services and then shutdown the overwatch runtime
+    pub async fn gracefully_shutdown(&self) {
+        self.trigger.close();
+        self.trigger.wait().await;
+    }
+
     /// Block until Overwatch finish its execution
     pub fn wait_finished(self) {
         let Self {
@@ -246,6 +256,7 @@ impl Overwatch {
 
 #[cfg(test)]
 mod test {
+    use crate::Signal;
     use crate::overwatch::handle::OverwatchHandle;
     use crate::overwatch::{Error, OverwatchRunner, Services};
     use crate::services::relay::{RelayError, RelayResult};
@@ -269,7 +280,7 @@ mod test {
             Err(Error::Unavailable { service_id })
         }
 
-        fn start_all(&mut self) -> Result<(), Error> {
+        fn start_all(&mut self, _signal: Signal) -> Result<(), Error> {
             Ok(())
         }
 

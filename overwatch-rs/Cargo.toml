@@ -23,7 +23,9 @@ exclude = [
 overwatch-derive = { path = "../overwatch-derive" }
 const-str = "0.3"
 color-eyre = "0.6"
+atomic-waker = "1"
 async-trait = "0.1"
+async-channel = "1.9"
 futures = "0.3"
 thiserror = "1.0"
 tokio = { version = "1.17", features = ["rt-multi-thread", "sync", "time"] }
