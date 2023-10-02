@@ -25,7 +25,7 @@ use crate::overwatch::handle::OverwatchHandle;
 use crate::services::relay::RelayResult;
 use crate::services::{ServiceError, ServiceId};
 use crate::utils::runtime::default_multithread_runtime;
-use crate::{shutdown_signal, Signal, Trigger};
+use crate::{shutdown_signal, Signal};
 
 /// Overwatch base error type
 #[derive(Error, Debug)]
@@ -125,13 +125,13 @@ where
         let (commands_sender, commands_receiver) = tokio::sync::mpsc::channel(16);
         let handle = OverwatchHandle::new(runtime.handle().clone(), commands_sender);
         let services = S::new(settings, handle.clone())?;
-        let (trigger, signal) = shutdown_signal();
+
         let runner = OverwatchRunner {
             services,
             handle: handle.clone(),
             finish_signal_sender,
         };
-        runtime.spawn(async move { runner.run_(commands_receiver, signal).await });
+        runtime.spawn(async move { runner.run_(commands_receiver).await });
 
         let h = handle.clone();
         // 1 is enough, we never send single, just call the close method on the sender.
@@ -158,13 +158,13 @@ where
             runtime,
             handle,
             finish_runner_signal,
-            trigger,
             shutdown_tx,
         })
     }
 
     #[instrument(name = "overwatch-run", skip_all)]
-    async fn run_(self, mut receiver: Receiver<OverwatchCommand>, signal: Signal) {
+    async fn run_(self, mut receiver: Receiver<OverwatchCommand>) {
+        let (trigger, signal) = shutdown_signal();
         let Self {
             mut services,
             handle: _,
@@ -188,6 +188,8 @@ where
                         command,
                         OverwatchLifeCycleCommand::Kill | OverwatchLifeCycleCommand::Shutdown
                     ) {
+                        trigger.trigger();
+                        trigger.wait().await;
                         break;
                     }
                 }
@@ -235,7 +237,6 @@ pub struct Overwatch {
     runtime: Runtime,
     handle: OverwatchHandle,
     finish_runner_signal: oneshot::Receiver<FinishOverwatchSignal>,
-    trigger: Trigger,
     shutdown_tx: async_channel::Sender<()>,
 }
 
@@ -262,8 +263,6 @@ impl Overwatch {
 
     /// Gracefully shutdown all the running services and then shutdown the overwatch runtime
     pub async fn gracefully_shutdown(self) {
-        self.trigger.close();
-        self.trigger.wait().await;
         self.shutdown_tx.close();
         self.wait_finished();
     }

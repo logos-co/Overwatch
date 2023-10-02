@@ -57,19 +57,19 @@ impl<'a> std::future::Future for SignalWaiter<'a> {
     }
 }
 
-pub struct Trigger {
+struct Trigger {
     tx: async_channel::Sender<()>,
     waker: AtomicWaker,
     refs: Arc<AtomicUsize>,
 }
 
 impl Trigger {
-    /// Returns true if this call has closed the channel and it was not closed already
-    pub fn close(&self) -> bool {
-        self.tx.close()
+    /// Trigger shutdown
+    pub(crate) fn trigger(&self) {
+        self.tx.close();
     }
 
-    pub fn wait(&self) -> SignalWaiter<'_> {
+    pub(crate) fn wait(&self) -> SignalWaiter<'_> {
         SignalWaiter(self)
     }
 }
@@ -111,7 +111,7 @@ impl Drop for Signal {
     }
 }
 
-pub fn shutdown_signal() -> (Trigger, Signal) {
+fn shutdown_signal() -> (Trigger, Signal) {
     let (tx, rx) = async_channel::bounded(1);
     let refs = Arc::new(AtomicUsize::new(1));
     let trigger = Trigger {
