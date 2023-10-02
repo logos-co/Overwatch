@@ -1,7 +1,7 @@
 // crates
+use crate::Signal;
 use futures::future::{abortable, AbortHandle};
 use tokio::runtime::Handle;
-use crate::Signal;
 // internal
 use crate::overwatch::handle::OverwatchHandle;
 use crate::services::relay::{relay, InboundRelay, OutboundRelay};
@@ -131,7 +131,7 @@ where
         let ServiceRunner {
             service_state,
             state_handle,
-            shutdown_signal
+            shutdown_signal,
         } = self;
 
         let runtime = service_state.overwatch_handle.runtime().clone();

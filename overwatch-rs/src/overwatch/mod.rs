@@ -18,7 +18,6 @@ use tracing::{info, instrument};
 
 // internal
 
-use crate::{Signal, shutdown_signal, Trigger};
 use crate::overwatch::commands::{
     OverwatchCommand, OverwatchLifeCycleCommand, RelayCommand, SettingsCommand,
 };
@@ -26,6 +25,7 @@ use crate::overwatch::handle::OverwatchHandle;
 use crate::services::relay::RelayResult;
 use crate::services::{ServiceError, ServiceId};
 use crate::utils::runtime::default_multithread_runtime;
+use crate::{shutdown_signal, Signal, Trigger};
 
 /// Overwatch base error type
 #[derive(Error, Debug)]
@@ -76,7 +76,7 @@ pub trait Services: Sized {
     ) -> std::result::Result<Self, super::DynError>;
 
     /// Start a services attached to the trait implementer
-    fn start(&mut self, service_id: ServiceId) -> Result<(), Error>;
+    fn start(&mut self, service_id: ServiceId, signal: Signal) -> Result<(), Error>;
 
     // TODO: this probably will be removed once the services lifecycle is implemented
     /// Start all services attached to the trait implementer
@@ -132,11 +132,34 @@ where
             finish_signal_sender,
         };
         runtime.spawn(async move { runner.run_(commands_receiver, signal).await });
+
+        let h = handle.clone();
+        // 1 is enough, we never send single, just call the close method on the sender.
+        let (shutdown_tx, shutdown_rx) = async_channel::bounded(1);
+        // spawn a task to listen on the shutdown signal
+        runtime.spawn(async move {
+            loop {
+                tokio::select! {
+                    _ = shutdown_rx.recv() => {
+                        info!("Received shutdown signal, shutting down overwatch...");
+                        h.shutdown().await;
+                        return;
+                    }
+                    _ = tokio::signal::ctrl_c() => {
+                        info!("Received ctrl-c signal, shutting down overwatch...");
+                        h.shutdown().await;
+                        return;
+                    }
+                }
+            }
+        });
+
         Ok(Overwatch {
             runtime,
             handle,
             finish_runner_signal,
             trigger,
+            shutdown_tx,
         })
     }
 
@@ -148,7 +171,9 @@ where
             finish_signal_sender,
         } = self;
         // TODO: this probably need to be manually done, or at least handled by a flag
-        services.start_all(signal).expect("Services to start running");
+        services
+            .start_all(signal)
+            .expect("Services to start running");
         while let Some(command) = receiver.recv().await {
             info!(command = ?command, "Overwatch command received");
             match command {
@@ -211,6 +236,7 @@ pub struct Overwatch {
     handle: OverwatchHandle,
     finish_runner_signal: oneshot::Receiver<FinishOverwatchSignal>,
     trigger: Trigger,
+    shutdown_tx: async_channel::Sender<()>,
 }
 
 impl Overwatch {
@@ -235,9 +261,11 @@ impl Overwatch {
     }
 
     /// Gracefully shutdown all the running services and then shutdown the overwatch runtime
-    pub async fn gracefully_shutdown(&self) {
+    pub async fn gracefully_shutdown(self) {
         self.trigger.close();
         self.trigger.wait().await;
+        self.shutdown_tx.close();
+        self.wait_finished();
     }
 
     /// Block until Overwatch finish its execution
@@ -256,11 +284,11 @@ impl Overwatch {
 
 #[cfg(test)]
 mod test {
-    use crate::Signal;
     use crate::overwatch::handle::OverwatchHandle;
     use crate::overwatch::{Error, OverwatchRunner, Services};
     use crate::services::relay::{RelayError, RelayResult};
     use crate::services::ServiceId;
+    use crate::Signal;
     use std::time::Duration;
     use tokio::time::sleep;
 
@@ -276,7 +304,7 @@ mod test {
             Ok(EmptyServices)
         }
 
-        fn start(&mut self, service_id: ServiceId) -> Result<(), Error> {
+        fn start(&mut self, service_id: ServiceId, _signal: Signal) -> Result<(), Error> {
             Err(Error::Unavailable { service_id })
         }
 

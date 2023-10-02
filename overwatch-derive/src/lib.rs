@@ -170,13 +170,13 @@ fn generate_start_all_impl(fields: &Punctuated<Field, Comma>) -> proc_macro2::To
     let call_start = fields.iter().map(|field| {
         let field_identifier = field.ident.as_ref().expect("A struct attribute identifier");
         quote! {
-            self.#field_identifier.service_runner().run()?;
+            self.#field_identifier.service_runner(signal.clone()).run()?;
         }
     });
 
     quote! {
         #[::tracing::instrument(skip(self), err)]
-        fn start_all(&mut self) -> Result<(), ::overwatch_rs::overwatch::Error> {
+        fn start_all(&mut self, signal: ::overwatch_rs::Signal) -> Result<(), ::overwatch_rs::overwatch::Error> {
             #( #call_start )*
 
             ::std::result::Result::Ok(())
@@ -190,7 +190,7 @@ fn generate_start_impl(fields: &Punctuated<Field, Comma>) -> proc_macro2::TokenS
         let type_id = utils::extract_type_from(&field.ty);
         quote! {
             <#type_id as ::overwatch_rs::services::ServiceData>::SERVICE_ID => {
-                self.#field_identifier.service_runner().run()?;
+                self.#field_identifier.service_runner(signal).run()?;
                 ::std::result::Result::Ok(())
             }
         }
@@ -198,7 +198,7 @@ fn generate_start_impl(fields: &Punctuated<Field, Comma>) -> proc_macro2::TokenS
 
     quote! {
         #[::tracing::instrument(skip(self), err)]
-        fn start(&mut self, service_id: ::overwatch_rs::services::ServiceId) -> Result<(), ::overwatch_rs::overwatch::Error> {
+        fn start(&mut self, service_id: ::overwatch_rs::services::ServiceId, signal: ::overwatch_rs::Signal) -> Result<(), ::overwatch_rs::overwatch::Error> {
             match service_id {
                 #( #cases ),*
                 service_id => ::std::result::Result::Err(::overwatch_rs::overwatch::Error::Unavailable { service_id })

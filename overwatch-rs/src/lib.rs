@@ -24,7 +24,14 @@
 //! - Overwatch: the main messenger relay component (internal communications). It is also be responsible of managing other components lifecycle and handling configuration updates.
 //! - Services (handled by the *overwatch*)
 
-use std::{sync::{Arc, atomic::{AtomicUsize, Ordering}}, task::{Poll, Context}, pin::Pin};
+use std::{
+    pin::Pin,
+    sync::{
+        atomic::{AtomicUsize, Ordering},
+        Arc,
+    },
+    task::{Context, Poll},
+};
 
 use futures::task::AtomicWaker;
 
@@ -34,82 +41,84 @@ pub mod utils;
 
 pub type DynError = Box<dyn std::error::Error + Send + Sync + 'static>;
 
-
 pub struct SignalWaiter<'a>(&'a Trigger);
 
 impl<'a> std::future::Future for SignalWaiter<'a> {
-  type Output = ();
+    type Output = ();
 
-  fn poll(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Self::Output> {
-    match self.0.refs.load(Ordering::Acquire) {
-      0 => Poll::Ready(()),
-      _ => {
-          self.0.waker.register(cx.waker());
-          Poll::Pending
-      }
+    fn poll(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Self::Output> {
+        match self.0.refs.load(Ordering::Acquire) {
+            0 => Poll::Ready(()),
+            _ => {
+                self.0.waker.register(cx.waker());
+                Poll::Pending
+            }
+        }
     }
-  }
 }
 
 pub struct Trigger {
-  tx: async_channel::Sender<()>,
-  waker: AtomicWaker,
-  refs: Arc<AtomicUsize>,
+    tx: async_channel::Sender<()>,
+    waker: AtomicWaker,
+    refs: Arc<AtomicUsize>,
 }
 
 impl Trigger {
-  /// Returns true if this call has closed the channel and it was not closed already
-  pub fn close(&self) -> bool {
-    self.tx.close()
-  }
+    /// Returns true if this call has closed the channel and it was not closed already
+    pub fn close(&self) -> bool {
+        self.tx.close()
+    }
 
-  pub fn wait(&self) -> SignalWaiter<'_> {
-    SignalWaiter(self)
-  }
+    pub fn wait(&self) -> SignalWaiter<'_> {
+        SignalWaiter(self)
+    }
 }
 
 #[derive(Debug)]
 pub struct Signal {
-  rx: async_channel::Receiver<()>,
-  refs: Arc<AtomicUsize>,
+    rx: async_channel::Receiver<()>,
+    refs: Arc<AtomicUsize>,
 }
 
 impl std::future::Future for Signal {
-  type Output = ();
+    type Output = ();
 
-  fn poll(self: std::pin::Pin<&mut Self>, _cx: &mut std::task::Context<'_>) -> std::task::Poll<Self::Output> {
-    if self.rx.is_closed() {
-      std::task::Poll::Ready(())
-    } else {
-      std::task::Poll::Pending
+    fn poll(
+        self: std::pin::Pin<&mut Self>,
+        _cx: &mut std::task::Context<'_>,
+    ) -> std::task::Poll<Self::Output> {
+        if self.rx.is_closed() {
+            std::task::Poll::Ready(())
+        } else {
+            std::task::Poll::Pending
+        }
     }
-  }
 }
 
 impl Clone for Signal {
-  fn clone(&self) -> Self {
-    self.refs.fetch_add(1, Ordering::Release);
-    Self {
-      rx: self.rx.clone(),
-      refs: self.refs.clone(),
+    fn clone(&self) -> Self {
+        self.refs.fetch_add(1, Ordering::Release);
+        Self {
+            rx: self.rx.clone(),
+            refs: self.refs.clone(),
+        }
     }
-  }
 }
 
 impl Drop for Signal {
-  fn drop(&mut self) {
-    self.refs.fetch_sub(1, Ordering::Release);
-  }
+    fn drop(&mut self) {
+        self.refs.fetch_sub(1, Ordering::Release);
+    }
 }
 
 pub fn shutdown_signal() -> (Trigger, Signal) {
-  let (tx, rx) = async_channel::bounded(1);
-  let refs = Arc::new(AtomicUsize::new(1));
-  let trigger = Trigger {
-    tx,
-    waker: AtomicWaker::new(),
-    refs: refs.clone(),
-  };
-  let signal = Signal { rx, refs };
-  (trigger, signal)
+    let (tx, rx) = async_channel::bounded(1);
+    let refs = Arc::new(AtomicUsize::new(1));
+    let trigger = Trigger {
+        tx,
+        waker: AtomicWaker::new(),
+        refs: refs.clone(),
+    };
+    let signal = Signal { rx, refs };
+    (trigger, signal)
 }
