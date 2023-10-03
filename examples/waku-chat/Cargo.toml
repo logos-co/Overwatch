@@ -7,7 +7,7 @@ edition = "2021"
 
 [dependencies]
 tokio = { version = "1", features = ["rt"] }
-waku = { git = "https://github.com/waku-org/waku-rust-bindings" }
+waku-bindings = "0.3.1"
 serde = "1"
 bincode = "1"
 overwatch-rs = { path = "../../overwatch-rs" }
