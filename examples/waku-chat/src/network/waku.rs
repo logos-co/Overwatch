@@ -1,5 +1,5 @@
 use super::*;
-use ::waku::*;
+use ::waku_bindings::*;
 use std::str::FromStr;
 use std::sync::{Arc, RwLock};
 use std::time::SystemTime;
@@ -20,7 +20,7 @@ impl NetworkBackend for Waku {
         for peer in config.peers {
             let addr = Multiaddr::from_str(&peer).unwrap();
             let peer_id = waku.add_peer(&addr, waku::ProtocolId::Relay).unwrap();
-            waku.connect_peer_with_id(peer_id, None).unwrap();
+            waku.connect_peer_with_id(&peer_id, None).unwrap();
         }
         waku.relay_subscribe(None).unwrap();
         assert!(waku.relay_enough_peers(None).unwrap());
@@ -66,6 +66,8 @@ impl NetworkBackend for Waku {
                 .duration_since(SystemTime::UNIX_EPOCH)
                 .unwrap()
                 .as_secs() as usize,
+            "",
+            false,
         );
         let msg_id = self
             .waku

@@ -2,7 +2,7 @@ mod utils;
 
 use proc_macro_error::{abort_call_site, proc_macro_error};
 use quote::{format_ident, quote};
-use syn::{punctuated::Punctuated, token::Comma, Data, DeriveInput, Field};
+use syn::{punctuated::Punctuated, token::Comma, Data, DeriveInput, Field, Generics};
 
 #[proc_macro_derive(Services)]
 #[proc_macro_error]
@@ -29,11 +29,12 @@ fn impl_services(input: &DeriveInput) -> proc_macro2::TokenStream {
 
     let struct_identifier = &input.ident;
     let data = &input.data;
+    let generics = &input.generics;
     match data {
         Data::Struct(DataStruct {
             fields: syn::Fields::Named(fields),
             ..
-        }) => impl_services_for_struct(struct_identifier, &fields.named),
+        }) => impl_services_for_struct(struct_identifier, generics, &fields.named),
         _ => {
             abort_call_site!("Deriving Services is only supported for named Structs");
         }
@@ -42,11 +43,12 @@ fn impl_services(input: &DeriveInput) -> proc_macro2::TokenStream {
 
 fn impl_services_for_struct(
     identifier: &proc_macro2::Ident,
+    generics: &Generics,
     fields: &Punctuated<Field, Comma>,
 ) -> proc_macro2::TokenStream {
-    let settings = generate_services_settings(identifier, fields);
-    let unique_ids_check = generate_assert_unique_identifiers(identifier, fields);
-    let services_impl = generate_services_impl(identifier, fields);
+    let settings = generate_services_settings(identifier, generics, fields);
+    let unique_ids_check = generate_assert_unique_identifiers(identifier, generics, fields);
+    let services_impl = generate_services_impl(identifier, generics, fields);
 
     quote! {
         #unique_ids_check
@@ -59,6 +61,7 @@ fn impl_services_for_struct(
 
 fn generate_services_settings(
     services_identifier: &proc_macro2::Ident,
+    generics: &Generics,
     fields: &Punctuated<Field, Comma>,
 ) -> proc_macro2::TokenStream {
     let services_settings = fields.iter().map(|field| {
@@ -68,9 +71,10 @@ fn generate_services_settings(
         quote!(pub #service_name: <#_type as ::overwatch_rs::services::ServiceData>::Settings)
     });
     let services_settings_identifier = service_settings_identifier_from(services_identifier);
+    let where_clause = &generics.where_clause;
     quote! {
         #[derive(::std::clone::Clone, ::std::fmt::Debug)]
-        pub struct #services_settings_identifier {
+        pub struct #services_settings_identifier #generics #where_clause {
             #( #services_settings ),*
         }
     }
@@ -78,6 +82,7 @@ fn generate_services_settings(
 
 fn generate_assert_unique_identifiers(
     services_identifier: &proc_macro2::Ident,
+    generics: &Generics,
     fields: &Punctuated<Field, Comma>,
 ) -> proc_macro2::TokenStream {
     let services_ids = fields.iter().map(|field| {
@@ -90,14 +95,18 @@ fn generate_assert_unique_identifiers(
         "__{}__CONST_CHECK_UNIQUE_SERVICES_IDS",
         services_identifier.to_string().to_uppercase()
     );
+    let (impl_generics, ty_generics, where_clause) = generics.split_for_impl();
 
     quote! {
-        const #services_ids_check: () = assert!(::overwatch_rs::utils::const_checks::unique_ids(&[#( #services_ids ),*]));
+        impl #impl_generics #services_identifier #ty_generics #where_clause {
+            const #services_ids_check: () = assert!(::overwatch_rs::utils::const_checks::unique_ids(&[#( #services_ids ),*]));
+        }
     }
 }
 
 fn generate_services_impl(
     services_identifier: &proc_macro2::Ident,
+    generics: &Generics,
     fields: &Punctuated<Field, Comma>,
 ) -> proc_macro2::TokenStream {
     let services_settings_identifier = service_settings_identifier_from(services_identifier);
@@ -107,10 +116,11 @@ fn generate_services_impl(
     let impl_stop = generate_stop_impl(fields);
     let impl_relay = generate_request_relay_impl(fields);
     let impl_update_settings = generate_update_settings_impl(fields);
+    let (impl_generics, ty_generics, where_clause) = generics.split_for_impl();
 
     quote! {
-        impl ::overwatch_rs::overwatch::Services for #services_identifier {
-            type Settings = #services_settings_identifier;
+        impl #impl_generics ::overwatch_rs::overwatch::Services for #services_identifier #ty_generics #where_clause {
+            type Settings = #services_settings_identifier #ty_generics;
 
             #impl_new
 
