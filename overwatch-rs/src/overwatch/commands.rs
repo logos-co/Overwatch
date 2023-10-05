@@ -41,7 +41,7 @@ pub struct ServiceLifeCycle<R> {
 /// [`ServiceCore`](crate::services::ServiceCore) lifecycle related commands
 #[derive(Debug)]
 pub enum ServiceLifeCycleCommand {
-    Shutdown(ServiceLifeCycle<()>),
+    Shutdown(ServiceLifeCycle<oneshot::Sender<()>>),
     Kill(ServiceLifeCycle<()>),
     Start(ServiceLifeCycle<()>),
     Stop(ServiceLifeCycle<()>),

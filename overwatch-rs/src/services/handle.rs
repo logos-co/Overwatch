@@ -3,6 +3,7 @@ use futures::future::{abortable, AbortHandle};
 use tokio::runtime::Handle;
 // internal
 use crate::overwatch::handle::OverwatchHandle;
+use crate::services::life_cycle::{LifecycleHandle, LifecycleNotifier, new_lifecycle_channel};
 use crate::services::relay::{relay, InboundRelay, OutboundRelay};
 use crate::services::settings::{SettingsNotifier, SettingsUpdater};
 use crate::services::state::{StateHandle, StateOperator, StateUpdater};
@@ -33,7 +34,7 @@ pub struct ServiceStateHandle<S: ServiceData> {
     pub overwatch_handle: OverwatchHandle,
     pub settings_reader: SettingsNotifier<S::Settings>,
     pub state_updater: StateUpdater<S::State>,
-    pub _lifecycle_handler: (),
+    pub lifecycle_handle: LifecycleHandle,
 }
 
 /// Main service executor
@@ -41,6 +42,7 @@ pub struct ServiceStateHandle<S: ServiceData> {
 pub struct ServiceRunner<S: ServiceData> {
     service_state: ServiceStateHandle<S>,
     state_handle: StateHandle<S::State, S::StateOperator>,
+    lifecycle_notifier: LifecycleNotifier,
 }
 
 impl<S: ServiceData> ServiceHandle<S> {
@@ -94,17 +96,20 @@ impl<S: ServiceData> ServiceHandle<S> {
         let (state_handle, state_updater) =
             StateHandle::<S::State, S::StateOperator>::new(self.initial_state.clone(), operator);
 
+        let (lifecycle_notifier, lifecycle_handle) = new_lifecycle_channel();
+
         let service_state = ServiceStateHandle {
             inbound_relay,
             overwatch_handle: self.overwatch_handle.clone(),
             state_updater,
             settings_reader,
-            _lifecycle_handler: (),
+            lifecycle_handle,
         };
 
         ServiceRunner {
             service_state,
             state_handle,
+            lifecycle_notifier
         }
     }
 }

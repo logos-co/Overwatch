@@ -14,7 +14,7 @@ use tokio::runtime::{Handle, Runtime};
 use tokio::sync::mpsc::Receiver;
 use tokio::sync::oneshot;
 use tokio::task::JoinHandle;
-use tracing::{info, instrument};
+use tracing::{error, info, instrument};
 
 // internal
 
