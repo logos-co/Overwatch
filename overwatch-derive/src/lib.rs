@@ -170,16 +170,14 @@ fn generate_start_all_impl(fields: &Punctuated<Field, Comma>) -> proc_macro2::To
     let call_start = fields.iter().map(|field| {
         let field_identifier = field.ident.as_ref().expect("A struct attribute identifier");
         quote! {
-            self.#field_identifier.service_runner().run()?;
+            self.#field_identifier.service_runner().run()?
         }
     });
 
     quote! {
         #[::tracing::instrument(skip(self), err)]
-        fn start_all(&mut self) -> Result<(), ::overwatch_rs::overwatch::Error> {
-            #( #call_start )*
-
-            ::std::result::Result::Ok(())
+        fn start_all(&mut self) -> Result<::overwatch_rs::overwatch::ServicesLifeCycleHandle, ::overwatch_rs::overwatch::Error> {
+            ::std::result::Result::Ok([#( #call_start ),*].into())
         }
     }
 }

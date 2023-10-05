@@ -2,6 +2,7 @@
 
 // crates
 use crate::overwatch::AnySettings;
+use crate::services::life_cycle::LifecycleMessage;
 use tokio::sync::oneshot;
 
 // internal
@@ -33,18 +34,9 @@ pub struct RelayCommand {
 /// Command for managing [`ServiceCore`](crate::services::ServiceCore) lifecycle
 #[allow(unused)]
 #[derive(Debug)]
-pub struct ServiceLifeCycle<R> {
-    service_id: ServiceId,
-    reply_channel: ReplyChannel<R>,
-}
-
-/// [`ServiceCore`](crate::services::ServiceCore) lifecycle related commands
-#[derive(Debug)]
-pub enum ServiceLifeCycleCommand {
-    Shutdown(ServiceLifeCycle<oneshot::Sender<()>>),
-    Kill(ServiceLifeCycle<()>),
-    Start(ServiceLifeCycle<()>),
-    Stop(ServiceLifeCycle<()>),
+pub struct ServiceLifeCycleCommand {
+    pub service_id: ServiceId,
+    pub msg: LifecycleMessage,
 }
 
 /// [`Overwatch`](crate::overwatch::Overwatch) lifecycle related commands

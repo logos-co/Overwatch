@@ -1,5 +1,6 @@
 pub mod commands;
 pub mod handle;
+pub mod life_cycle;
 // std
 
 use std::any::Any;
@@ -17,11 +18,13 @@ use tokio::task::JoinHandle;
 use tracing::{error, info, instrument};
 
 // internal
-
 use crate::overwatch::commands::{
-    OverwatchCommand, OverwatchLifeCycleCommand, RelayCommand, SettingsCommand,
+    OverwatchCommand, OverwatchLifeCycleCommand, RelayCommand, ServiceLifeCycleCommand,
+    SettingsCommand,
 };
 use crate::overwatch::handle::OverwatchHandle;
+pub use crate::overwatch::life_cycle::ServicesLifeCycleHandle;
+use crate::services::life_cycle::LifecycleMessage;
 use crate::services::relay::RelayResult;
 use crate::services::{ServiceError, ServiceId};
 use crate::utils::runtime::default_multithread_runtime;
@@ -79,7 +82,7 @@ pub trait Services: Sized {
 
     // TODO: this probably will be removed once the services lifecycle is implemented
     /// Start all services attached to the trait implementer
-    fn start_all(&mut self) -> Result<(), Error>;
+    fn start_all(&mut self) -> Result<ServicesLifeCycleHandle, Error>;
 
     /// Stop a service attached to the trait implementer
     fn stop(&mut self, service_id: ServiceId) -> Result<(), Error>;
@@ -124,12 +127,20 @@ where
         let (commands_sender, commands_receiver) = tokio::sync::mpsc::channel(16);
         let handle = OverwatchHandle::new(runtime.handle().clone(), commands_sender);
         let services = S::new(settings, handle.clone())?;
-        let runner = OverwatchRunner {
+        let mut runner = OverwatchRunner {
             services,
             handle: handle.clone(),
             finish_signal_sender,
         };
-        runtime.spawn(async move { runner.run_(commands_receiver).await });
+
+        let lifecycle_handlers = runner.services.start_all()?;
+
+        runtime.spawn(async move {
+            runner
+                .run_(commands_receiver, lifecycle_handlers.clone())
+                .await
+        });
+
         Ok(Overwatch {
             runtime,
             handle,
@@ -138,29 +149,48 @@ where
     }
 
     #[instrument(name = "overwatch-run", skip_all)]
-    async fn run_(self, mut receiver: Receiver<OverwatchCommand>) {
+    async fn run_(
+        self,
+        mut receiver: Receiver<OverwatchCommand>,
+        lifecycle_handlers: ServicesLifeCycleHandle,
+    ) {
         let Self {
             mut services,
             handle: _,
             finish_signal_sender,
         } = self;
-        // TODO: this probably need to be manually done, or at least handled by a flag
-        services.start_all().expect("Services to start running");
         while let Some(command) = receiver.recv().await {
             info!(command = ?command, "Overwatch command received");
             match command {
                 OverwatchCommand::Relay(relay_command) => {
                     Self::handle_relay(&mut services, relay_command).await;
                 }
-                OverwatchCommand::ServiceLifeCycle(_) => {
-                    unimplemented!("Services life cycle is still not supported!");
-                }
+                OverwatchCommand::ServiceLifeCycle(msg) => match msg {
+                    ServiceLifeCycleCommand {
+                        service_id,
+                        msg: LifecycleMessage::Shutdown(channel),
+                    } => {
+                        if let Err(e) = lifecycle_handlers.shutdown(service_id, channel) {
+                            error!(e);
+                        }
+                    }
+                    ServiceLifeCycleCommand {
+                        service_id,
+                        msg: LifecycleMessage::Kill,
+                    } => {
+                        if let Err(e) = lifecycle_handlers.kill(service_id) {
+                            error!(e);
+                        }
+                    }
+                },
                 OverwatchCommand::OverwatchLifeCycle(command) => {
                     if matches!(
                         command,
                         OverwatchLifeCycleCommand::Kill | OverwatchLifeCycleCommand::Shutdown
                     ) {
-                        break;
+                        if let Err(e) = lifecycle_handlers.kill_all() {
+                            error!(e);
+                        }
                     }
                 }
                 OverwatchCommand::Settings(settings) => {
@@ -216,7 +246,7 @@ impl Overwatch {
         &self.handle
     }
 
-    /// Get the underllaying tokio runtime handle
+    /// Get the underlaying tokio runtime handle
     pub fn runtime(&self) -> &Handle {
         self.runtime.handle()
     }
