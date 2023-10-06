@@ -177,7 +177,7 @@ fn generate_start_all_impl(fields: &Punctuated<Field, Comma>) -> proc_macro2::To
     quote! {
         #[::tracing::instrument(skip(self), err)]
         fn start_all(&mut self) -> Result<::overwatch_rs::overwatch::ServicesLifeCycleHandle, ::overwatch_rs::overwatch::Error> {
-            ::std::result::Result::Ok([#( #call_start ),*].into())
+            ::std::result::Result::Ok([#( #call_start ),*].try_into()?)
         }
     }
 }

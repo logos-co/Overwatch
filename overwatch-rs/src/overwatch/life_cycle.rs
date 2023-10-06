@@ -1,8 +1,14 @@
+// std
+use std::borrow::Cow;
+use std::collections::HashMap;
+use std::default::Default;
+use std::error::Error;
+// crates
+use tokio::sync::broadcast::Sender;
+// internal
 use crate::services::life_cycle::{FinishedSignal, LifecycleHandle, LifecycleMessage};
 use crate::services::ServiceId;
 use crate::DynError;
-use std::collections::HashMap;
-use tokio::sync::broadcast::Sender;
 
 #[derive(Clone)]
 pub struct ServicesLifeCycleHandle {
@@ -10,6 +16,11 @@ pub struct ServicesLifeCycleHandle {
 }
 
 impl ServicesLifeCycleHandle {
+    pub fn empty() -> Self {
+        Self {
+            handlers: Default::default(),
+        }
+    }
     pub fn shutdown(
         &self,
         service: ServiceId,
@@ -40,10 +51,20 @@ impl ServicesLifeCycleHandle {
     }
 }
 
-impl<I: IntoIterator<Item = (ServiceId, LifecycleHandle)>> From<I> for ServicesLifeCycleHandle {
-    fn from(value: I) -> Self {
-        Self {
-            handlers: value.into_iter().collect(),
+impl<const N: usize> TryFrom<[(ServiceId, LifecycleHandle); N]> for ServicesLifeCycleHandle {
+    // TODO: On errors refactor extract into a concrete error type with `thiserror`
+    type Error = Box<dyn Error + Send + Sync>;
+
+    fn try_from(value: [(ServiceId, LifecycleHandle); N]) -> Result<Self, Self::Error> {
+        let mut handlers = HashMap::new();
+        for (service_id, handle) in value {
+            if handlers.contains_key(service_id) {
+                return Err(Box::<dyn Error + Send + Sync>::from(Cow::Owned(format!(
+                    "Duplicated serviceId: {service_id}"
+                ))));
+            }
+            handlers.insert(service_id, handle);
         }
+        Ok(Self { handlers })
     }
 }
