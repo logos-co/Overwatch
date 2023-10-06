@@ -21,6 +21,9 @@ pub struct LifecycleHandle {
 impl Clone for LifecycleHandle {
     fn clone(&self) -> Self {
         Self {
+            // `resubscribe` gives us access just to newly produced event not already enqueued ones
+            // that is fine, as at any point missing signals means you were not interested in the moment
+            // it was produced and most probably whatever holding the handle was not even alive.
             message_channel: self.message_channel.resubscribe(),
             notifier: self.notifier.clone(),
         }
