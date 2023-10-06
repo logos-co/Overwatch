@@ -191,6 +191,7 @@ where
                         if let Err(e) = lifecycle_handlers.kill_all() {
                             error!(e);
                         }
+                        break;
                     }
                 }
                 OverwatchCommand::Settings(settings) => {
