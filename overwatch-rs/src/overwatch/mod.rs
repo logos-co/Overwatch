@@ -277,10 +277,17 @@ impl Overwatch {
 
 #[cfg(test)]
 mod test {
+    use crate::overwatch::commands::{OverwatchCommand, ServiceLifeCycleCommand};
     use crate::overwatch::handle::OverwatchHandle;
     use crate::overwatch::{Error, OverwatchRunner, Services, ServicesLifeCycleHandle};
-    use crate::services::relay::{RelayError, RelayResult};
-    use crate::services::ServiceId;
+    use crate::services::handle::ServiceStateHandle;
+    use crate::services::life_cycle::LifecycleMessage;
+    use crate::services::relay::{NoMessage, RelayError, RelayResult};
+    use crate::services::state::{NoOperator, NoState};
+    use crate::services::{ServiceCore, ServiceData, ServiceId};
+    use crate::DynError;
+    use futures::StreamExt;
+    use overwatch_derive::Services;
     use std::time::Duration;
     use tokio::time::sleep;
 
