@@ -277,7 +277,7 @@ impl Overwatch {
 #[cfg(test)]
 mod test {
     use crate::overwatch::handle::OverwatchHandle;
-    use crate::overwatch::{Error, OverwatchRunner, Services};
+    use crate::overwatch::{Error, OverwatchRunner, Services, ServicesLifeCycleHandle};
     use crate::services::relay::{RelayError, RelayResult};
     use crate::services::ServiceId;
     use std::time::Duration;
@@ -299,8 +299,8 @@ mod test {
             Err(Error::Unavailable { service_id })
         }
 
-        fn start_all(&mut self) -> Result<(), Error> {
-            Ok(())
+        fn start_all(&mut self) -> Result<ServicesLifeCycleHandle, Error> {
+            Ok(ServicesLifeCycleHandle::from([]))
         }
 
         fn stop(&mut self, service_id: ServiceId) -> Result<(), Error> {
