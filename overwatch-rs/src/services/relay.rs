@@ -189,7 +189,7 @@ impl<S: ServiceData> Relay<S> {
             Ok(Ok(message)) => match message.downcast::<OutboundRelay<S::Message>>() {
                 Ok(channel) => Ok(*channel),
                 Err(m) => Err(RelayError::InvalidMessage {
-                    type_id: format!("{:?}", m.type_id()),
+                    type_id: format!("{:?}", (*m).type_id()),
                     service_id: S::SERVICE_ID,
                 }),
             },

@@ -1,14 +1,14 @@
 // crates
-use futures::future::{abortable, AbortHandle};
 use tokio::runtime::Handle;
 // internal
 use crate::overwatch::handle::OverwatchHandle;
+use crate::services::life_cycle::LifecycleHandle;
 use crate::services::relay::{relay, InboundRelay, OutboundRelay};
 use crate::services::settings::{SettingsNotifier, SettingsUpdater};
 use crate::services::state::{StateHandle, StateOperator, StateUpdater};
 use crate::services::{ServiceCore, ServiceData, ServiceId, ServiceState};
 
-// TODO: Abstract handle over state, to diferentiate when the service is running and when it is not
+// TODO: Abstract handle over state, to differentiate when the service is running and when it is not
 // that way we can expose a better API depending on what is happenning. Would get rid of the probably
 // unnecessary Option and cloning.
 /// Service handle
@@ -33,7 +33,7 @@ pub struct ServiceStateHandle<S: ServiceData> {
     pub overwatch_handle: OverwatchHandle,
     pub settings_reader: SettingsNotifier<S::Settings>,
     pub state_updater: StateUpdater<S::State>,
-    pub _lifecycle_handler: (),
+    pub lifecycle_handle: LifecycleHandle,
 }
 
 /// Main service executor
@@ -41,6 +41,7 @@ pub struct ServiceStateHandle<S: ServiceData> {
 pub struct ServiceRunner<S: ServiceData> {
     service_state: ServiceStateHandle<S>,
     state_handle: StateHandle<S::State, S::StateOperator>,
+    lifecycle_handle: LifecycleHandle,
 }
 
 impl<S: ServiceData> ServiceHandle<S> {
@@ -94,17 +95,20 @@ impl<S: ServiceData> ServiceHandle<S> {
         let (state_handle, state_updater) =
             StateHandle::<S::State, S::StateOperator>::new(self.initial_state.clone(), operator);
 
+        let lifecycle_handle = LifecycleHandle::new();
+
         let service_state = ServiceStateHandle {
             inbound_relay,
             overwatch_handle: self.overwatch_handle.clone(),
             state_updater,
             settings_reader,
-            _lifecycle_handler: (),
+            lifecycle_handle: lifecycle_handle.clone(),
         };
 
         ServiceRunner {
             service_state,
             state_handle,
+            lifecycle_handle,
         }
     }
 }
@@ -124,22 +128,19 @@ where
     /// Spawn the service main loop and handle it lifecycle
     /// Return a handle to abort execution manually
 
-    pub fn run(self) -> Result<AbortHandle, crate::DynError> {
+    pub fn run(self) -> Result<(ServiceId, LifecycleHandle), crate::DynError> {
         let ServiceRunner {
             service_state,
             state_handle,
-            ..
+            lifecycle_handle,
         } = self;
 
         let runtime = service_state.overwatch_handle.runtime().clone();
         let service = S::init(service_state)?;
-        let (runner, abortable_handle) = abortable(service.run());
 
-        runtime.spawn(runner);
+        runtime.spawn(service.run());
         runtime.spawn(state_handle.run());
 
-        // TODO: Handle service lifecycle
-        // TODO: this handle should not scape this scope, it should actually be handled in the lifecycle part mentioned above
-        Ok(abortable_handle)
+        Ok((S::SERVICE_ID, lifecycle_handle))
     }
 }
