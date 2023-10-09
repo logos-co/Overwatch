@@ -10,6 +10,7 @@ use crate::services::life_cycle::{FinishedSignal, LifecycleHandle, LifecycleMess
 use crate::services::ServiceId;
 use crate::DynError;
 
+/// Grouper handle for the `LifecycleHandle` of each spawned service.
 #[derive(Clone)]
 pub struct ServicesLifeCycleHandle {
     handlers: HashMap<ServiceId, LifecycleHandle>,
@@ -21,6 +22,14 @@ impl ServicesLifeCycleHandle {
             handlers: Default::default(),
         }
     }
+
+    /// Send a `Shutdown` message to the specified service
+    ///
+    /// # Arguments
+    ///
+    /// `service` - The `ServiceId` of the target service
+    /// `sender` - A sender side of a broadcast channel. A return signal when finished handling the
+    /// message will be sent.
     pub fn shutdown(
         &self,
         service: ServiceId,
@@ -33,12 +42,19 @@ impl ServicesLifeCycleHandle {
         Ok(())
     }
 
+    /// Send a `Kill` message to the specified service (`ServiceId`)
+    ///
+    /// # Arguments
+    ///
+    /// `service` - The `ServiceId` of the target service
     pub fn kill(&self, service: ServiceId) -> Result<(), DynError> {
         self.handlers
             .get(service)
             .unwrap()
             .send(LifecycleMessage::Kill)
     }
+
+    /// Send a `Kill` message to all services registered in this handle
     pub fn kill_all(&self) -> Result<(), DynError> {
         for service_id in self.services_ids() {
             self.kill(service_id)?;
@@ -46,6 +62,7 @@ impl ServicesLifeCycleHandle {
         Ok(())
     }
 
+    /// Get all services ids registered in this handle
     pub fn services_ids(&self) -> impl Iterator<Item = ServiceId> + '_ {
         self.handlers.keys().copied()
     }

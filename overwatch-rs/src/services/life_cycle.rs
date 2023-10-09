@@ -5,14 +5,22 @@ use std::error::Error;
 use tokio::sync::broadcast::{channel, Receiver, Sender};
 use tokio_stream::StreamExt;
 
+/// Type alias for an empty signal
 pub type FinishedSignal = ();
 
+/// Supported lifecycle messages
 #[derive(Clone, Debug)]
 pub enum LifecycleMessage {
+    /// Shutdown
+    /// Hold a sender from a broadcast channel. It is intended to signal when finished handling the
+    /// shutdown process.
     Shutdown(Sender<FinishedSignal>),
+    /// Kill
+    /// Well, nothing much to explain here, everything should be about to be nuked.
     Kill,
 }
 
+/// Handle for lifecycle communications with a `Service`
 pub struct LifecycleHandle {
     message_channel: Receiver<LifecycleMessage>,
     notifier: Sender<LifecycleMessage>,
@@ -40,11 +48,16 @@ impl LifecycleHandle {
             message_channel,
         }
     }
+
+    /// Incoming lifecycle message stream
+    /// Notice that messages are not buffered. So, different calls to this method could yield different
+    /// incoming messages depending the timing of call.
     pub fn message_stream(&self) -> impl Stream<Item = LifecycleMessage> {
         tokio_stream::wrappers::BroadcastStream::new(self.message_channel.resubscribe())
             .filter_map(Result::ok)
     }
 
+    /// Send a `LifecycleMessage` to the service
     pub fn send(&self, msg: LifecycleMessage) -> Result<(), DynError> {
         self.notifier
             .send(msg)
