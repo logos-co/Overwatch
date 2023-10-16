@@ -36,13 +36,12 @@ impl ServiceCore for PrintService {
         use tokio::io::{self, AsyncWriteExt};
 
         let Self {
-            state: ServiceStateHandle {
-                mut inbound_relay, ..
-            },
+            state: ServiceStateHandle { inbound_relay, .. },
         } = self;
 
         let print = async move {
             let mut stdout = io::stdout();
+            let mut inbound_relay = inbound_relay.inner_relay();
             while let Some(message) = inbound_relay.recv().await {
                 match message.0.as_ref() {
                     "stop" => {

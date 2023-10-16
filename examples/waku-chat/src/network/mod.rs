@@ -63,7 +63,7 @@ impl<I: NetworkBackend + Send + 'static> ServiceCore for NetworkService<I> {
             service_state,
             mut implem,
         } = self;
-        let mut relay = service_state.inbound_relay;
+        let mut relay = service_state.inbound_relay.inner_relay();
 
         while let Some(msg) = relay.recv().await {
             match msg {

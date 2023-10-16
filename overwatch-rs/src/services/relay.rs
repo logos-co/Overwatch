@@ -8,12 +8,13 @@ use std::task::{Context, Poll};
 use futures::{Sink, Stream};
 use thiserror::Error;
 use tokio::sync::mpsc::{channel, Receiver, Sender};
-use tokio::sync::oneshot;
+use tokio::sync::{broadcast, oneshot};
 use tokio_util::sync::PollSender;
 use tracing::{error, instrument};
 // internal
 use crate::overwatch::commands::{OverwatchCommand, RelayCommand, ReplyChannel};
 use crate::overwatch::handle::OverwatchHandle;
+use crate::services::relay::RelayState::{Pending, Ready};
 use crate::services::{ServiceData, ServiceId};
 
 #[derive(Error, Debug)]
@@ -103,7 +104,7 @@ impl<M> Clone for OutboundRelay<M> {
 
 // TODO: make buffer_size const?
 /// Relay channel builder
-pub fn relay<M>(buffer_size: usize) -> (InboundRelay<M>, OutboundRelay<M>) {
+fn relay<M>(buffer_size: usize) -> (InboundRelay<M>, OutboundRelay<M>) {
     let (sender, receiver) = channel(buffer_size);
     (
         InboundRelay {
@@ -186,8 +187,8 @@ impl<S: ServiceData> Relay<S> {
     ) -> Result<OutboundRelay<S::Message>, RelayError> {
         let response = receiver.await;
         match response {
-            Ok(Ok(message)) => match message.downcast::<OutboundRelay<S::Message>>() {
-                Ok(channel) => Ok(*channel),
+            Ok(Ok(message)) => match message.downcast::<OutboundRelayState<S::Message>>() {
+                Ok(channel) => channel.connect().await.inner_relay(),
                 Err(m) => Err(RelayError::InvalidMessage {
                     type_id: format!("{:?}", (*m).type_id()),
                     service_id: S::SERVICE_ID,
@@ -205,4 +206,79 @@ impl<M> Stream for InboundRelay<M> {
     fn poll_next(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Option<Self::Item>> {
         self.receiver.poll_recv(cx)
     }
+}
+
+pub enum RelayState<C, R> {
+    Pending(C),
+    Ready(R),
+}
+
+pub type InboundRelayState<M> = RelayState<broadcast::Sender<OutboundRelay<M>>, InboundRelay<M>>;
+
+pub type OutboundRelayState<M> =
+    RelayState<broadcast::Receiver<OutboundRelay<M>>, OutboundRelay<M>>;
+
+impl<M> Clone for RelayState<broadcast::Receiver<OutboundRelay<M>>, OutboundRelay<M>> {
+    fn clone(&self) -> Self {
+        match self {
+            RelayState::Pending(receiver) => Pending(receiver.resubscribe()),
+            RelayState::Ready(receiver) => Ready(receiver.clone()),
+        }
+    }
+}
+impl<M> RelayState<broadcast::Receiver<OutboundRelay<M>>, OutboundRelay<M>> {
+    #[must_use]
+    pub(crate) async fn connect(self) -> Self {
+        use RelayState::*;
+        match self {
+            Pending(mut c) => {
+                let relay = c
+                    .recv()
+                    .await
+                    .expect("An outbound relay should be available");
+                Ready(relay)
+            }
+            Ready(relay) => Ready(relay),
+        }
+    }
+
+    pub fn inner_relay(&self) -> Result<OutboundRelay<M>, RelayError> {
+        match self {
+            RelayState::Pending(_) => Err(RelayError::Disconnected),
+            RelayState::Ready(relay) => Ok(relay.clone()),
+        }
+    }
+}
+
+impl<M> RelayState<broadcast::Sender<OutboundRelay<M>>, InboundRelay<M>> {
+    #[must_use]
+    pub(crate) fn connect(self, buffer_size: usize) -> Self {
+        use RelayState::*;
+        let (inbound, outbound) = relay(buffer_size);
+        match self {
+            Pending(c) => {
+                c.send(outbound)
+                    .unwrap_or_else(|_| panic!("An outbound relay should be available"));
+                Ready(inbound)
+            }
+            Ready(relay) => Ready(relay),
+        }
+    }
+
+    pub fn inner_relay(self) -> InboundRelay<M> {
+        match self {
+            RelayState::Pending(_) => {
+                panic!("Relay wasnt connected");
+            }
+            RelayState::Ready(relay) => relay,
+        }
+    }
+}
+
+pub(crate) fn relay_state<M>() -> (InboundRelayState<M>, OutboundRelayState<M>) {
+    let (sender, receiver) = broadcast::channel(1);
+    (
+        InboundRelayState::Pending(sender),
+        OutboundRelayState::Pending(receiver),
+    )
 }

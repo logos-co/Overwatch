@@ -3,7 +3,7 @@ use tokio::runtime::Handle;
 // internal
 use crate::overwatch::handle::OverwatchHandle;
 use crate::services::life_cycle::LifecycleHandle;
-use crate::services::relay::{relay, InboundRelay, OutboundRelay};
+use crate::services::relay::{relay_state, InboundRelayState, OutboundRelayState};
 use crate::services::settings::{SettingsNotifier, SettingsUpdater};
 use crate::services::state::{StateHandle, StateOperator, StateUpdater};
 use crate::services::{ServiceCore, ServiceData, ServiceId, ServiceState};
@@ -15,9 +15,8 @@ use crate::services::{ServiceCore, ServiceData, ServiceId, ServiceState};
 /// This is used to access different parts of the service
 pub struct ServiceHandle<S: ServiceData> {
     /// Message channel relay
-    /// Would be None if service is not running
-    /// Will contain the channel if service is running
-    outbound_relay: Option<OutboundRelay<S::Message>>,
+    outbound_relay: OutboundRelayState<S::Message>,
+    inbound_tmp: Option<InboundRelayState<S::Message>>,
     /// Handle to overwatch
     overwatch_handle: OverwatchHandle,
     settings: SettingsUpdater<S::Settings>,
@@ -28,7 +27,7 @@ pub struct ServiceHandle<S: ServiceData> {
 /// It contains whatever is necessary to start a new service runner
 pub struct ServiceStateHandle<S: ServiceData> {
     /// Relay channel to communicate with the service runner
-    pub inbound_relay: InboundRelay<S::Message>,
+    pub inbound_relay: InboundRelayState<S::Message>,
     /// Overwatch handle
     pub overwatch_handle: OverwatchHandle,
     pub settings_reader: SettingsNotifier<S::Settings>,
@@ -49,8 +48,10 @@ impl<S: ServiceData> ServiceHandle<S> {
         settings: S::Settings,
         overwatch_handle: OverwatchHandle,
     ) -> Result<Self, <S::State as ServiceState>::Error> {
+        let (inbound_tmp, outbound_relay) = relay_state::<S::Message>();
         S::State::from_settings(&settings).map(|initial_state| Self {
-            outbound_relay: None,
+            outbound_relay,
+            inbound_tmp: Some(inbound_tmp),
             overwatch_handle,
             settings: SettingsUpdater::new(settings),
             initial_state,
@@ -74,7 +75,7 @@ impl<S: ServiceData> ServiceHandle<S> {
     }
 
     /// Request a relay with this service
-    pub fn relay_with(&self) -> Option<OutboundRelay<S::Message>> {
+    pub fn relay_with(&self) -> OutboundRelayState<S::Message> {
         self.outbound_relay.clone()
     }
 
@@ -85,18 +86,17 @@ impl<S: ServiceData> ServiceHandle<S> {
 
     /// Build a runner for this service
     pub fn service_runner(&mut self) -> ServiceRunner<S> {
-        // TODO: add proper status handling here, a service should be able to produce a runner if it is already running.
-        let (inbound_relay, outbound_relay) = relay::<S::Message>(S::SERVICE_RELAY_BUFFER_SIZE);
         let settings_reader = self.settings.notifier();
-        // add relay channel to handle
-        self.outbound_relay = Some(outbound_relay);
         let settings = self.settings.notifier().get_updated_settings();
         let operator = S::StateOperator::from_settings::<S::Settings>(settings);
         let (state_handle, state_updater) =
             StateHandle::<S::State, S::StateOperator>::new(self.initial_state.clone(), operator);
 
         let lifecycle_handle = LifecycleHandle::new();
-
+        let inbound_relay = self
+            .inbound_tmp
+            .take()
+            .expect("Inbound channel mut be present at initialization");
         let service_state = ServiceStateHandle {
             inbound_relay,
             overwatch_handle: self.overwatch_handle.clone(),
@@ -130,12 +130,15 @@ where
 
     pub fn run(self) -> Result<(ServiceId, LifecycleHandle), crate::DynError> {
         let ServiceRunner {
-            service_state,
+            mut service_state,
             state_handle,
             lifecycle_handle,
         } = self;
 
         let runtime = service_state.overwatch_handle.runtime().clone();
+        service_state.inbound_relay = service_state
+            .inbound_relay
+            .connect(S::SERVICE_RELAY_BUFFER_SIZE);
         let service = S::init(service_state)?;
 
         runtime.spawn(service.run());

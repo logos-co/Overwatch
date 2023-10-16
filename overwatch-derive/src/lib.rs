@@ -245,7 +245,6 @@ fn generate_request_relay_impl(fields: &Punctuated<Field, Comma>) -> proc_macro2
                 ::std::result::Result::Ok(::std::boxed::Box::new(
                     self.#field_identifier
                         .relay_with()
-                        .ok_or(::overwatch_rs::services::relay::RelayError::AlreadyConnected)?
                 ) as ::overwatch_rs::services::relay::AnyMessage)
             }
         }
