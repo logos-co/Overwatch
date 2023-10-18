@@ -135,7 +135,9 @@ fn generate_services_impl(
     let impl_start = generate_start_impl(fields);
     let impl_stop = generate_stop_impl(fields);
     let impl_relay = generate_request_relay_impl(fields);
+    let impl_status = generate_request_status_watcher_impl(fields);
     let impl_update_settings = generate_update_settings_impl(fields);
+
     let (impl_generics, ty_generics, where_clause) = generics.split_for_impl();
 
     quote! {
@@ -151,6 +153,8 @@ fn generate_services_impl(
             #impl_stop
 
             #impl_relay
+
+            #impl_status
 
             #impl_update_settings
         }
@@ -281,6 +285,32 @@ fn generate_request_relay_impl(fields: &Punctuated<Field, Comma>) -> proc_macro2
             match service_id {
                 #( #cases )*
                 service_id => ::std::result::Result::Err(::overwatch_rs::services::relay::RelayError::Unavailable { service_id })
+            }
+        }
+    }
+}
+
+fn generate_request_status_watcher_impl(
+    fields: &Punctuated<Field, Comma>,
+) -> proc_macro2::TokenStream {
+    let cases = fields.iter().map(|field| {
+        let field_identifier = field.ident.as_ref().expect("A struct attribute identifier");
+        let type_id = utils::extract_type_from(&field.ty);
+        quote! {
+            <#type_id as ::overwatch_rs::services::ServiceData>::SERVICE_ID => {
+                    ::std::result::Result::Ok(self.#field_identifier.status_watcher())
+            }
+        }
+    });
+
+    quote! {
+        #[::tracing::instrument(skip(self), err)]
+        fn request_status_watcher(&self, service_id: ::overwatch_rs::services::ServiceId) -> ::overwatch_rs::services::status::ServiceStatusResult {
+            {
+                match service_id {
+                    #( #cases )*
+                    service_id => ::std::result::Result::Err(::overwatch_rs::services::status::ServiceStatusError::Unavailable { service_id })
+                }
             }
         }
     }
