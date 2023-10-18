@@ -1,5 +1,7 @@
 // std
+use std::default::Default;
 use std::marker::PhantomData;
+use std::sync::Arc;
 use std::time::Duration;
 // crates
 use crate::services::ServiceData;
@@ -45,15 +47,25 @@ impl StatusWatcher {
 }
 
 pub struct StatusHandle<S: ServiceData> {
-    updater: StatusUpdater,
+    updater: Arc<StatusUpdater>,
     watcher: StatusWatcher,
     _phantom: PhantomData<S>,
+}
+
+impl<S: ServiceData> Clone for StatusHandle<S> {
+    fn clone(&self) -> Self {
+        Self {
+            updater: Arc::clone(&self.updater),
+            watcher: self.watcher.clone(),
+            _phantom: Default::default(),
+        }
+    }
 }
 
 impl<S: ServiceData> StatusHandle<S> {
     pub fn new() -> Self {
         let (updater, watcher) = watch::channel(ServiceStatus::Uninitialized);
-        let updater = StatusUpdater(updater);
+        let updater = Arc::new(StatusUpdater(updater));
         let watcher = StatusWatcher(watcher);
         Self {
             updater,
