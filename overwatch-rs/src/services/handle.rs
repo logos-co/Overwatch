@@ -7,6 +7,7 @@ use crate::services::life_cycle::LifecycleHandle;
 use crate::services::relay::{relay, InboundRelay, OutboundRelay};
 use crate::services::settings::{SettingsNotifier, SettingsUpdater};
 use crate::services::state::{StateHandle, StateOperator, StateUpdater};
+use crate::services::status::{StatusHandle, StatusWatcher};
 use crate::services::{ServiceCore, ServiceData, ServiceId, ServiceState};
 
 // TODO: Abstract handle over state, to differentiate when the service is running and when it is not
@@ -22,6 +23,7 @@ pub struct ServiceHandle<S: ServiceData> {
     /// Handle to overwatch
     overwatch_handle: OverwatchHandle,
     settings: SettingsUpdater<S::Settings>,
+    status: StatusHandle<S>,
     initial_state: S::State,
 }
 
@@ -30,6 +32,7 @@ pub struct ServiceHandle<S: ServiceData> {
 pub struct ServiceStateHandle<S: ServiceData> {
     /// Relay channel to communicate with the service runner
     pub inbound_relay: InboundRelay<S::Message>,
+    pub status_handle: StatusHandle<S>,
     /// Overwatch handle
     pub overwatch_handle: OverwatchHandle,
     pub settings_reader: SettingsNotifier<S::Settings>,
@@ -63,6 +66,7 @@ impl<S: ServiceData> ServiceHandle<S> {
             outbound_relay: None,
             overwatch_handle,
             settings: SettingsUpdater::new(settings),
+            status: StatusHandle::new(),
             initial_state,
         })
     }
@@ -88,6 +92,10 @@ impl<S: ServiceData> ServiceHandle<S> {
         self.outbound_relay.clone()
     }
 
+    pub fn status_watcher(&self) -> StatusWatcher {
+        self.status.watcher()
+    }
+
     /// Update settings
     pub fn update_settings(&self, settings: S::Settings) {
         self.settings.update(settings)
@@ -109,6 +117,7 @@ impl<S: ServiceData> ServiceHandle<S> {
 
         let service_state = ServiceStateHandle {
             inbound_relay,
+            status_handle: self.status.clone(),
             overwatch_handle: self.overwatch_handle.clone(),
             state_updater,
             settings_reader,
