@@ -22,12 +22,13 @@ use tracing::{error, info};
 // internal
 use crate::overwatch::commands::{
     OverwatchCommand, OverwatchLifeCycleCommand, RelayCommand, ServiceLifeCycleCommand,
-    SettingsCommand,
+    SettingsCommand, StatusCommand,
 };
 use crate::overwatch::handle::OverwatchHandle;
 pub use crate::overwatch::life_cycle::ServicesLifeCycleHandle;
 use crate::services::life_cycle::LifecycleMessage;
 use crate::services::relay::RelayResult;
+use crate::services::status::ServiceStatusResult;
 use crate::services::{ServiceError, ServiceId};
 use crate::utils::runtime::default_multithread_runtime;
 
@@ -91,6 +92,8 @@ pub trait Services: Sized {
 
     /// Request communication relay to one of the services
     fn request_relay(&mut self, service_id: ServiceId) -> RelayResult;
+
+    fn request_status_watcher(&self, service_id: ServiceId) -> ServiceStatusResult;
 
     /// Update service settings
     fn update_settings(&mut self, settings: Self::Settings) -> Result<(), Error>;
@@ -161,6 +164,9 @@ where
                 OverwatchCommand::Relay(relay_command) => {
                     Self::handle_relay(&mut services, relay_command).await;
                 }
+                OverwatchCommand::Status(status_command) => {
+                    Self::handle_status(&mut services, status_command).await;
+                }
                 OverwatchCommand::ServiceLifeCycle(msg) => match msg {
                     ServiceLifeCycleCommand {
                         service_id,
@@ -220,10 +226,29 @@ where
         if let Ok(settings) = settings.downcast::<S::Settings>() {
             if let Err(e) = services.update_settings(*settings) {
                 // TODO: add proper logging
-                dbg!(e);
+                error!("{e}");
             }
         } else {
             unreachable!("Statically should always be of the correct type");
+        }
+    }
+    async fn handle_status(
+        services: &mut S,
+        StatusCommand {
+            service_id,
+            reply_channel,
+        }: StatusCommand,
+    ) {
+        let watcher_result = services.request_status_watcher(service_id);
+        match watcher_result {
+            Ok(watcher) => {
+                if reply_channel.reply(watcher).await.is_err() {
+                    error!("Error reporting back status watcher for service: {service_id}")
+                }
+            }
+            Err(e) => {
+                error!("{e}");
+            }
         }
     }
 }
@@ -276,6 +301,7 @@ mod test {
     use crate::overwatch::handle::OverwatchHandle;
     use crate::overwatch::{Error, OverwatchRunner, Services, ServicesLifeCycleHandle};
     use crate::services::relay::{RelayError, RelayResult};
+    use crate::services::status::{ServiceStatusError, ServiceStatusResult};
     use crate::services::ServiceId;
     use std::time::Duration;
     use tokio::time::sleep;
@@ -306,6 +332,10 @@ mod test {
 
         fn request_relay(&mut self, service_id: ServiceId) -> RelayResult {
             Err(RelayError::InvalidRequest { to: service_id })
+        }
+
+        fn request_status_watcher(&self, service_id: ServiceId) -> ServiceStatusResult {
+            Err(ServiceStatusError::Unavailable { service_id })
         }
 
         fn update_settings(&mut self, _settings: Self::Settings) -> Result<(), Error> {
