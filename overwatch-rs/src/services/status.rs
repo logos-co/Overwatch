@@ -4,11 +4,20 @@ use std::marker::PhantomData;
 use std::sync::Arc;
 use std::time::Duration;
 // crates
-use crate::services::ServiceData;
+use crate::services::{ServiceData, ServiceId};
+use thiserror::Error;
 use tokio::sync::watch;
 // internal
 
-#[derive(Copy, Clone, Eq, PartialEq)]
+#[derive(Error, Debug)]
+pub enum ServiceStatusError {
+    #[error("service {service_id} is not available")]
+    Unavailable { service_id: ServiceId },
+}
+
+pub type ServiceStatusResult = Result<StatusWatcher, ServiceStatusError>;
+
+#[derive(Copy, Clone, Eq, PartialEq, Debug)]
 pub enum ServiceStatus {
     Uninitialized,
     Running,
@@ -25,7 +34,7 @@ impl StatusUpdater {
     }
 }
 
-#[derive(Clone)]
+#[derive(Debug, Clone)]
 pub struct StatusWatcher(watch::Receiver<ServiceStatus>);
 
 impl StatusWatcher {
