@@ -43,16 +43,22 @@ pub trait ServiceData {
 #[async_trait]
 pub trait ServiceCore: Sized + ServiceData {
     /// Initialize the service with the given state
-    fn init(service_state: ServiceStateHandle<Self>) -> Result<Self, super::DynError>;
+    fn init(service_state: ServiceStateHandle<Self>) -> Result<Self, ServiceError>;
 
     /// Service main loop
-    async fn run(mut self) -> Result<(), super::DynError>;
+    async fn run(mut self) -> Result<(), ServiceError>;
 }
 
 #[derive(Error, Debug)]
 pub enum ServiceError {
     #[error(transparent)]
     RelayError(#[from] RelayError),
+
+    #[error("{0}'s notifier closed")]
+    NotifierClosed(ServiceId),
+
+    #[error(transparent)]
+    Service(Box<dyn std::error::Error + Send + Sync + 'static>),
 }
 
 pub enum ServiceRuntime {

@@ -4,7 +4,7 @@ use overwatch_rs::overwatch::OverwatchRunner;
 use overwatch_rs::services::handle::{ServiceHandle, ServiceStateHandle};
 use overwatch_rs::services::relay::RelayMessage;
 use overwatch_rs::services::state::{NoOperator, NoState};
-use overwatch_rs::services::{ServiceCore, ServiceData, ServiceId};
+use overwatch_rs::services::{ServiceCore, ServiceData, ServiceError, ServiceId};
 use std::time::Duration;
 use tokio::time::sleep;
 
@@ -29,11 +29,11 @@ impl ServiceData for SettingsService {
 
 #[async_trait]
 impl ServiceCore for SettingsService {
-    fn init(state: ServiceStateHandle<Self>) -> Result<Self, overwatch_rs::DynError> {
+    fn init(state: ServiceStateHandle<Self>) -> Result<Self, ServiceError> {
         Ok(Self { state })
     }
 
-    async fn run(mut self) -> Result<(), overwatch_rs::DynError> {
+    async fn run(mut self) -> Result<(), ServiceError> {
         let Self {
             state: ServiceStateHandle {
                 settings_reader, ..

@@ -5,7 +5,7 @@ use overwatch_rs::overwatch::OverwatchRunner;
 use overwatch_rs::services::handle::{ServiceHandle, ServiceStateHandle};
 use overwatch_rs::services::relay::RelayMessage;
 use overwatch_rs::services::state::{NoOperator, NoState};
-use overwatch_rs::services::{ServiceCore, ServiceData, ServiceId};
+use overwatch_rs::services::{ServiceCore, ServiceData, ServiceError, ServiceId};
 use std::fmt::Debug;
 use std::time::Duration;
 use tokio::time::sleep;
@@ -39,14 +39,14 @@ impl<T: Send> ServiceCore for GenericService<T>
 where
     T: Debug + 'static + Sync,
 {
-    fn init(state: ServiceStateHandle<Self>) -> Result<Self, overwatch_rs::DynError> {
+    fn init(state: ServiceStateHandle<Self>) -> Result<Self, ServiceError> {
         Ok(Self {
             state,
             _phantom: std::marker::PhantomData,
         })
     }
 
-    async fn run(mut self) -> Result<(), overwatch_rs::DynError> {
+    async fn run(mut self) -> Result<(), ServiceError> {
         use tokio::io::{self, AsyncWriteExt};
 
         let Self {

@@ -38,6 +38,9 @@ pub enum Error {
     #[error("Service {service_id} is unavailable")]
     Unavailable { service_id: ServiceId },
 
+    #[error("Service id must be unique, but find a duplicated id: {service_id}")]
+    DuplicatedServiceId { service_id: ServiceId },
+
     #[error(transparent)]
     Any(super::DynError),
 }
@@ -75,7 +78,7 @@ pub trait Services: Sized {
     fn new(
         settings: Self::Settings,
         overwatch_handle: OverwatchHandle,
-    ) -> std::result::Result<Self, super::DynError>;
+    ) -> std::result::Result<Self, Error>;
 
     /// Start a services attached to the trait implementer
     fn start(&mut self, service_id: ServiceId) -> Result<(), Error>;
@@ -120,7 +123,7 @@ where
     pub fn run(
         settings: S::Settings,
         runtime: Option<Runtime>,
-    ) -> std::result::Result<Overwatch, super::DynError> {
+    ) -> std::result::Result<Overwatch, Error> {
         let runtime = runtime.unwrap_or_else(default_multithread_runtime);
 
         let (finish_signal_sender, finish_runner_signal) = tokio::sync::oneshot::channel();
@@ -162,7 +165,7 @@ where
                         msg: LifecycleMessage::Shutdown(channel),
                     } => {
                         if let Err(e) = lifecycle_handlers.shutdown(service_id, channel) {
-                            error!(e);
+                            error!(%e);
                         }
                     }
                     ServiceLifeCycleCommand {
@@ -170,7 +173,7 @@ where
                         msg: LifecycleMessage::Kill,
                     } => {
                         if let Err(e) = lifecycle_handlers.kill(service_id) {
-                            error!(e);
+                            error!(%e);
                         }
                     }
                 },
@@ -180,7 +183,7 @@ where
                         OverwatchLifeCycleCommand::Kill | OverwatchLifeCycleCommand::Shutdown
                     ) {
                         if let Err(e) = lifecycle_handlers.kill_all() {
-                            error!(e);
+                            error!(%e);
                         }
                         break;
                     }
@@ -283,7 +286,7 @@ mod test {
         fn new(
             _settings: Self::Settings,
             _overwatch_handle: OverwatchHandle,
-        ) -> Result<Self, Box<dyn std::error::Error + Send + Sync + 'static>> {
+        ) -> Result<Self, Error> {
             Ok(EmptyServices)
         }
 

@@ -5,8 +5,7 @@ use overwatch_rs::services::handle::{ServiceHandle, ServiceStateHandle};
 use overwatch_rs::services::life_cycle::LifecycleMessage;
 use overwatch_rs::services::relay::NoMessage;
 use overwatch_rs::services::state::{NoOperator, NoState};
-use overwatch_rs::services::{ServiceCore, ServiceData, ServiceId};
-use overwatch_rs::DynError;
+use overwatch_rs::services::{ServiceCore, ServiceData, ServiceError, ServiceId};
 use std::time::Duration;
 use tokio::time::sleep;
 use tokio_stream::StreamExt;
@@ -25,11 +24,11 @@ impl ServiceData for CancellableService {
 
 #[async_trait::async_trait]
 impl ServiceCore for CancellableService {
-    fn init(service_state: ServiceStateHandle<Self>) -> Result<Self, DynError> {
+    fn init(service_state: ServiceStateHandle<Self>) -> Result<Self, ServiceError> {
         Ok(Self { service_state })
     }
 
-    async fn run(self) -> Result<(), DynError> {
+    async fn run(self) -> Result<(), ServiceError> {
         let mut lifecycle_stream = self.service_state.lifecycle_handle.message_stream();
         let mut interval = tokio::time::interval(Duration::from_millis(200));
         loop {
