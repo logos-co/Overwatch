@@ -38,7 +38,7 @@ pub enum Error {
     #[error("Service {service_id} is unavailable")]
     Unavailable { service_id: ServiceId },
 
-    #[error("Service id must be unique, but find a duplicated id: {service_id}")]
+    #[error("Service id must be unique, but found a duplicated id: {service_id}")]
     DuplicatedServiceId { service_id: ServiceId },
 
     #[error(transparent)]
