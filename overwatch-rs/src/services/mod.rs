@@ -5,7 +5,7 @@ pub mod settings;
 pub mod state;
 
 // std
-use std::fmt::Debug;
+use std::fmt::{Debug, Display};
 // crates
 use async_trait::async_trait;
 use thiserror::Error;
@@ -59,6 +59,19 @@ pub enum ServiceError {
 
     #[error(transparent)]
     Service(Box<dyn std::error::Error + Send + Sync + 'static>),
+
+    #[error("{0}")]
+    Custom(String),
+}
+
+impl ServiceError {
+    pub fn service(err: impl std::error::Error + Send + Sync + 'static) -> Self {
+        Self::Service(Box::new(err))
+    }
+
+    pub fn custom(err: impl Display) -> Self {
+        Self::Custom(err.to_string())
+    }
 }
 
 pub enum ServiceRuntime {
