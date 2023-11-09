@@ -74,6 +74,12 @@ impl ServiceError {
     }
 }
 
+impl From<super::DynError> for ServiceError {
+    fn from(err: super::DynError) -> Self {
+        Self::Service(err)
+    }
+}
+
 pub enum ServiceRuntime {
     FromParent(runtime::Handle),
     Custom(runtime::Runtime),
