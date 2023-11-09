@@ -1,9 +1,9 @@
-use crate::DynError;
 use futures::Stream;
 use std::default::Default;
-use std::error::Error;
 use tokio::sync::broadcast::{channel, Receiver, Sender};
 use tokio_stream::StreamExt;
+
+use super::ServiceId;
 
 /// Type alias for an empty signal
 pub type FinishedSignal = ();
@@ -58,11 +58,11 @@ impl LifecycleHandle {
     }
 
     /// Send a `LifecycleMessage` to the service
-    pub fn send(&self, msg: LifecycleMessage) -> Result<(), DynError> {
+    pub fn send(&self, id: ServiceId, msg: LifecycleMessage) -> Result<(), super::ServiceError> {
         self.notifier
             .send(msg)
             .map(|_| ())
-            .map_err(|e| Box::new(e) as Box<dyn Error + Send + Sync + 'static>)
+            .map_err(|_| super::ServiceError::NotifierClosed(id))
     }
 }
 

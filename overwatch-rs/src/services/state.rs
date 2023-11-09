@@ -87,7 +87,7 @@ impl<T> Clone for NoState<T> {
 impl<Settings> ServiceState for NoState<Settings> {
     type Settings = Settings;
 
-    type Error = crate::DynError;
+    type Error = std::convert::Infallible;
 
     fn from_settings(_settings: &Self::Settings) -> Result<Self, Self::Error> {
         Ok(Self(Default::default()))
@@ -218,8 +218,8 @@ mod test {
 
     impl ServiceState for UsizeCounter {
         type Settings = ();
-        type Error = crate::DynError;
-        fn from_settings(_settings: &Self::Settings) -> Result<Self, crate::DynError> {
+        type Error = std::convert::Infallible;
+        fn from_settings(_settings: &Self::Settings) -> Result<Self, Self::Error> {
             Ok(Self(0))
         }
     }

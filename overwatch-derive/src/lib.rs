@@ -152,17 +152,15 @@ fn generate_new_impl(fields: &Punctuated<Field, Comma>) -> proc_macro2::TokenStr
         let settings_field_identifier = service_settings_field_identifier_from(field_identifier);
         quote! {
             #field_identifier: {
-                let manager =
-                    ::overwatch_rs::services::handle::ServiceHandle::<#service_type>::new(
-                        #settings_field_identifier, overwatch_handle.clone(),
-                )?;
-                manager
+                ::overwatch_rs::services::handle::ServiceHandle::<#service_type>::new(
+                    #settings_field_identifier, overwatch_handle.clone(),
+                ).map_err(::overwatch_rs::overwatch::Error::any)?
             }
         }
     });
 
     quote! {
-        fn new(settings: Self::Settings, overwatch_handle: ::overwatch_rs::overwatch::handle::OverwatchHandle) -> ::std::result::Result<Self, ::overwatch_rs::DynError> {
+        fn new(settings: Self::Settings, overwatch_handle: ::overwatch_rs::overwatch::handle::OverwatchHandle) -> ::std::result::Result<Self, ::overwatch_rs::overwatch::Error> {
             let Self::Settings {
                 #( #fields_settings ),*
             } = settings;
@@ -187,7 +185,7 @@ fn generate_start_all_impl(fields: &Punctuated<Field, Comma>) -> proc_macro2::To
     quote! {
         #[::tracing::instrument(skip(self), err)]
         fn start_all(&mut self) -> Result<::overwatch_rs::overwatch::ServicesLifeCycleHandle, ::overwatch_rs::overwatch::Error> {
-            ::std::result::Result::Ok([#( #call_start ),*].try_into()?)
+            [#( #call_start ),*].try_into()
         }
     }
 }

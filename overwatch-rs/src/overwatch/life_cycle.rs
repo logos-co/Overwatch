@@ -1,14 +1,12 @@
 // std
-use std::borrow::Cow;
 use std::collections::HashMap;
 use std::default::Default;
-use std::error::Error;
 // crates
 use tokio::sync::broadcast::Sender;
 // internal
 use crate::services::life_cycle::{FinishedSignal, LifecycleHandle, LifecycleMessage};
-use crate::services::ServiceId;
-use crate::DynError;
+use crate::services::{ServiceError, ServiceId};
+// use crate::DynError;
 
 /// Grouper handle for the `LifecycleHandle` of each spawned service.
 #[derive(Clone)]
@@ -34,11 +32,11 @@ impl ServicesLifeCycleHandle {
         &self,
         service: ServiceId,
         sender: Sender<FinishedSignal>,
-    ) -> Result<(), DynError> {
+    ) -> Result<(), ServiceError> {
         self.handlers
             .get(service)
             .unwrap()
-            .send(LifecycleMessage::Shutdown(sender))?;
+            .send(service, LifecycleMessage::Shutdown(sender))?;
         Ok(())
     }
 
@@ -47,15 +45,15 @@ impl ServicesLifeCycleHandle {
     /// # Arguments
     ///
     /// `service` - The `ServiceId` of the target service
-    pub fn kill(&self, service: ServiceId) -> Result<(), DynError> {
+    pub fn kill(&self, service: ServiceId) -> Result<(), ServiceError> {
         self.handlers
             .get(service)
             .unwrap()
-            .send(LifecycleMessage::Kill)
+            .send(service, LifecycleMessage::Kill)
     }
 
     /// Send a `Kill` message to all services registered in this handle
-    pub fn kill_all(&self) -> Result<(), DynError> {
+    pub fn kill_all(&self) -> Result<(), ServiceError> {
         for service_id in self.services_ids() {
             self.kill(service_id)?;
         }
@@ -70,15 +68,13 @@ impl ServicesLifeCycleHandle {
 
 impl<const N: usize> TryFrom<[(ServiceId, LifecycleHandle); N]> for ServicesLifeCycleHandle {
     // TODO: On errors refactor extract into a concrete error type with `thiserror`
-    type Error = Box<dyn Error + Send + Sync>;
+    type Error = super::Error;
 
     fn try_from(value: [(ServiceId, LifecycleHandle); N]) -> Result<Self, Self::Error> {
         let mut handlers = HashMap::new();
         for (service_id, handle) in value {
             if handlers.contains_key(service_id) {
-                return Err(Box::<dyn Error + Send + Sync>::from(Cow::Owned(format!(
-                    "Duplicated serviceId: {service_id}"
-                ))));
+                return Err(super::Error::DuplicatedServiceId { service_id });
             }
             handlers.insert(service_id, handle);
         }

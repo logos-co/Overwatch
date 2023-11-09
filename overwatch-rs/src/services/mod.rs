@@ -5,7 +5,7 @@ pub mod settings;
 pub mod state;
 
 // std
-use std::fmt::Debug;
+use std::fmt::{Debug, Display};
 // crates
 use async_trait::async_trait;
 use thiserror::Error;
@@ -43,16 +43,41 @@ pub trait ServiceData {
 #[async_trait]
 pub trait ServiceCore: Sized + ServiceData {
     /// Initialize the service with the given state
-    fn init(service_state: ServiceStateHandle<Self>) -> Result<Self, super::DynError>;
+    fn init(service_state: ServiceStateHandle<Self>) -> Result<Self, ServiceError>;
 
     /// Service main loop
-    async fn run(mut self) -> Result<(), super::DynError>;
+    async fn run(mut self) -> Result<(), ServiceError>;
 }
 
 #[derive(Error, Debug)]
 pub enum ServiceError {
     #[error(transparent)]
     RelayError(#[from] RelayError),
+
+    #[error("{0}'s notifier closed")]
+    NotifierClosed(ServiceId),
+
+    #[error(transparent)]
+    Service(Box<dyn std::error::Error + Send + Sync + 'static>),
+
+    #[error("{0}")]
+    Custom(String),
+}
+
+impl ServiceError {
+    pub fn service(err: impl std::error::Error + Send + Sync + 'static) -> Self {
+        Self::Service(Box::new(err))
+    }
+
+    pub fn custom(err: impl Display) -> Self {
+        Self::Custom(err.to_string())
+    }
+}
+
+impl From<super::DynError> for ServiceError {
+    fn from(err: super::DynError) -> Self {
+        Self::Service(err)
+    }
 }
 
 pub enum ServiceRuntime {

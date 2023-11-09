@@ -3,7 +3,7 @@ use async_trait::async_trait;
 use overwatch_rs::services::handle::ServiceStateHandle;
 use overwatch_rs::services::relay::{NoMessage, OutboundRelay};
 use overwatch_rs::services::state::{NoOperator, NoState};
-use overwatch_rs::services::{ServiceCore, ServiceData, ServiceId};
+use overwatch_rs::services::{ServiceCore, ServiceData, ServiceError, ServiceId};
 use serde::{Deserialize, Serialize};
 use tokio::sync::mpsc::channel;
 
@@ -29,11 +29,11 @@ impl ServiceData for ChatService {
 
 #[async_trait]
 impl ServiceCore for ChatService {
-    fn init(service_state: ServiceStateHandle<Self>) -> Result<Self, overwatch_rs::DynError> {
+    fn init(service_state: ServiceStateHandle<Self>) -> Result<Self, ServiceError> {
         Ok(Self { service_state })
     }
 
-    async fn run(self) -> Result<(), overwatch_rs::DynError> {
+    async fn run(self) -> Result<(), ServiceError> {
         let Self {
             mut service_state, ..
         } = self;

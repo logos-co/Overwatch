@@ -3,7 +3,7 @@ use async_trait::async_trait;
 use overwatch_rs::services::handle::ServiceStateHandle;
 use overwatch_rs::services::relay::RelayMessage;
 use overwatch_rs::services::state::{NoOperator, NoState};
-use overwatch_rs::services::{ServiceCore, ServiceData, ServiceId};
+use overwatch_rs::services::{ServiceCore, ServiceData, ServiceError, ServiceId};
 use std::fmt::Debug;
 use tokio::sync::mpsc::Sender;
 
@@ -49,7 +49,7 @@ impl<I: NetworkBackend + Send + 'static> ServiceData for NetworkService<I> {
 
 #[async_trait]
 impl<I: NetworkBackend + Send + 'static> ServiceCore for NetworkService<I> {
-    fn init(mut service_state: ServiceStateHandle<Self>) -> Result<Self, overwatch_rs::DynError> {
+    fn init(mut service_state: ServiceStateHandle<Self>) -> Result<Self, ServiceError> {
         Ok(Self {
             implem: <I as NetworkBackend>::new(
                 service_state.settings_reader.get_updated_settings(),
@@ -58,7 +58,7 @@ impl<I: NetworkBackend + Send + 'static> ServiceCore for NetworkService<I> {
         })
     }
 
-    async fn run(mut self) -> Result<(), overwatch_rs::DynError> {
+    async fn run(mut self) -> Result<(), ServiceError> {
         let Self {
             service_state,
             mut implem,
