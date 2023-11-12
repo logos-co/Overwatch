@@ -11,7 +11,7 @@ use chat::*;
 use clap::Parser;
 use network::*;
 use overwatch_derive::*;
-use overwatch_rs::{overwatch::*, services::handle::ServiceHandle};
+use overwatch_rs::{overwatch::*, services::handle::ServiceHandle, thiserror};
 
 /// Simple program to greet a person
 #[derive(Parser, Debug)]

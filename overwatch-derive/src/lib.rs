@@ -1,5 +1,6 @@
 mod utils;
 
+use heck::{ToPascalCase, ToSnakeCase};
 use proc_macro_error::{abort_call_site, proc_macro_error};
 use quote::{format_ident, quote};
 use syn::{punctuated::Punctuated, token::Comma, Data, DeriveInput, Field, Generics};
@@ -49,13 +50,15 @@ fn impl_services_for_struct(
     let settings = generate_services_settings(identifier, generics, fields);
     let unique_ids_check = generate_assert_unique_identifiers(identifier, generics, fields);
     let services_impl = generate_services_impl(identifier, generics, fields);
-
+    let errors = generate_services_error(generics, fields);
     quote! {
         #unique_ids_check
 
         #settings
 
         #services_impl
+
+        #errors
     }
 }
 
@@ -76,6 +79,42 @@ fn generate_services_settings(
         #[derive(::std::clone::Clone, ::std::fmt::Debug)]
         pub struct #services_settings_identifier #generics #where_clause {
             #( #services_settings ),*
+        }
+    }
+}
+
+fn generate_services_error(
+    generics: &Generics,
+    fields: &Punctuated<Field, Comma>,
+) -> proc_macro2::TokenStream {
+    let mut variants = Vec::with_capacity(fields.len());
+    let mut constructors = Vec::with_capacity(fields.len());
+    fields.iter().for_each(|field| {
+        let _type = utils::extract_type_from(&field.ty);
+        let field_name = field.ident.as_ref().expect("A named struct attribute").to_string(); 
+        let variant_name = format_ident!("{}", field_name.to_pascal_case());
+        let constructor_name = format_ident!("{}", field_name.to_snake_case());
+        variants.push(quote!(
+            #[error("{0}")]
+            #variant_name(<<#_type as ::overwatch_rs::services::ServiceData>::State as ::overwatch_rs::services::state::ServiceState>::Error),
+        ));
+        constructors.push(quote! {
+            pub const fn #constructor_name(err: <<#_type as ::overwatch_rs::services::ServiceData>::State as ::overwatch_rs::services::state::ServiceState>::Error) -> Self {
+                Self::#variant_name(err)
+            }
+        });
+    });
+
+    let (impl_generics, ty_generics, where_clause) = generics.split_for_impl();
+
+    quote! {
+        #[derive(::core::fmt::Debug, ::overwatch_rs::__exports::thiserror::Error)]
+        pub enum ServicesError #generics #where_clause {
+            #(#variants)*
+        }
+
+        impl #impl_generics ServicesError #ty_generics #where_clause {
+            #(#constructors)*
         }
     }
 }
@@ -183,7 +222,7 @@ fn generate_start_all_impl(fields: &Punctuated<Field, Comma>) -> proc_macro2::To
     });
 
     quote! {
-        #[::tracing::instrument(skip(self), err)]
+        #[::overwatch_rs::__exports::tracing::instrument(skip(self), err)]
         fn start_all(&mut self) -> Result<::overwatch_rs::overwatch::ServicesLifeCycleHandle, ::overwatch_rs::overwatch::Error> {
             [#( #call_start ),*].try_into()
         }
@@ -203,7 +242,7 @@ fn generate_start_impl(fields: &Punctuated<Field, Comma>) -> proc_macro2::TokenS
     });
 
     quote! {
-        #[::tracing::instrument(skip(self), err)]
+        #[::overwatch_rs::__exports::tracing::instrument(skip(self), err)]
         fn start(&mut self, service_id: ::overwatch_rs::services::ServiceId) -> Result<(), ::overwatch_rs::overwatch::Error> {
             match service_id {
                 #( #cases ),*
@@ -224,7 +263,7 @@ fn generate_stop_impl(fields: &Punctuated<Field, Comma>) -> proc_macro2::TokenSt
     });
 
     quote! {
-        #[::tracing::instrument(skip(self), err)]
+        #[::overwatch_rs::__exports::tracing::instrument(skip(self), err)]
         fn stop(&mut self, service_id: ::overwatch_rs::services::ServiceId) -> Result<(), ::overwatch_rs::overwatch::Error> {
             match service_id {
                 #( #cases ),*
@@ -250,7 +289,7 @@ fn generate_request_relay_impl(fields: &Punctuated<Field, Comma>) -> proc_macro2
     });
 
     quote! {
-        #[::tracing::instrument(skip(self), err)]
+        #[::overwatch_rs::__exports::tracing::instrument(skip(self), err)]
         fn request_relay(&mut self, service_id: ::overwatch_rs::services::ServiceId) -> ::overwatch_rs::services::relay::RelayResult {
             {
                 match service_id {
@@ -280,7 +319,7 @@ fn generate_update_settings_impl(fields: &Punctuated<Field, Comma>) -> proc_macr
     });
 
     quote! {
-        #[::tracing::instrument(skip(self, settings), err)]
+        #[::overwatch_rs::__exports::tracing::instrument(skip(self, settings), err)]
         fn update_settings(&mut self, settings: Self::Settings) -> Result<(), ::overwatch_rs::overwatch::Error> {
             let Self::Settings {
                 #( #fields_settings ),*

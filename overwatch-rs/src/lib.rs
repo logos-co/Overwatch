@@ -32,3 +32,9 @@ pub type DynError = Box<dyn std::error::Error + Send + Sync + 'static>;
 
 #[cfg(feature = "derive")]
 pub use overwatch_derive::*;
+
+#[doc(hidden)]
+pub mod __exports {
+    pub use thiserror;
+    pub use tracing;
+}

@@ -19,7 +19,7 @@ pub trait ServiceState: Sized {
     /// Settings object that the state can be initialized from
     type Settings;
     /// Errors that can occur during state initialization
-    type Error;
+    type Error: std::error::Error;
     /// Initialize a stage upon the provided settings
     fn from_settings(settings: &Self::Settings) -> Result<Self, Self::Error>;
 }
@@ -73,6 +73,17 @@ impl<StateInput: ServiceState> StateOperator for NoOperator<StateInput> {
     }
 }
 
+#[derive(Debug)]
+pub struct VoidError;
+
+impl core::fmt::Display for VoidError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "void error")
+    }
+}
+
+impl std::error::Error for VoidError {}
+
 /// Empty state
 #[derive(Copy)]
 pub struct NoState<Settings>(PhantomData<Settings>);
@@ -87,7 +98,7 @@ impl<T> Clone for NoState<T> {
 impl<Settings> ServiceState for NoState<Settings> {
     type Settings = Settings;
 
-    type Error = std::convert::Infallible;
+    type Error = VoidError;
 
     fn from_settings(_settings: &Self::Settings) -> Result<Self, Self::Error> {
         Ok(Self(Default::default()))
