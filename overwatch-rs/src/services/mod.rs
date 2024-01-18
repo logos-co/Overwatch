@@ -7,7 +7,7 @@ pub mod state;
 // std
 use std::fmt::Debug;
 // crates
-use async_trait::async_trait;
+use futures::Future;
 use thiserror::Error;
 use tokio::runtime;
 
@@ -40,13 +40,12 @@ pub trait ServiceData {
 }
 
 /// Main trait for Services initialization and main loop hook
-#[async_trait]
 pub trait ServiceCore: Sized + ServiceData {
     /// Initialize the service with the given state
     fn init(service_state: ServiceStateHandle<Self>) -> Result<Self, super::DynError>;
 
     /// Service main loop
-    async fn run(mut self) -> Result<(), super::DynError>;
+    fn run(self) -> impl Future<Output = Result<(), super::DynError>> + Send;
 }
 
 #[derive(Error, Debug)]

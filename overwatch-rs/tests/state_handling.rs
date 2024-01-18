@@ -1,4 +1,3 @@
-use async_trait::async_trait;
 use overwatch_derive::Services;
 use overwatch_rs::overwatch::OverwatchRunner;
 use overwatch_rs::services::handle::{ServiceHandle, ServiceStateHandle};
@@ -46,7 +45,6 @@ impl ServiceState for CounterState {
 #[derive(Clone)]
 pub struct CounterStateOperator;
 
-#[async_trait]
 impl StateOperator for CounterStateOperator {
     type StateInput = CounterState;
 
@@ -73,13 +71,12 @@ impl ServiceData for UpdateStateService {
     type Message = UpdateStateServiceMessage;
 }
 
-#[async_trait]
 impl ServiceCore for UpdateStateService {
     fn init(state: ServiceStateHandle<Self>) -> Result<Self, overwatch_rs::DynError> {
         Ok(Self { state })
     }
 
-    async fn run(mut self) -> Result<(), overwatch_rs::DynError> {
+    async fn run(self) -> Result<(), overwatch_rs::DynError> {
         let Self {
             state: ServiceStateHandle { state_updater, .. },
         } = self;

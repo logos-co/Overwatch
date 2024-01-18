@@ -1,10 +1,8 @@
 // std
 use std::marker::PhantomData;
-use std::pin::Pin;
 use std::sync::Arc;
 // crates
-use async_trait::async_trait;
-use futures::StreamExt;
+use futures::{Future, StreamExt};
 use tokio::sync::watch::{channel, Receiver, Ref, Sender};
 use tokio_stream::wrappers::WatchStream;
 use tracing::error;
@@ -26,14 +24,13 @@ pub trait ServiceState: Sized {
 
 /// A state operator is an entity that can handle a state in a point of time
 /// to perform any operation based on it.
-#[async_trait]
 pub trait StateOperator {
     /// The type of state that the operator can handle
     type StateInput: ServiceState;
     /// Operator initialization method. Can be implemented over some subset of settings
     fn from_settings<Settings>(settings: Settings) -> Self;
     /// Asynchronously perform an operation for a given state
-    async fn run(&mut self, state: Self::StateInput);
+    fn run(&mut self, state: Self::StateInput) -> impl Future<Output = ()> + Send;
 }
 
 /// Operator that doesn't perform any operation upon state update
@@ -53,24 +50,14 @@ impl<T> Clone for NoOperator<T> {
     }
 }
 
-#[async_trait]
-impl<StateInput: ServiceState> StateOperator for NoOperator<StateInput> {
+impl<StateInput: ServiceState + Send> StateOperator for NoOperator<StateInput> {
     type StateInput = StateInput;
 
     fn from_settings<Settings>(_settings: Settings) -> Self {
         NoOperator(PhantomData)
     }
 
-    fn run<'borrow, 'fut>(
-        &'borrow mut self,
-        _state: Self::StateInput,
-    ) -> Pin<Box<dyn std::future::Future<Output = ()> + Send + 'fut>>
-    where
-        'borrow: 'fut,
-        Self: 'fut,
-    {
-        Box::pin(async {})
-    }
+    async fn run(&mut self, _state: Self::StateInput) {}
 }
 
 /// Empty state
@@ -207,7 +194,6 @@ where
 #[cfg(test)]
 mod test {
     use crate::services::state::{ServiceState, StateHandle, StateOperator, StateUpdater};
-    use async_trait::async_trait;
     use std::time::Duration;
     use tokio::io;
     use tokio::io::AsyncWriteExt;
@@ -226,7 +212,6 @@ mod test {
 
     struct PanicOnGreaterThanTen;
 
-    #[async_trait]
     impl StateOperator for PanicOnGreaterThanTen {
         type StateInput = UsizeCounter;
 

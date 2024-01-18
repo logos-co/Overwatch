@@ -1,5 +1,4 @@
 pub mod waku;
-use async_trait::async_trait;
 use overwatch_rs::services::handle::ServiceStateHandle;
 use overwatch_rs::services::relay::RelayMessage;
 use overwatch_rs::services::state::{NoOperator, NoState};
@@ -47,7 +46,6 @@ impl<I: NetworkBackend + Send + 'static> ServiceData for NetworkService<I> {
     type Message = NetworkMsg;
 }
 
-#[async_trait]
 impl<I: NetworkBackend + Send + 'static> ServiceCore for NetworkService<I> {
     fn init(mut service_state: ServiceStateHandle<Self>) -> Result<Self, overwatch_rs::DynError> {
         Ok(Self {

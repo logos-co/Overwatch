@@ -1,5 +1,4 @@
 use crate::network::*;
-use async_trait::async_trait;
 use overwatch_rs::services::handle::ServiceStateHandle;
 use overwatch_rs::services::relay::{NoMessage, OutboundRelay};
 use overwatch_rs::services::state::{NoOperator, NoState};
@@ -27,7 +26,6 @@ impl ServiceData for ChatService {
     type Message = NoMessage;
 }
 
-#[async_trait]
 impl ServiceCore for ChatService {
     fn init(service_state: ServiceStateHandle<Self>) -> Result<Self, overwatch_rs::DynError> {
         Ok(Self { service_state })

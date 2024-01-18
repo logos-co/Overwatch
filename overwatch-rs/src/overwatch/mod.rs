@@ -9,7 +9,6 @@ use std::future::Future;
 
 // crates
 
-use async_trait::async_trait;
 use thiserror::Error;
 use tokio::runtime::{Handle, Runtime};
 use tokio::sync::mpsc::Receiver;
@@ -62,7 +61,6 @@ pub type AnySettings = Box<dyn Any + Send>;
 
 /// An overwatch run anything that implements this trait
 /// An implementor of this trait would have to handle the inner [`ServiceCore`](crate::services::ServiceCore)
-#[async_trait]
 pub trait Services: Sized {
     /// Inner [`ServiceCore::Settings`](crate::services::ServiceCore) grouping type.
     /// Normally this will be a settings object that group all the inner services settings.

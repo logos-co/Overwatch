@@ -1,4 +1,3 @@
-use async_trait::async_trait;
 use futures::future::select;
 use overwatch_derive::Services;
 use overwatch_rs::overwatch::OverwatchRunner;
@@ -34,7 +33,6 @@ where
     type Message = GenericServiceMessage;
 }
 
-#[async_trait]
 impl<T: Send> ServiceCore for GenericService<T>
 where
     T: Debug + 'static + Sync,
@@ -46,7 +44,7 @@ where
         })
     }
 
-    async fn run(mut self) -> Result<(), overwatch_rs::DynError> {
+    async fn run(self) -> Result<(), overwatch_rs::DynError> {
         use tokio::io::{self, AsyncWriteExt};
 
         let Self {

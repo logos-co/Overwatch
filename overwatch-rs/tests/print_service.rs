@@ -1,4 +1,3 @@
-use async_trait::async_trait;
 use futures::future::select;
 use overwatch_derive::Services;
 use overwatch_rs::overwatch::OverwatchRunner;
@@ -26,13 +25,12 @@ impl ServiceData for PrintService {
     type Message = PrintServiceMessage;
 }
 
-#[async_trait]
 impl ServiceCore for PrintService {
     fn init(state: ServiceStateHandle<Self>) -> Result<Self, overwatch_rs::DynError> {
         Ok(Self { state })
     }
 
-    async fn run(mut self) -> Result<(), overwatch_rs::DynError> {
+    async fn run(self) -> Result<(), overwatch_rs::DynError> {
         use tokio::io::{self, AsyncWriteExt};
 
         let Self {
