@@ -1,4 +1,3 @@
-use async_trait::async_trait;
 use overwatch_derive::Services;
 use overwatch_rs::overwatch::OverwatchRunner;
 use overwatch_rs::services::handle::{ServiceHandle, ServiceStateHandle};
@@ -27,13 +26,12 @@ impl ServiceData for SettingsService {
     type Message = SettingsMsg;
 }
 
-#[async_trait]
 impl ServiceCore for SettingsService {
     fn init(state: ServiceStateHandle<Self>) -> Result<Self, overwatch_rs::DynError> {
         Ok(Self { state })
     }
 
-    async fn run(mut self) -> Result<(), overwatch_rs::DynError> {
+    async fn run(self) -> Result<(), overwatch_rs::DynError> {
         let Self {
             state: ServiceStateHandle {
                 settings_reader, ..

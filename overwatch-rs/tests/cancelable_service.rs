@@ -23,7 +23,6 @@ impl ServiceData for CancellableService {
     type Message = NoMessage;
 }
 
-#[async_trait::async_trait]
 impl ServiceCore for CancellableService {
     fn init(service_state: ServiceStateHandle<Self>) -> Result<Self, DynError> {
         Ok(Self { service_state })
