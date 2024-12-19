@@ -6,7 +6,9 @@ use crate::overwatch::Services;
 use crate::services::ServiceData;
 use tokio::runtime::Handle;
 use tokio::sync::mpsc::Sender;
-use tracing::{error, info, instrument};
+use tracing::{error, info};
+#[cfg(feature = "instrumentation")]
+use tracing::instrument;
 
 // internal
 use crate::services::relay::Relay;
@@ -62,7 +64,10 @@ impl OverwatchHandle {
     }
 
     /// Send an overwatch command to the overwatch runner
-    #[cfg_attr(feature = "instrumentation", instrument(name = "overwatch-command-send", skip(self)))]
+    #[cfg_attr(
+        feature = "instrumentation",
+        instrument(name = "overwatch-command-send", skip(self))
+    )]
     pub async fn send(&self, command: OverwatchCommand) {
         if let Err(e) = self.sender.send(command).await {
             error!(error=?e, "Error sending overwatch command");

@@ -10,7 +10,9 @@ use thiserror::Error;
 use tokio::sync::mpsc::{channel, Receiver, Sender};
 use tokio::sync::oneshot;
 use tokio_util::sync::PollSender;
-use tracing::{error, instrument};
+use tracing::error;
+#[cfg(feature = "instrumentation")]
+use tracing::instrument;
 // internal
 use crate::overwatch::commands::{OverwatchCommand, RelayCommand, ReplyChannel};
 use crate::overwatch::handle::OverwatchHandle;
@@ -179,7 +181,8 @@ impl<S: ServiceData> Relay<S> {
         self.overwatch_handle.send(relay_command).await;
     }
 
-    #[cfg_attr(feature = "instrumentation", instrument(skip_all, err(Debug)))]
+    #[cfg_attr(feature = "instrumentation", instrument(skip_all, err(Debug)))
+    ]
     async fn handle_relay_response(
         &self,
         receiver: oneshot::Receiver<RelayResult>,
