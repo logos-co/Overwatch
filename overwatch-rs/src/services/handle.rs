@@ -127,7 +127,6 @@ where
 {
     /// Spawn the service main loop and handle it lifecycle
     /// Return a handle to abort execution manually
-
     pub fn run(self) -> Result<(ServiceId, LifecycleHandle), crate::DynError> {
         let ServiceRunner {
             service_state,
