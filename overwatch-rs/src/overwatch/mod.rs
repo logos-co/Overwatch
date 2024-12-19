@@ -15,9 +15,9 @@ use tokio::runtime::{Handle, Runtime};
 use tokio::sync::mpsc::Receiver;
 use tokio::sync::oneshot;
 use tokio::task::JoinHandle;
-use tracing::{error, info};
 #[cfg(feature = "instrumentation")]
 use tracing::instrument;
+use tracing::{error, info};
 
 // internal
 use crate::overwatch::commands::{

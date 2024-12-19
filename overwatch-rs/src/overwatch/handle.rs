@@ -6,9 +6,9 @@ use crate::overwatch::Services;
 use crate::services::ServiceData;
 use tokio::runtime::Handle;
 use tokio::sync::mpsc::Sender;
-use tracing::{error, info};
 #[cfg(feature = "instrumentation")]
 use tracing::instrument;
+use tracing::{error, info};
 
 // internal
 use crate::services::relay::Relay;

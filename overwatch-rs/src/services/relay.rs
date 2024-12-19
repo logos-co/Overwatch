@@ -181,8 +181,7 @@ impl<S: ServiceData> Relay<S> {
         self.overwatch_handle.send(relay_command).await;
     }
 
-    #[cfg_attr(feature = "instrumentation", instrument(skip_all, err(Debug)))
-    ]
+    #[cfg_attr(feature = "instrumentation", instrument(skip_all, err(Debug)))]
     async fn handle_relay_response(
         &self,
         receiver: oneshot::Receiver<RelayResult>,
