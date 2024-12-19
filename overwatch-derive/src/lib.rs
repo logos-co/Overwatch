@@ -3,8 +3,6 @@ mod utils;
 use proc_macro_error::{abort_call_site, proc_macro_error};
 use quote::{format_ident, quote};
 use syn::{punctuated::Punctuated, token::Comma, Data, DeriveInput, Field, Generics};
-#[cfg(feature = "instrumentation")]
-use tracing::instrument;
 
 #[proc_macro_derive(Services)]
 #[proc_macro_error]
@@ -188,7 +186,7 @@ fn generate_start_all_impl(fields: &Punctuated<Field, Comma>) -> proc_macro2::To
 
     quote! {
 
-        #[cfg_attr(feature = "instrumentation", instrument(skip(self), err))]
+        #[cfg_attr(feature = "instrumentation", ::tracing::instrument(skip(self), err))]
         fn start_all(&mut self) -> Result<::overwatch_rs::overwatch::ServicesLifeCycleHandle, ::overwatch_rs::overwatch::Error> {
             ::std::result::Result::Ok([#( #call_start ),*].try_into()?)
         }
@@ -208,7 +206,7 @@ fn generate_start_impl(fields: &Punctuated<Field, Comma>) -> proc_macro2::TokenS
     });
 
     quote! {
-        #[cfg_attr(feature = "instrumentation", instrument(skip(self), err))]
+        #[cfg_attr(feature = "instrumentation", ::tracing::instrument(skip(self), err))]
         fn start(&mut self, service_id: ::overwatch_rs::services::ServiceId) -> Result<(), ::overwatch_rs::overwatch::Error> {
             match service_id {
                 #( #cases ),*
@@ -229,7 +227,7 @@ fn generate_stop_impl(fields: &Punctuated<Field, Comma>) -> proc_macro2::TokenSt
     });
 
     quote! {
-        #[cfg_attr(feature = "instrumentation", instrument(skip(self), err))]
+        #[cfg_attr(feature = "instrumentation", ::tracing::instrument(skip(self), err))]
         fn stop(&mut self, service_id: ::overwatch_rs::services::ServiceId) -> Result<(), ::overwatch_rs::overwatch::Error> {
             match service_id {
                 #( #cases ),*
@@ -255,7 +253,7 @@ fn generate_request_relay_impl(fields: &Punctuated<Field, Comma>) -> proc_macro2
     });
 
     quote! {
-        #[cfg_attr(feature = "instrumentation", instrument(skip(self), err))]
+        #[cfg_attr(feature = "instrumentation", ::tracing::instrument(skip(self), err))]
         fn request_relay(&mut self, service_id: ::overwatch_rs::services::ServiceId) -> ::overwatch_rs::services::relay::RelayResult {
             {
                 match service_id {
@@ -285,7 +283,7 @@ fn generate_update_settings_impl(fields: &Punctuated<Field, Comma>) -> proc_macr
     });
 
     quote! {
-        #[cfg_attr(feature = "instrumentation", instrument(skip(self, settings), err))]
+        #[cfg_attr(feature = "instrumentation", ::tracing::instrument(skip(self, settings), err))]
         fn update_settings(&mut self, settings: Self::Settings) -> Result<(), ::overwatch_rs::overwatch::Error> {
             let Self::Settings {
                 #( #fields_settings ),*
