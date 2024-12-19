@@ -15,7 +15,9 @@ use tokio::runtime::{Handle, Runtime};
 use tokio::sync::mpsc::Receiver;
 use tokio::sync::oneshot;
 use tokio::task::JoinHandle;
-use tracing::{error, info, instrument};
+#[cfg(feature = "instrumentation")]
+use tracing::instrument;
+use tracing::{error, info};
 
 // internal
 use crate::overwatch::commands::{
@@ -142,7 +144,10 @@ where
         })
     }
 
-    #[instrument(name = "overwatch-run", skip_all)]
+    #[cfg_attr(
+        feature = "instrumentation",
+        instrument(name = "overwatch-run", skip_all)
+    )]
     async fn run_(self, mut receiver: Receiver<OverwatchCommand>) {
         let Self {
             mut services,

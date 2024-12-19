@@ -21,6 +21,9 @@ exclude = [
 [lib]
 proc-macro = true
 
+[features]
+instrumentation = []
+
 [dependencies]
 heck = "0.4"
 syn = "1.0"

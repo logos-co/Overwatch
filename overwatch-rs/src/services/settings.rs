@@ -1,7 +1,9 @@
 //std
 //crates
 use tokio::sync::watch::{channel, Receiver, Sender};
-use tracing::{error, instrument};
+use tracing::error;
+#[cfg(feature = "instrumentation")]
+use tracing::instrument;
 //internal
 
 /// Wrapper around [`tokio::sync::watch::Receiver`]
@@ -41,7 +43,7 @@ impl<S> SettingsUpdater<S> {
     }
 
     /// Send a new settings update notification to the watcher end
-    #[instrument(skip_all)]
+    #[cfg_attr(feature = "instrumentation", instrument(skip_all))]
     pub fn update(&self, settings: S) {
         self.sender.send(settings).unwrap_or_else(|_e| {
             error!("Error sending settings update for service");
