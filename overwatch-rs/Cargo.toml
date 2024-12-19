@@ -21,6 +21,7 @@ exclude = [
 [features]
 default = ["derive"]
 derive = ["dep:overwatch-derive"]
+instrumentation = []
 
 [dependencies]
 overwatch-derive = { path = "../overwatch-derive", optional = true }

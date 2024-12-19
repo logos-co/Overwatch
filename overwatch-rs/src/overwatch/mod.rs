@@ -142,7 +142,7 @@ where
         })
     }
 
-    #[instrument(name = "overwatch-run", skip_all)]
+    #[cfg_attr(feature = "instrumentation", instrument(name = "overwatch-run", skip_all))]
     async fn run_(self, mut receiver: Receiver<OverwatchCommand>) {
         let Self {
             mut services,
