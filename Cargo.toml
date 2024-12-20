@@ -3,6 +3,7 @@ resolver = "2"
 members = [
     "overwatch-rs",
     "overwatch-derive",
+    "examples/ping_pong",
 ]
 
 [profile.release-opt]
