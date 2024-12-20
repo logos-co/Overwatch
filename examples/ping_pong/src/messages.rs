@@ -1,15 +1,16 @@
+// Crate
 use overwatch_rs::services::relay::RelayMessage;
 
 #[derive(Debug)]
 pub enum PingMessage {
-    Pong
+    Pong,
 }
 
 impl RelayMessage for PingMessage {}
 
 #[derive(Debug)]
 pub enum PongMessage {
-    Ping
+    Ping,
 }
 
 impl RelayMessage for PongMessage {}
