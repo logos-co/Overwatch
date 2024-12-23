@@ -23,7 +23,10 @@ impl ServiceData for PingService {
 
 #[async_trait::async_trait]
 impl ServiceCore for PingService {
-    fn init(service_state_handle: ServiceStateHandle<Self>) -> Result<Self, DynError> {
+    fn init(
+        service_state_handle: ServiceStateHandle<Self>,
+        _initial_state: Self::State,
+    ) -> Result<Self, DynError> {
         Ok(Self {
             service_state_handle,
         })

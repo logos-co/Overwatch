@@ -20,7 +20,10 @@ impl ServiceData for PongService {
 
 #[async_trait::async_trait]
 impl ServiceCore for PongService {
-    fn init(service_state_handle: ServiceStateHandle<Self>) -> Result<Self, DynError> {
+    fn init(
+        service_state_handle: ServiceStateHandle<Self>,
+        _initial_state: Self::State,
+    ) -> Result<Self, DynError> {
         Ok(Self {
             service_state_handle,
         })
