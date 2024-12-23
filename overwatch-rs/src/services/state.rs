@@ -31,7 +31,7 @@ pub trait StateOperator {
     /// The type of state that the operator can handle
     type StateInput: ServiceState;
     /// Operator initialization method. Can be implemented over some subset of settings
-    fn from_settings<Settings>(settings: Settings) -> Self;
+    fn from_settings(settings: <Self::StateInput as ServiceState>::Settings) -> Self;
     /// Asynchronously perform an operation for a given state
     async fn run(&mut self, state: Self::StateInput);
 }
@@ -57,7 +57,7 @@ impl<T> Clone for NoOperator<T> {
 impl<StateInput: ServiceState> StateOperator for NoOperator<StateInput> {
     type StateInput = StateInput;
 
-    fn from_settings<Settings>(_settings: Settings) -> Self {
+    fn from_settings(_settings: <Self::StateInput as ServiceState>::Settings) -> Self {
         NoOperator(PhantomData)
     }
 
@@ -230,7 +230,7 @@ mod test {
     impl StateOperator for PanicOnGreaterThanTen {
         type StateInput = UsizeCounter;
 
-        fn from_settings<Settings>(_settings: Settings) -> Self {
+        fn from_settings(_settings: <Self::StateInput as ServiceState>::Settings) -> Self {
             Self
         }
 

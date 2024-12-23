@@ -21,7 +21,7 @@ pub struct ServiceHandle<S: ServiceData> {
     /// Handle to overwatch
     overwatch_handle: OverwatchHandle,
     settings: SettingsUpdater<S::Settings>,
-    initial_state: S::State,
+    pub initial_state: S::State,
 }
 
 /// Service core resources
@@ -42,6 +42,7 @@ pub struct ServiceRunner<S: ServiceData> {
     service_state: ServiceStateHandle<S>,
     state_handle: StateHandle<S::State, S::StateOperator>,
     lifecycle_handle: LifecycleHandle,
+    initial_state: S::State,
 }
 
 impl<S: ServiceData> ServiceHandle<S> {
@@ -91,7 +92,7 @@ impl<S: ServiceData> ServiceHandle<S> {
         // add relay channel to handle
         self.outbound_relay = Some(outbound_relay);
         let settings = self.settings.notifier().get_updated_settings();
-        let operator = S::StateOperator::from_settings::<S::Settings>(settings);
+        let operator = S::StateOperator::from_settings(settings);
         let (state_handle, state_updater) =
             StateHandle::<S::State, S::StateOperator>::new(self.initial_state.clone(), operator);
 
@@ -109,6 +110,7 @@ impl<S: ServiceData> ServiceHandle<S> {
             service_state,
             state_handle,
             lifecycle_handle,
+            initial_state: self.initial_state.clone(),
         }
     }
 }
@@ -132,10 +134,11 @@ where
             service_state,
             state_handle,
             lifecycle_handle,
+            initial_state,
         } = self;
 
         let runtime = service_state.overwatch_handle.runtime().clone();
-        let service = S::init(service_state)?;
+        let service = S::init(service_state, initial_state)?;
 
         runtime.spawn(service.run());
         runtime.spawn(state_handle.run());
