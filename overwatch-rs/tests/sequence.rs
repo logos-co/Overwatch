@@ -46,7 +46,10 @@ impl ServiceData for AwaitService3 {
 
 #[async_trait::async_trait]
 impl ServiceCore for AwaitService1 {
-    fn init(service_state: ServiceStateHandle<Self>) -> Result<Self, DynError> {
+    fn init(
+        service_state: ServiceStateHandle<Self>,
+        _initial_state: Self::State,
+    ) -> Result<Self, DynError> {
         Ok(Self { service_state })
     }
 
@@ -67,7 +70,10 @@ impl ServiceCore for AwaitService1 {
 
 #[async_trait::async_trait]
 impl ServiceCore for AwaitService2 {
-    fn init(service_state: ServiceStateHandle<Self>) -> Result<Self, DynError> {
+    fn init(
+        service_state: ServiceStateHandle<Self>,
+        _initial_state: Self::State,
+    ) -> Result<Self, DynError> {
         Ok(Self { service_state })
     }
 
@@ -104,7 +110,10 @@ impl ServiceCore for AwaitService2 {
 
 #[async_trait::async_trait]
 impl ServiceCore for AwaitService3 {
-    fn init(service_state: ServiceStateHandle<Self>) -> Result<Self, DynError> {
+    fn init(
+        service_state: ServiceStateHandle<Self>,
+        _initial_state: Self::State,
+    ) -> Result<Self, DynError> {
         Ok(Self { service_state })
     }
 
