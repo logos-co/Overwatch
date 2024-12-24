@@ -28,7 +28,10 @@ impl ServiceData for PrintService {
 
 #[async_trait]
 impl ServiceCore for PrintService {
-    fn init(state: ServiceStateHandle<Self>) -> Result<Self, overwatch_rs::DynError> {
+    fn init(
+        state: ServiceStateHandle<Self>,
+        _initial_state: Self::State,
+    ) -> Result<Self, overwatch_rs::DynError> {
         Ok(Self { state })
     }
 

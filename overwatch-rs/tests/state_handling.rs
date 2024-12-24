@@ -50,7 +50,7 @@ pub struct CounterStateOperator;
 impl StateOperator for CounterStateOperator {
     type StateInput = CounterState;
 
-    fn from_settings<Settings>(_settings: Settings) -> Self {
+    fn from_settings(_settings: <Self::StateInput as ServiceState>::Settings) -> Self {
         CounterStateOperator
     }
 
@@ -75,7 +75,10 @@ impl ServiceData for UpdateStateService {
 
 #[async_trait]
 impl ServiceCore for UpdateStateService {
-    fn init(state: ServiceStateHandle<Self>) -> Result<Self, overwatch_rs::DynError> {
+    fn init(
+        state: ServiceStateHandle<Self>,
+        _initial_state: Self::State,
+    ) -> Result<Self, overwatch_rs::DynError> {
         Ok(Self { state })
     }
 

@@ -29,7 +29,10 @@ impl ServiceData for SettingsService {
 
 #[async_trait]
 impl ServiceCore for SettingsService {
-    fn init(state: ServiceStateHandle<Self>) -> Result<Self, overwatch_rs::DynError> {
+    fn init(
+        state: ServiceStateHandle<Self>,
+        _initial_state: Self::State,
+    ) -> Result<Self, overwatch_rs::DynError> {
         Ok(Self { state })
     }
 

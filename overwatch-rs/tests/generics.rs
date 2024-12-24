@@ -39,7 +39,10 @@ impl<T: Send> ServiceCore for GenericService<T>
 where
     T: Debug + 'static + Sync,
 {
-    fn init(state: ServiceStateHandle<Self>) -> Result<Self, overwatch_rs::DynError> {
+    fn init(
+        state: ServiceStateHandle<Self>,
+        _initial_state: Self::State,
+    ) -> Result<Self, overwatch_rs::DynError> {
         Ok(Self {
             state,
             _phantom: std::marker::PhantomData,
