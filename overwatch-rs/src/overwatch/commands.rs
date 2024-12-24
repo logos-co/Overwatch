@@ -7,6 +7,7 @@ use tokio::sync::oneshot;
 
 // internal
 use crate::services::relay::RelayResult;
+use crate::services::status::StatusWatcher;
 use crate::services::ServiceId;
 
 #[derive(Debug)]
@@ -29,6 +30,13 @@ impl<M> ReplyChannel<M> {
 pub struct RelayCommand {
     pub(crate) service_id: ServiceId,
     pub(crate) reply_channel: ReplyChannel<RelayResult>,
+}
+
+/// Command for requesting
+#[derive(Debug)]
+pub struct StatusCommand {
+    pub(crate) service_id: ServiceId,
+    pub(crate) reply_channel: ReplyChannel<StatusWatcher>,
 }
 
 /// Command for managing [`ServiceCore`](crate::services::ServiceCore) lifecycle
@@ -54,6 +62,7 @@ pub struct SettingsCommand(pub(crate) AnySettings);
 #[derive(Debug)]
 pub enum OverwatchCommand {
     Relay(RelayCommand),
+    Status(StatusCommand),
     ServiceLifeCycle(ServiceLifeCycleCommand),
     OverwatchLifeCycle(OverwatchLifeCycleCommand),
     Settings(SettingsCommand),

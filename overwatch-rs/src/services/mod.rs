@@ -3,6 +3,7 @@ pub mod life_cycle;
 pub mod relay;
 pub mod settings;
 pub mod state;
+pub mod status;
 
 // std
 use std::fmt::Debug;
