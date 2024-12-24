@@ -21,7 +21,7 @@ pub struct ServiceHandle<S: ServiceData> {
     /// Handle to overwatch
     overwatch_handle: OverwatchHandle,
     settings: SettingsUpdater<S::Settings>,
-    pub initial_state: S::State,
+    initial_state: S::State,
 }
 
 /// Service core resources
