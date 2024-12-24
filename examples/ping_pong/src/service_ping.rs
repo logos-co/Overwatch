@@ -1,23 +1,26 @@
 // Crates
 use overwatch_rs::services::handle::ServiceStateHandle;
-use overwatch_rs::services::state::{NoOperator, NoState};
 use overwatch_rs::services::{ServiceCore, ServiceData, ServiceId};
 use overwatch_rs::DynError;
 use std::time::Duration;
 use tokio::time::sleep;
 // Internal
 use crate::messages::{PingMessage, PongMessage};
+use crate::operators::StateSaveOperator;
 use crate::service_pong::PongService;
+use crate::settings::PingSettings;
+use crate::states::PingState;
 
 pub struct PingService {
     service_state_handle: ServiceStateHandle<Self>,
+    initial_state: <Self as ServiceData>::State,
 }
 
 impl ServiceData for PingService {
     const SERVICE_ID: ServiceId = "ping";
-    type Settings = ();
-    type State = NoState<Self::Settings>;
-    type StateOperator = NoOperator<Self::State>;
+    type Settings = PingSettings;
+    type State = PingState;
+    type StateOperator = StateSaveOperator;
     type Message = PingMessage;
 }
 
@@ -25,16 +28,18 @@ impl ServiceData for PingService {
 impl ServiceCore for PingService {
     fn init(
         service_state_handle: ServiceStateHandle<Self>,
-        _initial_state: Self::State,
+        initial_state: Self::State,
     ) -> Result<Self, DynError> {
         Ok(Self {
             service_state_handle,
+            initial_state,
         })
     }
 
     async fn run(self) -> Result<(), DynError> {
         let Self {
             service_state_handle,
+            initial_state,
         } = self;
 
         let mut inbound_relay = service_state_handle.inbound_relay;
@@ -44,28 +49,31 @@ impl ServiceCore for PingService {
             .connect()
             .await?;
 
-        let mut pong_count = 0;
+        let Self::State { mut pong_count } = initial_state;
 
         loop {
             tokio::select! {
-                 _ = sleep(Duration::from_secs(1)) => {
-                     println!("Sending Ping");
-                     pong_outbound_relay.send(PongMessage::Ping).await.unwrap();
-                 }
-                 Some(message) = inbound_relay.recv() => {
-                     match message {
-                         PingMessage::Pong => {
-                             println!("Received Pong");
-                             pong_count += 1;
-                         }
-                     }
-                 }
-                 true = async {
-                     pong_count >= 5
-                 } => {
-                     println!("Received {} Pongs. Exiting...", pong_count);
-                     break;
-                 }
+                _ = sleep(Duration::from_secs(1)) => {
+                    println!("Sending Ping");
+                    pong_outbound_relay.send(PongMessage::Ping).await.unwrap();
+                }
+                Some(message) = inbound_relay.recv() => {
+                    match message {
+                        PingMessage::Pong => {
+                            pong_count += 1;
+                            service_state_handle.state_updater.update(
+                                Self::State { pong_count }
+                            );
+                            println!("Received Pong. Total: {}", pong_count);
+                        }
+                    }
+                }
+                true = async {
+                    pong_count >= 30
+                } => {
+                    println!("Received {} Pongs. Exiting...", pong_count);
+                    break;
+                }
             }
         }
 
