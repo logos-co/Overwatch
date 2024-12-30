@@ -20,16 +20,25 @@ pub trait ServiceState: Sized {
     type Settings;
     /// Errors that can occur during state initialization
     type Error;
-    /// Initialize a stage upon the provided settings
+    /// Initialize a state using the provided settings
     fn from_settings(settings: &Self::Settings) -> Result<Self, Self::Error>;
 }
 
 /// A state operator is an entity that can handle a state in a point of time
 /// to perform any operation based on it.
+/// A typical use case is to handle recovery: Saving and loading state.
 #[async_trait]
 pub trait StateOperator {
     /// The type of state that the operator can handle
     type StateInput: ServiceState;
+    /// Errors that can occur during state loading
+    type LoadError;
+    /// State initialization method
+    /// In contrast to [ServiceState::from_settings], this is used to try to initialize
+    /// a (saved) [ServiceState] from an external source (e.g. file, database, etc.)
+    fn try_load(
+        settings: &<Self::StateInput as ServiceState>::Settings,
+    ) -> Result<Option<Self::StateInput>, Self::LoadError>;
     /// Operator initialization method. Can be implemented over some subset of settings
     fn from_settings(settings: <Self::StateInput as ServiceState>::Settings) -> Self;
     /// Asynchronously perform an operation for a given state
@@ -56,6 +65,13 @@ impl<T> Clone for NoOperator<T> {
 #[async_trait]
 impl<StateInput: ServiceState> StateOperator for NoOperator<StateInput> {
     type StateInput = StateInput;
+    type LoadError = ();
+
+    fn try_load(
+        _settings: &<Self::StateInput as ServiceState>::Settings,
+    ) -> Result<Option<Self::StateInput>, Self::LoadError> {
+        Ok(None)
+    }
 
     fn from_settings(_settings: <Self::StateInput as ServiceState>::Settings) -> Self {
         NoOperator(PhantomData)
@@ -229,6 +245,13 @@ mod test {
     #[async_trait]
     impl StateOperator for PanicOnGreaterThanTen {
         type StateInput = UsizeCounter;
+        type LoadError = ();
+
+        fn try_load(
+            _settings: &<Self::StateInput as ServiceState>::Settings,
+        ) -> Result<Option<Self::StateInput>, Self::LoadError> {
+            Ok(None)
+        }
 
         fn from_settings(_settings: <Self::StateInput as ServiceState>::Settings) -> Self {
             Self

@@ -49,6 +49,13 @@ pub struct CounterStateOperator;
 #[async_trait]
 impl StateOperator for CounterStateOperator {
     type StateInput = CounterState;
+    type LoadError = ();
+
+    fn try_load(
+        _settings: &<Self::StateInput as ServiceState>::Settings,
+    ) -> Result<Option<Self::StateInput>, Self::LoadError> {
+        Ok(None)
+    }
 
     fn from_settings(_settings: <Self::StateInput as ServiceState>::Settings) -> Self {
         CounterStateOperator
