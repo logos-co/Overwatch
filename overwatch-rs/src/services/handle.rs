@@ -1,5 +1,6 @@
 // crates
 use tokio::runtime::Handle;
+use tracing::info;
 // internal
 use crate::overwatch::handle::OverwatchHandle;
 use crate::services::life_cycle::LifecycleHandle;
@@ -50,7 +51,15 @@ impl<S: ServiceData> ServiceHandle<S> {
         settings: S::Settings,
         overwatch_handle: OverwatchHandle,
     ) -> Result<Self, <S::State as ServiceState>::Error> {
-        S::State::from_settings(&settings).map(|initial_state| Self {
+        let initial_state = if let Ok(Some(loaded_state)) = S::StateOperator::try_load(&settings) {
+            info!("Loaded state from Operator");
+            loaded_state
+        } else {
+            info!("Couldn't load state from Operator. Creating from settings.");
+            S::State::from_settings(&settings)?
+        };
+
+        Ok(Self {
             outbound_relay: None,
             overwatch_handle,
             settings: SettingsUpdater::new(settings),
