@@ -5,6 +5,7 @@ use overwatch_rs::services::handle::{ServiceHandle, ServiceStateHandle};
 use overwatch_rs::services::relay::RelayMessage;
 use overwatch_rs::services::state::{ServiceState, StateOperator};
 use overwatch_rs::services::{ServiceCore, ServiceData, ServiceId};
+use std::convert::Infallible;
 use std::time::Duration;
 use tokio::io::{self, AsyncWriteExt};
 use tokio::time::sleep;
@@ -49,7 +50,7 @@ pub struct CounterStateOperator;
 #[async_trait]
 impl StateOperator for CounterStateOperator {
     type StateInput = CounterState;
-    type LoadError = ();
+    type LoadError = Infallible;
 
     fn try_load(
         _settings: &<Self::StateInput as ServiceState>::Settings,
