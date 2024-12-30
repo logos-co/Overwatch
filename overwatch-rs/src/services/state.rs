@@ -20,7 +20,8 @@ pub trait ServiceState: Sized {
     type Settings;
     /// Errors that can occur during state initialization
     type Error;
-    /// Initialize a state using the provided settings
+    /// Initialize a state using the provided settings.
+    /// This is called when [StateOperator::try_load] doesn't return a state.
     fn from_settings(settings: &Self::Settings) -> Result<Self, Self::Error>;
 }
 
