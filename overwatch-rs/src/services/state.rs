@@ -1,3 +1,5 @@
+use std::convert::Infallible;
+use std::error::Error;
 // std
 use std::marker::PhantomData;
 use std::pin::Pin;
@@ -33,7 +35,7 @@ pub trait StateOperator {
     /// The type of state that the operator can handle
     type StateInput: ServiceState;
     /// Errors that can occur during state loading
-    type LoadError;
+    type LoadError: Error;
     /// State initialization method
     /// In contrast to [ServiceState::from_settings], this is used to try to initialize
     /// a (saved) [ServiceState] from an external source (e.g. file, database, etc.)
@@ -66,7 +68,7 @@ impl<T> Clone for NoOperator<T> {
 #[async_trait]
 impl<StateInput: ServiceState> StateOperator for NoOperator<StateInput> {
     type StateInput = StateInput;
-    type LoadError = ();
+    type LoadError = Infallible;
 
     fn try_load(
         _settings: &<Self::StateInput as ServiceState>::Settings,
@@ -225,6 +227,7 @@ where
 mod test {
     use crate::services::state::{ServiceState, StateHandle, StateOperator, StateUpdater};
     use async_trait::async_trait;
+    use std::convert::Infallible;
     use std::time::Duration;
     use tokio::io;
     use tokio::io::AsyncWriteExt;
@@ -246,7 +249,7 @@ mod test {
     #[async_trait]
     impl StateOperator for PanicOnGreaterThanTen {
         type StateInput = UsizeCounter;
-        type LoadError = ();
+        type LoadError = Infallible;
 
         fn try_load(
             _settings: &<Self::StateInput as ServiceState>::Settings,
