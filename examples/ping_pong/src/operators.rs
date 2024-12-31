@@ -13,6 +13,15 @@ pub struct StateSaveOperator {
 #[async_trait::async_trait]
 impl StateOperator for StateSaveOperator {
     type StateInput = PingState;
+    type LoadError = std::io::Error;
+
+    fn try_load(
+        settings: &<Self::StateInput as ServiceState>::Settings,
+    ) -> Result<Option<Self::StateInput>, Self::LoadError> {
+        let state_string = std::fs::read_to_string(&settings.state_save_path)?;
+        serde_json::from_str(&state_string)
+            .map_err(|error| std::io::Error::new(std::io::ErrorKind::InvalidData, error))
+    }
 
     fn from_settings(settings: <Self::StateInput as ServiceState>::Settings) -> Self {
         Self {
