@@ -1,10 +1,10 @@
 mod utils;
 
 use proc_macro_error::{abort_call_site, proc_macro_error};
-use quote::{__private::TokenStream, format_ident, quote};
+use quote::{format_ident, quote};
 use syn::{punctuated::Punctuated, token::Comma, Data, DeriveInput, Field, Generics};
 
-fn get_default_instrumentation() -> TokenStream {
+fn get_default_instrumentation() -> proc_macro2::TokenStream {
     #[cfg(feature = "instrumentation")]
     quote! {
         #[tracing::instrument(skip(self), err)]
@@ -14,7 +14,7 @@ fn get_default_instrumentation() -> TokenStream {
     quote! {}
 }
 
-fn get_default_instrumentation_without_settings() -> TokenStream {
+fn get_default_instrumentation_without_settings() -> proc_macro2::TokenStream {
     #[cfg(feature = "instrumentation")]
     quote! {
         #[tracing::instrument(skip(self, settings), err)]
@@ -52,9 +52,9 @@ fn impl_services(input: &DeriveInput) -> proc_macro2::TokenStream {
     let generics = &input.generics;
     match data {
         Data::Struct(DataStruct {
-            fields: syn::Fields::Named(fields),
-            ..
-        }) => impl_services_for_struct(struct_identifier, generics, &fields.named),
+                         fields: syn::Fields::Named(fields),
+                         ..
+                     }) => impl_services_for_struct(struct_identifier, generics, &fields.named),
         _ => {
             abort_call_site!("Deriving Services is only supported for named Structs");
         }
