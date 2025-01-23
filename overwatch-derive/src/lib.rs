@@ -52,9 +52,9 @@ fn impl_services(input: &DeriveInput) -> proc_macro2::TokenStream {
     let generics = &input.generics;
     match data {
         Data::Struct(DataStruct {
-                         fields: syn::Fields::Named(fields),
-                         ..
-                     }) => impl_services_for_struct(struct_identifier, generics, &fields.named),
+            fields: syn::Fields::Named(fields),
+            ..
+        }) => impl_services_for_struct(struct_identifier, generics, &fields.named),
         _ => {
             abort_call_site!("Deriving Services is only supported for named Structs");
         }
