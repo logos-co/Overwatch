@@ -13,7 +13,7 @@ use tokio::sync::broadcast;
 use tokio::sync::broadcast::error::SendError;
 
 #[derive(Clone)]
-struct TryLoadState {}
+struct TryLoadState;
 
 impl ServiceState for TryLoadState {
     type Settings = TryLoadSettings;
