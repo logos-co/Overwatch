@@ -12,17 +12,10 @@ jobs:
       RUSTFLAGS: -C instrument-coverage
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v4
         with:
           submodules: true
-      - uses: actions-rs/toolchain@v1
-        with:
-          profile: minimal
-          toolchain: stable
-          override: true
-          components: llvm-tools-preview
-      - uses: actions-rs/cargo@v1
-        continue-on-error: true
+      - run: rustup component add llvm-tools-preview
       - run: |
           cargo install grcov;
           cargo test --all-features;
