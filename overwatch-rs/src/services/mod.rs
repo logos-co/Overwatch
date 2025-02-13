@@ -14,9 +14,7 @@ use tokio::runtime;
 
 // internal
 use crate::services::relay::RelayError;
-use crate::services::state::StateOperator;
 use handle::ServiceStateHandle;
-use relay::RelayMessage;
 use state::ServiceState;
 
 // TODO: Make this type unique for each service?
@@ -31,13 +29,13 @@ pub trait ServiceData {
     /// Service relay buffer size
     const SERVICE_RELAY_BUFFER_SIZE: usize = 16;
     /// Service settings object
-    type Settings: Clone;
+    type Settings;
     /// Service state object
-    type State: ServiceState<Settings = Self::Settings> + Clone;
+    type State;
     /// State operator
-    type StateOperator: StateOperator<StateInput = Self::State> + Clone;
+    type StateOperator;
     /// Service messages that the service itself understands and can react to
-    type Message: RelayMessage + Debug;
+    type Message;
 }
 
 /// Main trait for Services initialization and main loop hook
@@ -45,7 +43,7 @@ pub trait ServiceData {
 pub trait ServiceCore: Sized + ServiceData {
     /// Initialize the service with the given state
     fn init(
-        service_state: ServiceStateHandle<Self>,
+        service_state: ServiceStateHandle<Self::Message, Self::Settings, Self, Self::State>,
         initial_state: Self::State,
     ) -> Result<Self, super::DynError>;
 

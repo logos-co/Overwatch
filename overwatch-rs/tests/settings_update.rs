@@ -1,10 +1,10 @@
 use async_trait::async_trait;
 use overwatch_derive::Services;
 use overwatch_rs::overwatch::OverwatchRunner;
-use overwatch_rs::services::handle::{ServiceHandle, ServiceStateHandle};
 use overwatch_rs::services::relay::RelayMessage;
 use overwatch_rs::services::state::{NoOperator, NoState};
 use overwatch_rs::services::{ServiceCore, ServiceData, ServiceId};
+use overwatch_rs::{ServiceHandle, ServiceStateHandle};
 use std::time::Duration;
 use tokio::time::sleep;
 
@@ -23,7 +23,7 @@ impl ServiceData for SettingsService {
     const SERVICE_ID: ServiceId = "FooService";
     type Settings = SettingsServiceSettings;
     type State = NoState<Self::Settings>;
-    type StateOperator = NoOperator<Self::State>;
+    type StateOperator = NoOperator<Self::State, Self::Settings>;
     type Message = SettingsMsg;
 }
 

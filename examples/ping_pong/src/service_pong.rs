@@ -1,10 +1,9 @@
 // Crates
 use crate::messages::{PingMessage, PongMessage};
 use crate::service_ping::PingService;
-use overwatch_rs::services::handle::ServiceStateHandle;
 use overwatch_rs::services::state::{NoOperator, NoState};
 use overwatch_rs::services::{ServiceCore, ServiceData, ServiceId};
-use overwatch_rs::DynError;
+use overwatch_rs::{DynError, ServiceStateHandle};
 
 pub struct PongService {
     service_state_handle: ServiceStateHandle<Self>,
@@ -14,7 +13,7 @@ impl ServiceData for PongService {
     const SERVICE_ID: ServiceId = "pong";
     type Settings = ();
     type State = NoState<Self::Settings>;
-    type StateOperator = NoOperator<Self::State>;
+    type StateOperator = NoOperator<Self::State, Self::Settings>;
     type Message = PongMessage;
 }
 

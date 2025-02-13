@@ -4,11 +4,11 @@ use std::time::Duration;
 use async_trait::async_trait;
 use overwatch_derive::Services;
 use overwatch_rs::overwatch::OverwatchRunner;
-use overwatch_rs::services::handle::{ServiceHandle, ServiceStateHandle};
 use overwatch_rs::services::relay::NoMessage;
 use overwatch_rs::services::state::{ServiceState, StateOperator};
 use overwatch_rs::services::{ServiceCore, ServiceData, ServiceId};
 use overwatch_rs::DynError;
+use overwatch_rs::{ServiceHandle, ServiceStateHandle};
 use tokio::sync::broadcast;
 use tokio::sync::broadcast::error::SendError;
 
@@ -32,6 +32,7 @@ struct TryLoadOperator;
 #[async_trait]
 impl StateOperator for TryLoadOperator {
     type StateInput = TryLoadState;
+    type Settings = TryLoadSettings;
     type LoadError = SendError<String>;
 
     fn try_load(

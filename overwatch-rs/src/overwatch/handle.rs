@@ -1,5 +1,7 @@
 // std
 
+use std::fmt::Debug;
+
 // crates
 use crate::overwatch::commands::{
     OverwatchCommand, OverwatchLifeCycleCommand, ReplyChannel, SettingsCommand, StatusCommand,
@@ -20,12 +22,12 @@ use crate::services::status::StatusWatcher;
 /// It handles communications to the main Overwatch runner.
 #[derive(Clone, Debug)]
 pub struct OverwatchHandle {
-    #[allow(unused)]
     runtime_handle: Handle,
     sender: Sender<OverwatchCommand>,
 }
 
 impl OverwatchHandle {
+    #[must_use]
     pub fn new(runtime_handle: Handle, sender: Sender<OverwatchCommand>) -> Self {
         Self {
             runtime_handle,
@@ -33,8 +35,13 @@ impl OverwatchHandle {
         }
     }
 
+    #[must_use]
     /// Request for a relay
-    pub fn relay<S: ServiceData>(&self) -> Relay<S> {
+    pub fn relay<Service>(&self) -> Relay<Service>
+    where
+        Service: ServiceData,
+        Service::Message: 'static,
+    {
         Relay::new(self.clone())
     }
 
@@ -103,7 +110,7 @@ impl OverwatchHandle {
     #[cfg_attr(feature = "instrumentation", instrument(skip(self)))]
     pub async fn update_settings<S: Services>(&self, settings: S::Settings)
     where
-        S::Settings: Send,
+        S::Settings: Send + Debug + 'static,
     {
         if let Err(e) = self
             .sender

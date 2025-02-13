@@ -15,41 +15,47 @@ use crate::services::{ServiceCore, ServiceData, ServiceId, ServiceState};
 // unnecessary Option and cloning.
 /// Service handle
 /// This is used to access different parts of the service
-pub struct ServiceHandle<S: ServiceData> {
+pub struct ServiceHandle<Message, Settings, Data, State> {
     /// Message channel relay
     /// Would be None if service is not running
     /// Will contain the channel if service is running
-    outbound_relay: Option<OutboundRelay<S::Message>>,
+    outbound_relay: Option<OutboundRelay<Message>>,
     /// Handle to overwatch
     overwatch_handle: OverwatchHandle,
-    settings: SettingsUpdater<S::Settings>,
-    status: StatusHandle<S>,
-    initial_state: S::State,
+    settings: SettingsUpdater<Settings>,
+    status: StatusHandle<Data>,
+    initial_state: State,
 }
 
 /// Service core resources
 /// It contains whatever is necessary to start a new service runner
-pub struct ServiceStateHandle<S: ServiceData> {
+pub struct ServiceStateHandle<Message, Settings, Data, State> {
     /// Relay channel to communicate with the service runner
-    pub inbound_relay: InboundRelay<S::Message>,
-    pub status_handle: StatusHandle<S>,
+    pub inbound_relay: InboundRelay<Message>,
+    pub status_handle: StatusHandle<Data>,
     /// Overwatch handle
     pub overwatch_handle: OverwatchHandle,
-    pub settings_reader: SettingsNotifier<S::Settings>,
-    pub state_updater: StateUpdater<S::State>,
+    pub settings_reader: SettingsNotifier<Settings>,
+    pub state_updater: StateUpdater<State>,
     pub lifecycle_handle: LifecycleHandle,
 }
 
 /// Main service executor
 /// It is the object that hold the necessary information for the service to run
-pub struct ServiceRunner<S: ServiceData> {
-    service_state: ServiceStateHandle<S>,
-    state_handle: StateHandle<S::State, S::StateOperator>,
+pub struct ServiceRunner<Message, Settings, Data, State, StateOperator> {
+    service_state: ServiceStateHandle<Message, Settings, Data, State>,
+    state_handle: StateHandle<State, StateOperator>,
     lifecycle_handle: LifecycleHandle,
-    initial_state: S::State,
+    initial_state: State,
 }
 
-impl<S: ServiceData> ServiceHandle<S> {
+impl<S> ServiceHandle<S::Message, S::Settings, S, S::State>
+where
+    S: ServiceData,
+    S::State: ServiceState<Settings = S::Settings> + Clone,
+    S::Settings: Clone,
+    S::StateOperator: StateOperator<Settings = S::Settings, StateInput = S::State>,
+{
     pub fn new(
         settings: S::Settings,
         overwatch_handle: OverwatchHandle,
@@ -102,7 +108,9 @@ impl<S: ServiceData> ServiceHandle<S> {
     }
 
     /// Build a runner for this service
-    pub fn service_runner(&mut self) -> ServiceRunner<S> {
+    pub fn service_runner(
+        &mut self,
+    ) -> ServiceRunner<S::Message, S::Settings, S, S::State, S::StateOperator> {
         // TODO: add proper status handling here, a service should be able to produce a runner if it is already running.
         let (inbound_relay, outbound_relay) = relay::<S::Message>(S::SERVICE_RELAY_BUFFER_SIZE);
         let settings_reader = self.settings.notifier();
@@ -133,17 +141,20 @@ impl<S: ServiceData> ServiceHandle<S> {
     }
 }
 
-impl<S: ServiceData> ServiceStateHandle<S> {
+impl<S> ServiceStateHandle<S::Message, S::Settings, S, S::State>
+where
+    S: ServiceData,
+{
     pub fn id(&self) -> ServiceId {
         S::SERVICE_ID
     }
 }
 
-impl<S> ServiceRunner<S>
+impl<S> ServiceRunner<S::Message, S::Settings, S, S::State, S::StateOperator>
 where
-    S::State: Send + Sync + 'static,
-    S::StateOperator: Send + 'static,
     S: ServiceCore + 'static,
+    S::State: Clone + Send + Sync + 'static,
+    S::StateOperator: StateOperator<StateInput = S::State> + Send,
 {
     /// Spawn the service main loop and handle it lifecycle
     /// Return a handle to abort execution manually

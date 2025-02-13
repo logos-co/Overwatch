@@ -20,7 +20,7 @@ impl<M> From<oneshot::Sender<M>> for ReplyChannel<M> {
 }
 
 impl<M> ReplyChannel<M> {
-    pub async fn reply(self, message: M) -> Result<(), M> {
+    pub fn reply(self, message: M) -> Result<(), M> {
         self.0.send(message)
     }
 }
@@ -40,7 +40,6 @@ pub struct StatusCommand {
 }
 
 /// Command for managing [`ServiceCore`](crate::services::ServiceCore) lifecycle
-#[allow(unused)]
 #[derive(Debug)]
 pub struct ServiceLifeCycleCommand {
     pub service_id: ServiceId,

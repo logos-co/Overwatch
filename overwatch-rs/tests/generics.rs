@@ -2,51 +2,38 @@ use async_trait::async_trait;
 use futures::future::select;
 use overwatch_derive::Services;
 use overwatch_rs::overwatch::OverwatchRunner;
-use overwatch_rs::services::handle::{ServiceHandle, ServiceStateHandle};
-use overwatch_rs::services::relay::RelayMessage;
+use overwatch_rs::services::handle::ServiceStateHandle;
 use overwatch_rs::services::state::{NoOperator, NoState};
 use overwatch_rs::services::{ServiceCore, ServiceData, ServiceId};
+use overwatch_rs::ServiceHandle;
 use std::fmt::Debug;
 use std::time::Duration;
 use tokio::time::sleep;
 
-pub struct GenericService<T: Send>
-where
-    T: Debug + 'static + Sync,
-{
-    state: ServiceStateHandle<Self>,
-    _phantom: std::marker::PhantomData<T>,
+pub struct GenericService {
+    state: ServiceStateHandle<GenericServiceMessage, (), Self, NoState<()>>,
 }
 
 #[derive(Clone, Debug)]
 pub struct GenericServiceMessage(String);
 
-impl RelayMessage for GenericServiceMessage {}
+// impl RelayMessage for GenericServiceMessage {}
 
-impl<T: Send> ServiceData for GenericService<T>
-where
-    T: Debug + 'static + Sync,
-{
+impl ServiceData for GenericService {
     const SERVICE_ID: ServiceId = "FooService";
     type Settings = ();
     type State = NoState<Self::Settings>;
-    type StateOperator = NoOperator<Self::State>;
+    type StateOperator = NoOperator<Self::State, Self::Settings>;
     type Message = GenericServiceMessage;
 }
 
 #[async_trait]
-impl<T: Send> ServiceCore for GenericService<T>
-where
-    T: Debug + 'static + Sync,
-{
+impl ServiceCore for GenericService {
     fn init(
-        state: ServiceStateHandle<Self>,
+        state: ServiceStateHandle<Self::Message, Self::Settings, Self, Self::State>,
         _initial_state: Self::State,
     ) -> Result<Self, overwatch_rs::DynError> {
-        Ok(Self {
-            state,
-            _phantom: std::marker::PhantomData,
-        })
+        Ok(Self { state })
     }
 
     async fn run(mut self) -> Result<(), overwatch_rs::DynError> {
@@ -97,21 +84,18 @@ where
 }
 
 #[derive(Services)]
-struct TestApp<T: Send>
-where
-    T: Debug + 'static + Sync,
-{
-    generic_service: ServiceHandle<GenericService<T>>,
+struct TestApp {
+    generic_service: ServiceHandle<GenericService>,
 }
 
 #[test]
 fn derive_generic_service() {
-    let settings: TestAppServiceSettings<String> = TestAppServiceSettings {
+    let settings: TestAppServiceSettings = TestAppServiceSettings {
         generic_service: (),
     };
-    let overwatch = OverwatchRunner::<TestApp<String>>::run(settings, None).unwrap();
+    let overwatch = OverwatchRunner::<TestApp>::run(settings, None).unwrap();
     let handle = overwatch.handle().clone();
-    let generic_service_relay = handle.relay::<GenericService<String>>();
+    let generic_service_relay = handle.relay::<GenericService>();
 
     overwatch.spawn(async move {
         let generic_service_relay = generic_service_relay
