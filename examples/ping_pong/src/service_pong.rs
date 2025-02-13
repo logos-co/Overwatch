@@ -3,10 +3,10 @@ use crate::messages::{PingMessage, PongMessage};
 use crate::service_ping::PingService;
 use overwatch_rs::services::state::{NoOperator, NoState};
 use overwatch_rs::services::{ServiceCore, ServiceData, ServiceId};
-use overwatch_rs::{DynError, ServiceStateHandle};
+use overwatch_rs::{DynError, OpaqueServiceStateHandle};
 
 pub struct PongService {
-    service_state_handle: ServiceStateHandle<Self>,
+    service_state_handle: OpaqueServiceStateHandle<Self>,
 }
 
 impl ServiceData for PongService {
@@ -20,7 +20,7 @@ impl ServiceData for PongService {
 #[async_trait::async_trait]
 impl ServiceCore for PongService {
     fn init(
-        service_state_handle: ServiceStateHandle<Self>,
+        service_state_handle: OpaqueServiceStateHandle<Self>,
         _initial_state: Self::State,
     ) -> Result<Self, DynError> {
         Ok(Self {

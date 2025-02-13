@@ -177,7 +177,7 @@ fn generate_new_impl(fields: &Punctuated<Field, Comma>) -> proc_macro2::TokenStr
         quote! {
             #field_identifier: {
                 let manager =
-                    ::overwatch_rs::ServiceHandle::<#service_type>::new(
+                    ::overwatch_rs::OpaqueServiceHandle::<#service_type>::new(
                         #settings_field_identifier, overwatch_handle.clone(),
                 )?;
                 manager

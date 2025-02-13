@@ -8,7 +8,7 @@ use overwatch_rs::services::relay::NoMessage;
 use overwatch_rs::services::state::{ServiceState, StateOperator};
 use overwatch_rs::services::{ServiceCore, ServiceData, ServiceId};
 use overwatch_rs::DynError;
-use overwatch_rs::{ServiceHandle, ServiceStateHandle};
+use overwatch_rs::{OpaqueServiceHandle, OpaqueServiceStateHandle};
 use tokio::sync::broadcast;
 use tokio::sync::broadcast::error::SendError;
 
@@ -57,7 +57,7 @@ struct TryLoadSettings {
 }
 
 struct TryLoad {
-    service_state_handle: ServiceStateHandle<Self>,
+    service_state_handle: OpaqueServiceStateHandle<Self>,
 }
 
 impl ServiceData for TryLoad {
@@ -71,7 +71,7 @@ impl ServiceData for TryLoad {
 #[async_trait]
 impl ServiceCore for TryLoad {
     fn init(
-        service_state: ServiceStateHandle<Self>,
+        service_state: OpaqueServiceStateHandle<Self>,
         _initial_state: Self::State,
     ) -> Result<Self, DynError> {
         Ok(Self {
@@ -92,7 +92,7 @@ impl ServiceCore for TryLoad {
 
 #[derive(Services)]
 struct TryLoadApp {
-    try_load: ServiceHandle<TryLoad>,
+    try_load: OpaqueServiceHandle<TryLoad>,
 }
 
 #[test]

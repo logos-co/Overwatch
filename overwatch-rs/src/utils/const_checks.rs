@@ -1,5 +1,6 @@
 use crate::services::ServiceId;
 
+#[must_use]
 pub const fn unique_ids(to_check: &[ServiceId]) -> bool {
     if to_check.is_empty() {
         return true;

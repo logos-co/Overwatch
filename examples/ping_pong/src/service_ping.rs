@@ -1,6 +1,6 @@
 // Crates
 use overwatch_rs::services::{ServiceCore, ServiceData, ServiceId};
-use overwatch_rs::{DynError, ServiceStateHandle};
+use overwatch_rs::{DynError, OpaqueServiceStateHandle};
 use std::time::Duration;
 use tokio::time::sleep;
 // Internal
@@ -11,7 +11,7 @@ use crate::settings::PingSettings;
 use crate::states::PingState;
 
 pub struct PingService {
-    service_state_handle: ServiceStateHandle<Self>,
+    service_state_handle: OpaqueServiceStateHandle<Self>,
     initial_state: <Self as ServiceData>::State,
 }
 
@@ -26,7 +26,7 @@ impl ServiceData for PingService {
 #[async_trait::async_trait]
 impl ServiceCore for PingService {
     fn init(
-        service_state_handle: ServiceStateHandle<Self>,
+        service_state_handle: OpaqueServiceStateHandle<Self>,
         initial_state: Self::State,
     ) -> Result<Self, DynError> {
         Ok(Self {
@@ -52,7 +52,7 @@ impl ServiceCore for PingService {
 
         loop {
             tokio::select! {
-                _ = sleep(Duration::from_secs(1)) => {
+                () = sleep(Duration::from_secs(1)) => {
                     println!("Sending Ping");
                     pong_outbound_relay.send(PongMessage::Ping).await.unwrap();
                 }
@@ -63,14 +63,14 @@ impl ServiceCore for PingService {
                             service_state_handle.state_updater.update(
                                 Self::State { pong_count }
                             );
-                            println!("Received Pong. Total: {}", pong_count);
+                            println!("Received Pong. Total: {pong_count}");
                         }
                     }
                 }
                 true = async {
                     pong_count >= 30
                 } => {
-                    println!("Received {} Pongs. Exiting...", pong_count);
+                    println!("Received {pong_count} Pongs. Exiting...");
                     break;
                 }
             }

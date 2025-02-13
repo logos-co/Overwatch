@@ -5,7 +5,7 @@ use overwatch_rs::overwatch::OverwatchRunner;
 use overwatch_rs::services::handle::ServiceStateHandle;
 use overwatch_rs::services::state::{NoOperator, NoState};
 use overwatch_rs::services::{ServiceCore, ServiceData, ServiceId};
-use overwatch_rs::ServiceHandle;
+use overwatch_rs::OpaqueServiceHandle;
 use std::fmt::Debug;
 use std::time::Duration;
 use tokio::time::sleep;
@@ -85,7 +85,7 @@ impl ServiceCore for GenericService {
 
 #[derive(Services)]
 struct TestApp {
-    generic_service: ServiceHandle<GenericService>,
+    generic_service: OpaqueServiceHandle<GenericService>,
 }
 
 #[test]

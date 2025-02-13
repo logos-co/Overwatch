@@ -73,7 +73,7 @@ impl ServiceRuntime {
     pub fn runtime(self) -> Option<runtime::Runtime> {
         match self {
             ServiceRuntime::Custom(runtime) => Some(runtime),
-            _ => None,
+            ServiceRuntime::FromParent(_) => None,
         }
     }
 }

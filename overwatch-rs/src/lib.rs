@@ -31,13 +31,13 @@ pub mod services;
 pub mod utils;
 
 pub type DynError = Box<dyn std::error::Error + Send + Sync + 'static>;
-pub type ServiceHandle<S> = crate::services::handle::ServiceHandle<
+pub type OpaqueServiceHandle<S> = crate::services::handle::ServiceHandle<
     <S as ServiceData>::Message,
     <S as ServiceData>::Settings,
     S,
     <S as ServiceData>::State,
 >;
-pub type ServiceStateHandle<S> = crate::services::handle::ServiceStateHandle<
+pub type OpaqueServiceStateHandle<S> = crate::services::handle::ServiceStateHandle<
     <S as ServiceData>::Message,
     <S as ServiceData>::Settings,
     S,

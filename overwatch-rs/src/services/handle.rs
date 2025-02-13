@@ -104,7 +104,7 @@ where
 
     /// Update settings
     pub fn update_settings(&self, settings: S::Settings) {
-        self.settings.update(settings)
+        self.settings.update(settings);
     }
 
     /// Build a runner for this service
@@ -145,6 +145,7 @@ impl<S> ServiceStateHandle<S::Message, S::Settings, S, S::State>
 where
     S: ServiceData,
 {
+    #[must_use]
     pub fn id(&self) -> ServiceId {
         S::SERVICE_ID
     }

@@ -30,7 +30,7 @@ impl StatusUpdater {
     pub fn update(&self, status: ServiceStatus) {
         self.0
             .send(status)
-            .expect("Overwatch always maintain an open watcher, send should always succeed")
+            .expect("Overwatch always maintain an open watcher, send should always succeed");
     }
 }
 
@@ -66,12 +66,13 @@ impl<S: ServiceData> Clone for StatusHandle<S> {
         Self {
             updater: Arc::clone(&self.updater),
             watcher: self.watcher.clone(),
-            _phantom: Default::default(),
+            _phantom: PhantomData,
         }
     }
 }
 
 impl<S> StatusHandle<S> {
+    #[must_use]
     pub fn new() -> Self {
         let (updater, watcher) = watch::channel(ServiceStatus::Uninitialized);
         let updater = Arc::new(StatusUpdater(updater));
@@ -79,13 +80,14 @@ impl<S> StatusHandle<S> {
         Self {
             updater,
             watcher,
-            _phantom: Default::default(),
+            _phantom: PhantomData,
         }
     }
+    #[must_use]
     pub fn updater(&self) -> &StatusUpdater {
         &self.updater
     }
-
+    #[must_use]
     pub fn watcher(&self) -> StatusWatcher {
         self.watcher.clone()
     }

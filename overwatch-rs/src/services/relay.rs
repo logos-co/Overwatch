@@ -105,6 +105,7 @@ impl<Message> Clone for OutboundRelay<Message> {
 
 // TODO: make buffer_size const?
 /// Relay channel builder
+#[must_use]
 pub fn relay<Message>(buffer_size: usize) -> (InboundRelay<Message>, OutboundRelay<Message>) {
     let (sender, receiver) = channel(buffer_size);
     (
@@ -141,8 +142,6 @@ impl<Message> OutboundRelay<Message> {
     ///
     /// This function panics if called within an asynchronous execution
     /// context.
-    ///
-    /// # Exa
     pub fn blocking_send(&self, message: Message) -> Result<(), (RelayError, Message)> {
         self.sender
             .blocking_send(message)
@@ -164,6 +163,7 @@ where
     Service: ServiceData,
     Service::Message: 'static,
 {
+    #[must_use]
     pub fn new(overwatch_handle: OverwatchHandle) -> Self {
         Self {
             overwatch_handle,

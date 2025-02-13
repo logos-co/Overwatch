@@ -5,19 +5,19 @@ use overwatch_rs::services::state::{NoOperator, NoState};
 use overwatch_rs::services::status::{ServiceStatus, StatusWatcher};
 use overwatch_rs::services::{ServiceCore, ServiceData, ServiceId};
 use overwatch_rs::DynError;
-use overwatch_rs::{ServiceHandle, ServiceStateHandle};
+use overwatch_rs::{OpaqueServiceHandle, OpaqueServiceStateHandle};
 use std::time::Duration;
 
 pub struct AwaitService1 {
-    service_state: ServiceStateHandle<Self>,
+    service_state: OpaqueServiceStateHandle<Self>,
 }
 
 pub struct AwaitService2 {
-    service_state: ServiceStateHandle<Self>,
+    service_state: OpaqueServiceStateHandle<Self>,
 }
 
 pub struct AwaitService3 {
-    service_state: ServiceStateHandle<Self>,
+    service_state: OpaqueServiceStateHandle<Self>,
 }
 
 impl ServiceData for AwaitService1 {
@@ -47,7 +47,7 @@ impl ServiceData for AwaitService3 {
 #[async_trait::async_trait]
 impl ServiceCore for AwaitService1 {
     fn init(
-        service_state: ServiceStateHandle<Self>,
+        service_state: OpaqueServiceStateHandle<Self>,
         _initial_state: Self::State,
     ) -> Result<Self, DynError> {
         Ok(Self { service_state })
@@ -71,7 +71,7 @@ impl ServiceCore for AwaitService1 {
 #[async_trait::async_trait]
 impl ServiceCore for AwaitService2 {
     fn init(
-        service_state: ServiceStateHandle<Self>,
+        service_state: OpaqueServiceStateHandle<Self>,
         _initial_state: Self::State,
     ) -> Result<Self, DynError> {
         Ok(Self { service_state })
@@ -111,7 +111,7 @@ impl ServiceCore for AwaitService2 {
 #[async_trait::async_trait]
 impl ServiceCore for AwaitService3 {
     fn init(
-        service_state: ServiceStateHandle<Self>,
+        service_state: OpaqueServiceStateHandle<Self>,
         _initial_state: Self::State,
     ) -> Result<Self, DynError> {
         Ok(Self { service_state })
@@ -150,9 +150,9 @@ impl ServiceCore for AwaitService3 {
 
 #[derive(Services)]
 struct SequenceServices {
-    c: ServiceHandle<AwaitService3>,
-    b: ServiceHandle<AwaitService2>,
-    a: ServiceHandle<AwaitService1>,
+    c: OpaqueServiceHandle<AwaitService3>,
+    b: OpaqueServiceHandle<AwaitService2>,
+    a: OpaqueServiceHandle<AwaitService1>,
 }
 
 #[test]

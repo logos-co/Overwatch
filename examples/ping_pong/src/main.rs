@@ -1,7 +1,7 @@
 // Crate
 use overwatch_derive::Services;
 use overwatch_rs::overwatch::OverwatchRunner;
-use overwatch_rs::ServiceHandle;
+use overwatch_rs::OpaqueServiceHandle;
 // Internal
 use crate::service_ping::PingService;
 use crate::service_pong::PongService;
@@ -16,8 +16,8 @@ mod states;
 
 #[derive(Services)]
 struct PingPong {
-    ping: ServiceHandle<PingService>,
-    pong: ServiceHandle<PongService>,
+    ping: OpaqueServiceHandle<PingService>,
+    pong: OpaqueServiceHandle<PongService>,
 }
 
 const PING_STATE_SAVE_PATH: &str = const_format::formatcp!(

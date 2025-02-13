@@ -11,16 +11,16 @@ use crate::services::status::StatusWatcher;
 use crate::services::ServiceId;
 
 #[derive(Debug)]
-pub(crate) struct ReplyChannel<M>(pub(crate) oneshot::Sender<M>);
+pub(crate) struct ReplyChannel<Message>(pub(crate) oneshot::Sender<Message>);
 
-impl<M> From<oneshot::Sender<M>> for ReplyChannel<M> {
-    fn from(sender: oneshot::Sender<M>) -> Self {
+impl<Message> From<oneshot::Sender<Message>> for ReplyChannel<Message> {
+    fn from(sender: oneshot::Sender<Message>) -> Self {
         Self(sender)
     }
 }
 
-impl<M> ReplyChannel<M> {
-    pub fn reply(self, message: M) -> Result<(), M> {
+impl<Message> ReplyChannel<Message> {
+    pub fn reply(self, message: Message) -> Result<(), Message> {
         self.0.send(message)
     }
 }

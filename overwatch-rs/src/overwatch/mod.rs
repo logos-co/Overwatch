@@ -279,9 +279,6 @@ impl Overwatch {
     }
 
     /// Block until Overwatch finish its execution.
-    ///
-    /// # Panics
-    /// This function panics if no finish signal ever arrives.
     pub fn wait_finished(self) {
         let Self {
             runtime,

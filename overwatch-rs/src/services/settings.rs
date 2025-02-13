@@ -15,6 +15,7 @@ impl<Settings> SettingsNotifier<Settings>
 where
     Settings: Clone,
 {
+    #[must_use]
     pub fn new(notifier_channel: Receiver<Settings>) -> Self {
         Self { notifier_channel }
     }
@@ -27,6 +28,7 @@ where
     // of the method. Another option would be to spawn a task that updates a settings local value
     // each time an updated settings is received. This could not be so easy to do, since it will
     // need to hold a &mut to the holder (or needed to use a Cell/RefCell).
+    #[must_use]
     pub fn get_updated_settings(&self) -> Settings {
         self.notifier_channel.borrow().clone()
     }
@@ -54,6 +56,7 @@ impl<Settings> SettingsUpdater<Settings> {
     }
 
     /// Get a new notifier channel, used to get latest settings changes updates
+    #[must_use]
     pub fn notifier(&self) -> SettingsNotifier<Settings> {
         SettingsNotifier {
             notifier_channel: self.receiver.clone(),

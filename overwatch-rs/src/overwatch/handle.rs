@@ -57,7 +57,7 @@ impl OverwatchHandle {
             }))
             .await;
         match watcher_request {
-            Ok(_) => receiver.await.unwrap_or_else(|_| {
+            Ok(()) => receiver.await.unwrap_or_else(|_| {
                 panic!(
                     "Service {} watcher should always be available",
                     S::SERVICE_ID
@@ -119,10 +119,11 @@ impl OverwatchHandle {
             ))))
             .await
         {
-            error!(error=?e, "Error updating settings")
+            error!(error=?e, "Error updating settings");
         }
     }
 
+    #[must_use]
     pub fn runtime(&self) -> &Handle {
         &self.runtime_handle
     }

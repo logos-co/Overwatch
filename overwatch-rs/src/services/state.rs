@@ -22,7 +22,7 @@ pub trait ServiceState: Sized {
     /// Errors that can occur during state initialization
     type Error;
     /// Initialize a state using the provided settings.
-    /// This is called when [StateOperator::try_load] doesn't return a state.
+    /// This is called when [`StateOperator::try_load`] doesn't return a state.
     fn from_settings(settings: &Self::Settings) -> Result<Self, Self::Error>;
 }
 
@@ -49,10 +49,7 @@ pub trait StateOperator {
 
 /// Operator that doesn't perform any operation upon state update
 #[derive(Copy)]
-pub struct NoOperator<StateInput, Settings>(
-    PhantomData<*const StateInput>,
-    PhantomData<*const Settings>,
-);
+pub struct NoOperator<StateInput, Settings>(PhantomData<(*const StateInput, *const Settings)>);
 
 // NoOperator does not actually hold anything and is thus Sync.
 // Note that we don't use PhantomData<StateInput> as that would
@@ -63,7 +60,7 @@ unsafe impl<StateInput, Settings> Send for NoOperator<StateInput, Settings> {}
 // auto derive introduces unnecessary Clone bound on T
 impl<StateInput, Settings> Clone for NoOperator<StateInput, Settings> {
     fn clone(&self) -> Self {
-        Self(PhantomData, PhantomData)
+        Self(PhantomData)
     }
 }
 
@@ -78,7 +75,7 @@ impl<StateInput, Settings> StateOperator for NoOperator<StateInput, Settings> {
     }
 
     fn from_settings(_settings: Self::Settings) -> Self {
-        NoOperator(PhantomData, PhantomData)
+        NoOperator(PhantomData)
     }
 
     fn run<'borrow, 'fut>(
@@ -109,7 +106,7 @@ impl<Settings> ServiceState for NoState<Settings> {
     type Error = crate::DynError;
 
     fn from_settings(_settings: &Self::Settings) -> Result<Self, Self::Error> {
-        Ok(Self(Default::default()))
+        Ok(Self(PhantomData))
     }
 }
 
@@ -189,6 +186,7 @@ where
     State: Clone,
 {
     /// Get a copy of the most updated state
+    #[must_use]
     pub fn state_cloned(&self) -> State {
         self.receiver.borrow().clone()
     }
@@ -197,6 +195,7 @@ where
 impl<State> StateWatcher<State> {
     /// Get a [`Ref`](tokio::sync::watch::Ref) to the last state, this blocks incoming updates until
     /// the `Ref` is dropped. Use with caution.
+    #[must_use]
     pub fn state_ref(&self) -> Ref<State> {
         self.receiver.borrow()
     }
@@ -271,7 +270,7 @@ mod test {
     }
 
     #[tokio::test]
-    #[should_panic]
+    #[should_panic(expected = "Test")]
     async fn state_stream_collects() {
         let (handle, updater): (
             StateHandle<UsizeCounter, PanicOnGreaterThanTen>,
