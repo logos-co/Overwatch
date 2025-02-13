@@ -112,16 +112,16 @@ pub struct OverwatchRunner<Services> {
 /// it is used when creating the `tokio::runtime::Runtime` that Overwatch uses internally
 pub const OVERWATCH_THREAD_NAME: &str = "Overwatch";
 
-impl<S> OverwatchRunner<S>
+impl<ServicesImpl> OverwatchRunner<ServicesImpl>
 where
-    S: Services + Send + 'static,
+    ServicesImpl: Services + Send + 'static,
 {
     /// Start the Overwatch runner process
     /// It creates the `tokio::runtime::Runtime`, initialize the [`Services`] and start listening for
     /// Overwatch related tasks.
     /// Returns the [`Overwatch`] instance that handles this runner.
     pub fn run(
-        settings: S::Settings,
+        settings: ServicesImpl::Settings,
         runtime: Option<Runtime>,
     ) -> std::result::Result<Overwatch, super::DynError> {
         let runtime = runtime.unwrap_or_else(default_multithread_runtime);
@@ -129,7 +129,7 @@ where
         let (finish_signal_sender, finish_runner_signal) = tokio::sync::oneshot::channel();
         let (commands_sender, commands_receiver) = tokio::sync::mpsc::channel(16);
         let handle = OverwatchHandle::new(runtime.handle().clone(), commands_sender);
-        let services = S::new(settings, handle.clone())?;
+        let services = ServicesImpl::new(settings, handle.clone())?;
         let runner = OverwatchRunner {
             services,
             handle: handle.clone(),
@@ -205,7 +205,7 @@ where
             .expect("Overwatch run finish signal to be sent properly");
     }
 
-    fn handle_relay(services: &mut S, command: RelayCommand) {
+    fn handle_relay(services: &mut ServicesImpl, command: RelayCommand) {
         let RelayCommand {
             service_id,
             reply_channel,
@@ -216,9 +216,9 @@ where
         }
     }
 
-    fn handle_settings_update(services: &mut S, command: SettingsCommand) {
+    fn handle_settings_update(services: &mut ServicesImpl, command: SettingsCommand) {
         let SettingsCommand(settings) = command;
-        if let Ok(settings) = settings.downcast::<S::Settings>() {
+        if let Ok(settings) = settings.downcast::<ServicesImpl::Settings>() {
             if let Err(e) = services.update_settings(*settings) {
                 // TODO: add proper logging
                 error!("{e}");
@@ -229,7 +229,7 @@ where
     }
 
     fn handle_status(
-        services: &mut S,
+        services: &mut ServicesImpl,
         StatusCommand {
             service_id,
             reply_channel,
@@ -278,7 +278,7 @@ impl Overwatch {
         self.runtime.spawn(future)
     }
 
-    /// Block until Overwatch finish its execution.
+    /// Block until Overwatch finish its execution
     pub fn wait_finished(self) {
         let Self {
             runtime,

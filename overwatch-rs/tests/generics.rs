@@ -17,8 +17,6 @@ pub struct GenericService {
 #[derive(Clone, Debug)]
 pub struct GenericServiceMessage(String);
 
-// impl RelayMessage for GenericServiceMessage {}
-
 impl ServiceData for GenericService {
     const SERVICE_ID: ServiceId = "FooService";
     type Settings = ();

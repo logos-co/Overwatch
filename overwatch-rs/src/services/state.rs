@@ -270,7 +270,7 @@ mod test {
     }
 
     #[tokio::test]
-    #[should_panic(expected = "Test")]
+    #[should_panic(expected = "assertion failed: value < 10")]
     async fn state_stream_collects() {
         let (handle, updater): (
             StateHandle<UsizeCounter, PanicOnGreaterThanTen>,

@@ -49,24 +49,26 @@ pub struct ServiceRunner<Message, Settings, Data, State, StateOperator> {
     initial_state: State,
 }
 
-impl<S> ServiceHandle<S::Message, S::Settings, S, S::State>
+impl<Service> ServiceHandle<Service::Message, Service::Settings, Service, Service::State>
 where
-    S: ServiceData,
-    S::State: ServiceState<Settings = S::Settings> + Clone,
-    S::Settings: Clone,
-    S::StateOperator: StateOperator<Settings = S::Settings, StateInput = S::State>,
+    Service: ServiceData,
+    Service::State: ServiceState<Settings = Service::Settings> + Clone,
+    Service::Settings: Clone,
+    Service::StateOperator:
+        StateOperator<Settings = Service::Settings, StateInput = Service::State>,
 {
     pub fn new(
-        settings: S::Settings,
+        settings: Service::Settings,
         overwatch_handle: OverwatchHandle,
-    ) -> Result<Self, <S::State as ServiceState>::Error> {
-        let initial_state = if let Ok(Some(loaded_state)) = S::StateOperator::try_load(&settings) {
-            info!("Loaded state from Operator");
-            loaded_state
-        } else {
-            info!("Couldn't load state from Operator. Creating from settings.");
-            S::State::from_settings(&settings)?
-        };
+    ) -> Result<Self, <Service::State as ServiceState>::Error> {
+        let initial_state =
+            if let Ok(Some(loaded_state)) = Service::StateOperator::try_load(&settings) {
+                info!("Loaded state from Operator");
+                loaded_state
+            } else {
+                info!("Couldn't load state from Operator. Creating from settings.");
+                Service::State::from_settings(&settings)?
+            };
 
         Ok(Self {
             outbound_relay: None,
@@ -78,7 +80,7 @@ where
     }
 
     pub fn id(&self) -> ServiceId {
-        S::SERVICE_ID
+        Service::SERVICE_ID
     }
 
     /// Service runtime getter
@@ -94,7 +96,7 @@ where
     }
 
     /// Request a relay with this service
-    pub fn relay_with(&self) -> Option<OutboundRelay<S::Message>> {
+    pub fn relay_with(&self) -> Option<OutboundRelay<Service::Message>> {
         self.outbound_relay.clone()
     }
 
@@ -103,23 +105,33 @@ where
     }
 
     /// Update settings
-    pub fn update_settings(&self, settings: S::Settings) {
+    pub fn update_settings(&self, settings: Service::Settings) {
         self.settings.update(settings);
     }
 
     /// Build a runner for this service
     pub fn service_runner(
         &mut self,
-    ) -> ServiceRunner<S::Message, S::Settings, S, S::State, S::StateOperator> {
+    ) -> ServiceRunner<
+        Service::Message,
+        Service::Settings,
+        Service,
+        Service::State,
+        Service::StateOperator,
+    > {
         // TODO: add proper status handling here, a service should be able to produce a runner if it is already running.
-        let (inbound_relay, outbound_relay) = relay::<S::Message>(S::SERVICE_RELAY_BUFFER_SIZE);
+        let (inbound_relay, outbound_relay) =
+            relay::<Service::Message>(Service::SERVICE_RELAY_BUFFER_SIZE);
         let settings_reader = self.settings.notifier();
         // add relay channel to handle
         self.outbound_relay = Some(outbound_relay);
         let settings = self.settings.notifier().get_updated_settings();
-        let operator = S::StateOperator::from_settings(settings);
+        let operator = Service::StateOperator::from_settings(settings);
         let (state_handle, state_updater) =
-            StateHandle::<S::State, S::StateOperator>::new(self.initial_state.clone(), operator);
+            StateHandle::<Service::State, Service::StateOperator>::new(
+                self.initial_state.clone(),
+                operator,
+            );
 
         let lifecycle_handle = LifecycleHandle::new();
 
@@ -141,21 +153,28 @@ where
     }
 }
 
-impl<S> ServiceStateHandle<S::Message, S::Settings, S, S::State>
+impl<Service> ServiceStateHandle<Service::Message, Service::Settings, Service, Service::State>
 where
-    S: ServiceData,
+    Service: ServiceData,
 {
     #[must_use]
     pub fn id(&self) -> ServiceId {
-        S::SERVICE_ID
+        Service::SERVICE_ID
     }
 }
 
-impl<S> ServiceRunner<S::Message, S::Settings, S, S::State, S::StateOperator>
+impl<Service>
+    ServiceRunner<
+        Service::Message,
+        Service::Settings,
+        Service,
+        Service::State,
+        Service::StateOperator,
+    >
 where
-    S: ServiceCore + 'static,
-    S::State: Clone + Send + Sync + 'static,
-    S::StateOperator: StateOperator<StateInput = S::State> + Send,
+    Service: ServiceCore + 'static,
+    Service::State: Clone + Send + Sync + 'static,
+    Service::StateOperator: StateOperator<StateInput = Service::State> + Send,
 {
     /// Spawn the service main loop and handle it lifecycle
     /// Return a handle to abort execution manually
@@ -168,11 +187,11 @@ where
         } = self;
 
         let runtime = service_state.overwatch_handle.runtime().clone();
-        let service = S::init(service_state, initial_state)?;
+        let service = Service::init(service_state, initial_state)?;
 
         runtime.spawn(service.run());
         runtime.spawn(state_handle.run());
 
-        Ok((S::SERVICE_ID, lifecycle_handle))
+        Ok((Service::SERVICE_ID, lifecycle_handle))
     }
 }

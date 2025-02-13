@@ -55,13 +55,16 @@ impl StatusWatcher {
     }
 }
 
-pub struct StatusHandle<S> {
+pub struct StatusHandle<Status> {
     updater: Arc<StatusUpdater>,
     watcher: StatusWatcher,
-    _phantom: PhantomData<S>,
+    _phantom: PhantomData<Status>,
 }
 
-impl<S: ServiceData> Clone for StatusHandle<S> {
+impl<Status> Clone for StatusHandle<Status>
+where
+    Status: ServiceData,
+{
     fn clone(&self) -> Self {
         Self {
             updater: Arc::clone(&self.updater),
@@ -71,7 +74,7 @@ impl<S: ServiceData> Clone for StatusHandle<S> {
     }
 }
 
-impl<S> StatusHandle<S> {
+impl<Status> StatusHandle<Status> {
     #[must_use]
     pub fn new() -> Self {
         let (updater, watcher) = watch::channel(ServiceStatus::Uninitialized);
@@ -93,7 +96,7 @@ impl<S> StatusHandle<S> {
     }
 }
 
-impl<S> Default for StatusHandle<S> {
+impl<Status> Default for StatusHandle<Status> {
     fn default() -> Self {
         Self::new()
     }
