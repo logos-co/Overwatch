@@ -8,18 +8,13 @@ jobs:
     name: Check
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v4
         with:
           submodules: true
-      - uses: actions-rs/toolchain@v1
-        with:
-          profile: minimal
-          toolchain: stable
-          override: true
       - uses: actions-rs/cargo@v1
-        continue-on-error: false
         with:
           command: check
+          args: --all --all-targets --all-features
 
   test:
     name: Test Suite
@@ -28,47 +23,29 @@ jobs:
         os: [ubuntu-latest, windows-latest, macos-latest]
     runs-on: ${{ matrix.os }}
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v4
         with:
           submodules: true
-      - uses: actions-rs/toolchain@v1
-        with:
-          profile: minimal
-          toolchain: stable
-          override: true
       - uses: actions-rs/cargo@v1
-        continue-on-error: false
-        with:
-          command: build
-      - uses: actions-rs/cargo@v1
-        continue-on-error: false
         with:
           command: test
+          args: --all-targets --all-features
 
   lints:
     name: Rust lints
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v4
         with:
           submodules: true
-      - uses: actions-rs/toolchain@v1
-        with:
-          profile: minimal
-          toolchain: stable
-          override: true
-          components: rustfmt, clippy
-
       - name: Run cargo fmt
         uses: actions-rs/cargo@v1
-        continue-on-error: false
         with:
           command: fmt
-          args: --all -- --check
-
+          args: --all --check
       - name: Run cargo clippy
         uses: actions-rs/cargo@v1
         continue-on-error: false
         with:
           command: clippy
-          args: -- --deny warnings
+          args: --all-targets --all-features -- --deny warnings

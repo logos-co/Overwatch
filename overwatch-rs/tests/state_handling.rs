@@ -15,7 +15,7 @@ pub struct UpdateStateService {
 }
 
 #[derive(Clone, Debug)]
-pub struct UpdateStateServiceMessage(String);
+pub struct UpdateStateServiceMessage;
 
 impl RelayMessage for UpdateStateServiceMessage {}
 
