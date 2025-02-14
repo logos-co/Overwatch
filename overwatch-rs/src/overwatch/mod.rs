@@ -106,6 +106,7 @@ pub struct OverwatchRunner<Services> {
     #[expect(unused)]
     handle: OverwatchHandle,
     finish_signal_sender: oneshot::Sender<()>,
+    commands_receiver: Receiver<OverwatchCommand>,
 }
 
 /// Overwatch thread identifier
@@ -134,9 +135,10 @@ where
             services,
             handle: handle.clone(),
             finish_signal_sender,
+            commands_receiver,
         };
 
-        runtime.spawn(async move { runner.run_(commands_receiver).await });
+        runtime.spawn(async move { runner.run_().await });
 
         Ok(Overwatch {
             runtime,
@@ -149,14 +151,15 @@ where
         feature = "instrumentation",
         instrument(name = "overwatch-run", skip_all)
     )]
-    async fn run_(self, mut receiver: Receiver<OverwatchCommand>) {
+    async fn run_(self) {
         let Self {
             mut services,
             finish_signal_sender,
+            mut commands_receiver,
             ..
         } = self;
         let lifecycle_handlers = services.start_all().expect("Services to start running");
-        while let Some(command) = receiver.recv().await {
+        while let Some(command) = commands_receiver.recv().await {
             info!(command = ?command, "Overwatch command received");
             match command {
                 OverwatchCommand::Relay(relay_command) => {
