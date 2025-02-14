@@ -39,9 +39,10 @@ impl ServiceCore for PrintService {
         use tokio::io::{self, AsyncWriteExt};
 
         let Self {
-            state: OpaqueServiceStateHandle {
-                mut inbound_relay, ..
-            },
+            state:
+                OpaqueServiceStateHandle::<Self> {
+                    mut inbound_relay, ..
+                },
         } = self;
 
         let print = async move {

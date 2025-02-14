@@ -93,7 +93,7 @@ impl ServiceCore for UpdateStateService {
 
     async fn run(mut self) -> Result<(), overwatch_rs::DynError> {
         let Self {
-            state: OpaqueServiceStateHandle { state_updater, .. },
+            state: OpaqueServiceStateHandle::<Self> { state_updater, .. },
         } = self;
         for value in 0..10 {
             state_updater.update(CounterState { value });

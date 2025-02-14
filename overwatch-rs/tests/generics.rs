@@ -11,7 +11,7 @@ use std::time::Duration;
 use tokio::time::sleep;
 
 pub struct GenericService {
-    state: ServiceStateHandle<GenericServiceMessage, (), Self, NoState<()>>,
+    state: ServiceStateHandle<GenericServiceMessage, (), NoState<()>>,
 }
 
 #[derive(Clone, Debug)]
@@ -28,7 +28,7 @@ impl ServiceData for GenericService {
 #[async_trait]
 impl ServiceCore for GenericService {
     fn init(
-        state: ServiceStateHandle<Self::Message, Self::Settings, Self, Self::State>,
+        state: ServiceStateHandle<Self::Message, Self::Settings, Self::State>,
         _initial_state: Self::State,
     ) -> Result<Self, overwatch_rs::DynError> {
         Ok(Self { state })

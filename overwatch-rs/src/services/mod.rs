@@ -43,7 +43,7 @@ pub trait ServiceData {
 pub trait ServiceCore: Sized + ServiceData {
     /// Initialize the service with the given state
     fn init(
-        service_state: ServiceStateHandle<Self::Message, Self::Settings, Self, Self::State>,
+        service_state: ServiceStateHandle<Self::Message, Self::Settings, Self::State>,
         initial_state: Self::State,
     ) -> Result<Self, super::DynError>;
 
