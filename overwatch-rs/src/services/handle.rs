@@ -28,6 +28,28 @@ pub struct ServiceHandle<Message, Settings, State> {
     relay_buffer_size: usize,
 }
 
+/// Service core resources
+/// It contains whatever is necessary to start a new service runner
+pub struct ServiceStateHandle<Message, Settings, State> {
+    /// Relay channel to communicate with the service runner
+    pub inbound_relay: InboundRelay<Message>,
+    pub status_handle: StatusHandle,
+    /// Overwatch handle
+    pub overwatch_handle: OverwatchHandle,
+    pub settings_reader: SettingsNotifier<Settings>,
+    pub state_updater: StateUpdater<State>,
+    pub lifecycle_handle: LifecycleHandle,
+}
+
+/// Main service executor
+/// It is the object that hold the necessary information for the service to run
+pub struct ServiceRunner<Message, Settings, State, StateOperator> {
+    service_state: ServiceStateHandle<Message, Settings, State>,
+    state_handle: StateHandle<State, StateOperator>,
+    lifecycle_handle: LifecycleHandle,
+    initial_state: State,
+}
+
 impl<Message, Settings, State> ServiceHandle<Message, Settings, State>
 where
     Settings: Clone,
@@ -118,28 +140,6 @@ where
             initial_state: self.initial_state.clone(),
         }
     }
-}
-
-/// Service core resources
-/// It contains whatever is necessary to start a new service runner
-pub struct ServiceStateHandle<Message, Settings, State> {
-    /// Relay channel to communicate with the service runner
-    pub inbound_relay: InboundRelay<Message>,
-    pub status_handle: StatusHandle,
-    /// Overwatch handle
-    pub overwatch_handle: OverwatchHandle,
-    pub settings_reader: SettingsNotifier<Settings>,
-    pub state_updater: StateUpdater<State>,
-    pub lifecycle_handle: LifecycleHandle,
-}
-
-/// Main service executor
-/// It is the object that hold the necessary information for the service to run
-pub struct ServiceRunner<Message, Settings, State, StateOperator> {
-    service_state: ServiceStateHandle<Message, Settings, State>,
-    state_handle: StateHandle<State, StateOperator>,
-    lifecycle_handle: LifecycleHandle,
-    initial_state: State,
 }
 
 impl<Message, Settings, State, StateOp> ServiceRunner<Message, Settings, State, StateOp>
