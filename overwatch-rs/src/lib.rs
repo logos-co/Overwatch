@@ -34,13 +34,11 @@ pub type DynError = Box<dyn std::error::Error + Send + Sync + 'static>;
 pub type OpaqueServiceHandle<S> = crate::services::handle::ServiceHandle<
     <S as ServiceData>::Message,
     <S as ServiceData>::Settings,
-    S,
     <S as ServiceData>::State,
 >;
 pub type OpaqueServiceStateHandle<S> = crate::services::handle::ServiceStateHandle<
     <S as ServiceData>::Message,
     <S as ServiceData>::Settings,
-    S,
     <S as ServiceData>::State,
 >;
 

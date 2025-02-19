@@ -38,9 +38,10 @@ impl ServiceCore for SettingsService {
 
     async fn run(mut self) -> Result<(), overwatch_rs::DynError> {
         let Self {
-            state: OpaqueServiceStateHandle {
-                settings_reader, ..
-            },
+            state:
+                OpaqueServiceStateHandle::<Self> {
+                    settings_reader, ..
+                },
         } = self;
 
         let print = async move {
