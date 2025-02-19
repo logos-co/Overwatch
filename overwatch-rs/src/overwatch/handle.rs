@@ -1,4 +1,5 @@
 // std
+use std::fmt::Debug;
 
 // crates
 use crate::overwatch::commands::{
@@ -20,12 +21,12 @@ use crate::services::status::StatusWatcher;
 /// It handles communications to the main Overwatch runner.
 #[derive(Clone, Debug)]
 pub struct OverwatchHandle {
-    #[allow(unused)]
     runtime_handle: Handle,
     sender: Sender<OverwatchCommand>,
 }
 
 impl OverwatchHandle {
+    #[must_use]
     pub fn new(runtime_handle: Handle, sender: Sender<OverwatchCommand>) -> Self {
         Self {
             runtime_handle,
@@ -33,27 +34,32 @@ impl OverwatchHandle {
         }
     }
 
+    #[must_use]
     /// Request for a relay
-    pub fn relay<S: ServiceData>(&self) -> Relay<S> {
+    pub fn relay<Service>(&self) -> Relay<Service>
+    where
+        Service: ServiceData,
+        Service::Message: 'static,
+    {
         Relay::new(self.clone())
     }
 
     // Request a status watcher for a service
-    pub async fn status_watcher<S: ServiceData>(&self) -> StatusWatcher {
-        info!("Requesting status watcher for {}", S::SERVICE_ID);
+    pub async fn status_watcher<Service: ServiceData>(&self) -> StatusWatcher {
+        info!("Requesting status watcher for {}", Service::SERVICE_ID);
         let (sender, receiver) = tokio::sync::oneshot::channel();
         let watcher_request = self
             .sender
             .send(OverwatchCommand::Status(StatusCommand {
-                service_id: S::SERVICE_ID,
+                service_id: Service::SERVICE_ID,
                 reply_channel: ReplyChannel::from(sender),
             }))
             .await;
         match watcher_request {
-            Ok(_) => receiver.await.unwrap_or_else(|_| {
+            Ok(()) => receiver.await.unwrap_or_else(|_| {
                 panic!(
                     "Service {} watcher should always be available",
-                    S::SERVICE_ID
+                    Service::SERVICE_ID
                 )
             }),
             Err(_) => {
@@ -103,7 +109,7 @@ impl OverwatchHandle {
     #[cfg_attr(feature = "instrumentation", instrument(skip(self)))]
     pub async fn update_settings<S: Services>(&self, settings: S::Settings)
     where
-        S::Settings: Send,
+        S::Settings: Send + Debug + 'static,
     {
         if let Err(e) = self
             .sender
@@ -112,10 +118,11 @@ impl OverwatchHandle {
             ))))
             .await
         {
-            error!(error=?e, "Error updating settings")
+            error!(error=?e, "Error updating settings");
         }
     }
 
+    #[must_use]
     pub fn runtime(&self) -> &Handle {
         &self.runtime_handle
     }

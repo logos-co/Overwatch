@@ -1,10 +1,9 @@
 // std
 use std::default::Default;
-use std::marker::PhantomData;
 use std::sync::Arc;
 use std::time::Duration;
 // crates
-use crate::services::{ServiceData, ServiceId};
+use crate::services::ServiceId;
 use thiserror::Error;
 use tokio::sync::watch;
 // internal
@@ -30,7 +29,7 @@ impl StatusUpdater {
     pub fn update(&self, status: ServiceStatus) {
         self.0
             .send(status)
-            .expect("Overwatch always maintain an open watcher, send should always succeed")
+            .expect("Overwatch always maintain an open watcher, send should always succeed");
     }
 }
 
@@ -55,43 +54,39 @@ impl StatusWatcher {
     }
 }
 
-pub struct StatusHandle<S: ServiceData> {
+pub struct StatusHandle {
     updater: Arc<StatusUpdater>,
     watcher: StatusWatcher,
-    _phantom: PhantomData<S>,
 }
 
-impl<S: ServiceData> Clone for StatusHandle<S> {
+impl Clone for StatusHandle {
     fn clone(&self) -> Self {
         Self {
             updater: Arc::clone(&self.updater),
             watcher: self.watcher.clone(),
-            _phantom: Default::default(),
         }
     }
 }
 
-impl<S: ServiceData> StatusHandle<S> {
+impl StatusHandle {
+    #[must_use]
     pub fn new() -> Self {
         let (updater, watcher) = watch::channel(ServiceStatus::Uninitialized);
         let updater = Arc::new(StatusUpdater(updater));
         let watcher = StatusWatcher(watcher);
-        Self {
-            updater,
-            watcher,
-            _phantom: Default::default(),
-        }
+        Self { updater, watcher }
     }
+    #[must_use]
     pub fn updater(&self) -> &StatusUpdater {
         &self.updater
     }
-
+    #[must_use]
     pub fn watcher(&self) -> StatusWatcher {
         self.watcher.clone()
     }
 }
 
-impl<S: ServiceData> Default for StatusHandle<S> {
+impl Default for StatusHandle {
     fn default() -> Self {
         Self::new()
     }

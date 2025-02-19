@@ -177,8 +177,8 @@ fn generate_new_impl(fields: &Punctuated<Field, Comma>) -> proc_macro2::TokenStr
         quote! {
             #field_identifier: {
                 let manager =
-                    ::overwatch_rs::services::handle::ServiceHandle::<#service_type>::new(
-                        #settings_field_identifier, overwatch_handle.clone(),
+                    ::overwatch_rs::OpaqueServiceHandle::<#service_type>::new::<<#service_type as ::overwatch_rs::services::ServiceData>::StateOperator>(
+                        #settings_field_identifier, overwatch_handle.clone(), <#service_type as ::overwatch_rs::services::ServiceData>::SERVICE_RELAY_BUFFER_SIZE
                 )?;
                 manager
             }
@@ -203,8 +203,9 @@ fn generate_new_impl(fields: &Punctuated<Field, Comma>) -> proc_macro2::TokenStr
 fn generate_start_all_impl(fields: &Punctuated<Field, Comma>) -> proc_macro2::TokenStream {
     let call_start = fields.iter().map(|field| {
         let field_identifier = field.ident.as_ref().expect("A struct attribute identifier");
+        let type_id = utils::extract_type_from(&field.ty);
         quote! {
-            self.#field_identifier.service_runner().run()?
+            self.#field_identifier.service_runner::<<#type_id as ::overwatch_rs::services::ServiceData>::StateOperator>().run::<#type_id>()?
         }
     });
 
@@ -223,7 +224,7 @@ fn generate_start_impl(fields: &Punctuated<Field, Comma>) -> proc_macro2::TokenS
         let type_id = utils::extract_type_from(&field.ty);
         quote! {
             <#type_id as ::overwatch_rs::services::ServiceData>::SERVICE_ID => {
-                self.#field_identifier.service_runner().run()?;
+                self.#field_identifier.service_runner::<<#type_id as ::overwatch_rs::services::ServiceData>::StateOperator>().run::<#type_id>()?;
                 ::std::result::Result::Ok(())
             }
         }

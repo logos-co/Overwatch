@@ -2,15 +2,15 @@ use async_trait::async_trait;
 use futures::future::select;
 use overwatch_derive::Services;
 use overwatch_rs::overwatch::OverwatchRunner;
-use overwatch_rs::services::handle::{ServiceHandle, ServiceStateHandle};
 use overwatch_rs::services::relay::RelayMessage;
 use overwatch_rs::services::state::{NoOperator, NoState};
 use overwatch_rs::services::{ServiceCore, ServiceData, ServiceId};
+use overwatch_rs::{OpaqueServiceHandle, OpaqueServiceStateHandle};
 use std::time::Duration;
 use tokio::time::sleep;
 
 pub struct PrintService {
-    state: ServiceStateHandle<Self>,
+    state: OpaqueServiceStateHandle<Self>,
 }
 
 #[derive(Clone, Debug)]
@@ -22,14 +22,14 @@ impl ServiceData for PrintService {
     const SERVICE_ID: ServiceId = "FooService";
     type Settings = ();
     type State = NoState<Self::Settings>;
-    type StateOperator = NoOperator<Self::State>;
+    type StateOperator = NoOperator<Self::State, Self::Settings>;
     type Message = PrintServiceMessage;
 }
 
 #[async_trait]
 impl ServiceCore for PrintService {
     fn init(
-        state: ServiceStateHandle<Self>,
+        state: OpaqueServiceStateHandle<Self>,
         _initial_state: Self::State,
     ) -> Result<Self, overwatch_rs::DynError> {
         Ok(Self { state })
@@ -39,9 +39,10 @@ impl ServiceCore for PrintService {
         use tokio::io::{self, AsyncWriteExt};
 
         let Self {
-            state: ServiceStateHandle {
-                mut inbound_relay, ..
-            },
+            state:
+                OpaqueServiceStateHandle::<Self> {
+                    mut inbound_relay, ..
+                },
         } = self;
 
         let print = async move {
@@ -83,7 +84,7 @@ impl ServiceCore for PrintService {
 
 #[derive(Services)]
 struct TestApp {
-    print_service: ServiceHandle<PrintService>,
+    print_service: OpaqueServiceHandle<PrintService>,
 }
 
 #[test]

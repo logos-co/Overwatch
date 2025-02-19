@@ -56,24 +56,24 @@ pub trait RelayMessage: 'static {}
 
 /// Channel receiver of a relay connection
 #[derive(Debug)]
-pub struct InboundRelay<M> {
-    receiver: Receiver<M>,
+pub struct InboundRelay<Message> {
+    receiver: Receiver<Message>,
     _stats: (), // placeholder
 }
 
 /// Channel sender of a relay connection
-pub struct OutboundRelay<M> {
-    sender: Sender<M>,
+pub struct OutboundRelay<Message> {
+    sender: Sender<Message>,
     _stats: (), // placeholder
 }
 
 #[derive(Debug)]
-pub struct Relay<S> {
+pub struct Relay<Service> {
     overwatch_handle: OverwatchHandle,
-    _bound: PhantomBound<S>,
+    _bound: PhantomBound<Service>,
 }
 
-impl<T> Clone for Relay<T> {
+impl<Service> Clone for Relay<Service> {
     fn clone(&self) -> Self {
         Self {
             overwatch_handle: self.overwatch_handle.clone(),
@@ -94,7 +94,7 @@ struct PhantomBound<T> {
 unsafe impl<T> Send for PhantomBound<T> {}
 unsafe impl<T> Sync for PhantomBound<T> {}
 
-impl<M> Clone for OutboundRelay<M> {
+impl<Message> Clone for OutboundRelay<Message> {
     fn clone(&self) -> Self {
         Self {
             sender: self.sender.clone(),
@@ -105,7 +105,8 @@ impl<M> Clone for OutboundRelay<M> {
 
 // TODO: make buffer_size const?
 /// Relay channel builder
-pub fn relay<M>(buffer_size: usize) -> (InboundRelay<M>, OutboundRelay<M>) {
+#[must_use]
+pub fn relay<Message>(buffer_size: usize) -> (InboundRelay<Message>, OutboundRelay<Message>) {
     let (sender, receiver) = channel(buffer_size);
     (
         InboundRelay {
@@ -116,16 +117,16 @@ pub fn relay<M>(buffer_size: usize) -> (InboundRelay<M>, OutboundRelay<M>) {
     )
 }
 
-impl<M> InboundRelay<M> {
+impl<Message> InboundRelay<Message> {
     /// Receive a message from the relay connections
-    pub async fn recv(&mut self) -> Option<M> {
+    pub async fn recv(&mut self) -> Option<Message> {
         self.receiver.recv().await
     }
 }
 
-impl<M> OutboundRelay<M> {
+impl<Message> OutboundRelay<Message> {
     /// Send a message to the relay connection
-    pub async fn send(&self, message: M) -> Result<(), (RelayError, M)> {
+    pub async fn send(&self, message: Message) -> Result<(), (RelayError, Message)> {
         self.sender
             .send(message)
             .await
@@ -141,22 +142,28 @@ impl<M> OutboundRelay<M> {
     ///
     /// This function panics if called within an asynchronous execution
     /// context.
-    ///
-    /// # Exa
-    pub fn blocking_send(&self, message: M) -> Result<(), (RelayError, M)> {
+    pub fn blocking_send(&self, message: Message) -> Result<(), (RelayError, Message)> {
         self.sender
             .blocking_send(message)
             .map_err(|e| (RelayError::Send, e.0))
     }
 }
 
-impl<M: Send + 'static> OutboundRelay<M> {
-    pub fn into_sink(self) -> impl Sink<M> {
+impl<Message> OutboundRelay<Message>
+where
+    Message: Send,
+{
+    pub fn into_sink(self) -> impl Sink<Message> {
         PollSender::new(self.sender)
     }
 }
 
-impl<S: ServiceData> Relay<S> {
+impl<Service> Relay<Service>
+where
+    Service: ServiceData,
+    Service::Message: 'static,
+{
+    #[must_use]
     pub fn new(overwatch_handle: OverwatchHandle) -> Self {
         Self {
             overwatch_handle,
@@ -167,7 +174,7 @@ impl<S: ServiceData> Relay<S> {
     }
 
     #[cfg_attr(feature = "instrumentation", instrument(skip(self), err(Debug)))]
-    pub async fn connect(self) -> Result<OutboundRelay<S::Message>, RelayError> {
+    pub async fn connect(self) -> Result<OutboundRelay<Service::Message>, RelayError> {
         let (reply, receiver) = oneshot::channel();
         self.request_relay(reply).await;
         self.handle_relay_response(receiver).await
@@ -175,7 +182,7 @@ impl<S: ServiceData> Relay<S> {
 
     async fn request_relay(&self, reply: oneshot::Sender<RelayResult>) {
         let relay_command = OverwatchCommand::Relay(RelayCommand {
-            service_id: S::SERVICE_ID,
+            service_id: Service::SERVICE_ID,
             reply_channel: ReplyChannel(reply),
         });
         self.overwatch_handle.send(relay_command).await;
@@ -185,14 +192,14 @@ impl<S: ServiceData> Relay<S> {
     async fn handle_relay_response(
         &self,
         receiver: oneshot::Receiver<RelayResult>,
-    ) -> Result<OutboundRelay<S::Message>, RelayError> {
+    ) -> Result<OutboundRelay<Service::Message>, RelayError> {
         let response = receiver.await;
         match response {
-            Ok(Ok(message)) => match message.downcast::<OutboundRelay<S::Message>>() {
+            Ok(Ok(message)) => match message.downcast::<OutboundRelay<Service::Message>>() {
                 Ok(channel) => Ok(*channel),
                 Err(m) => Err(RelayError::InvalidMessage {
                     type_id: format!("{:?}", (*m).type_id()),
-                    service_id: S::SERVICE_ID,
+                    service_id: Service::SERVICE_ID,
                 }),
             },
             Ok(Err(e)) => Err(e),
@@ -201,8 +208,8 @@ impl<S: ServiceData> Relay<S> {
     }
 }
 
-impl<M> Stream for InboundRelay<M> {
-    type Item = M;
+impl<Message> Stream for InboundRelay<Message> {
+    type Item = Message;
 
     fn poll_next(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Option<Self::Item>> {
         self.receiver.poll_recv(cx)

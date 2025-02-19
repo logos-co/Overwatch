@@ -1,9 +1,9 @@
 // STD
 use std::fmt::Debug;
 // Crates
-use overwatch_rs::services::state::{ServiceState, StateOperator};
+use overwatch_rs::services::state::StateOperator;
 // Internal
-use crate::states::PingState;
+use crate::{settings::PingSettings, states::PingState};
 
 #[derive(Debug, Clone)]
 pub struct StateSaveOperator {
@@ -13,17 +13,16 @@ pub struct StateSaveOperator {
 #[async_trait::async_trait]
 impl StateOperator for StateSaveOperator {
     type StateInput = PingState;
+    type Settings = PingSettings;
     type LoadError = std::io::Error;
 
-    fn try_load(
-        settings: &<Self::StateInput as ServiceState>::Settings,
-    ) -> Result<Option<Self::StateInput>, Self::LoadError> {
+    fn try_load(settings: &Self::Settings) -> Result<Option<Self::StateInput>, Self::LoadError> {
         let state_string = std::fs::read_to_string(&settings.state_save_path)?;
         serde_json::from_str(&state_string)
             .map_err(|error| std::io::Error::new(std::io::ErrorKind::InvalidData, error))
     }
 
-    fn from_settings(settings: <Self::StateInput as ServiceState>::Settings) -> Self {
+    fn from_settings(settings: Self::Settings) -> Self {
         Self {
             save_path: settings.state_save_path,
         }

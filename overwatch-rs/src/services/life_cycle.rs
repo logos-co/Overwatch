@@ -39,13 +39,14 @@ impl Clone for LifecycleHandle {
 }
 
 impl LifecycleHandle {
+    #[must_use]
     pub fn new() -> Self {
         // Use a single lifecycle message at a time. Idea is that all computations on lifecycle should
         // stack so waiting es effective even if later on is somehow reversed (for example for start/stop events).
         let (notifier, message_channel) = channel(1);
         Self {
-            notifier,
             message_channel,
+            notifier,
         }
     }
 

@@ -1,17 +1,17 @@
 use async_trait::async_trait;
 use overwatch_derive::Services;
 use overwatch_rs::overwatch::OverwatchRunner;
-use overwatch_rs::services::handle::{ServiceHandle, ServiceStateHandle};
 use overwatch_rs::services::relay::RelayMessage;
 use overwatch_rs::services::state::{ServiceState, StateOperator};
 use overwatch_rs::services::{ServiceCore, ServiceData, ServiceId};
+use overwatch_rs::{OpaqueServiceHandle, OpaqueServiceStateHandle};
 use std::convert::Infallible;
 use std::time::Duration;
 use tokio::io::{self, AsyncWriteExt};
 use tokio::time::sleep;
 
 pub struct UpdateStateService {
-    state: ServiceStateHandle<Self>,
+    state: OpaqueServiceStateHandle<Self>,
 }
 
 #[derive(Clone, Debug)]
@@ -50,6 +50,7 @@ pub struct CounterStateOperator;
 #[async_trait]
 impl StateOperator for CounterStateOperator {
     type StateInput = CounterState;
+    type Settings = ();
     type LoadError = Infallible;
 
     fn try_load(
@@ -84,7 +85,7 @@ impl ServiceData for UpdateStateService {
 #[async_trait]
 impl ServiceCore for UpdateStateService {
     fn init(
-        state: ServiceStateHandle<Self>,
+        state: OpaqueServiceStateHandle<Self>,
         _initial_state: Self::State,
     ) -> Result<Self, overwatch_rs::DynError> {
         Ok(Self { state })
@@ -92,7 +93,7 @@ impl ServiceCore for UpdateStateService {
 
     async fn run(mut self) -> Result<(), overwatch_rs::DynError> {
         let Self {
-            state: ServiceStateHandle { state_updater, .. },
+            state: OpaqueServiceStateHandle::<Self> { state_updater, .. },
         } = self;
         for value in 0..10 {
             state_updater.update(CounterState { value });
@@ -104,7 +105,7 @@ impl ServiceCore for UpdateStateService {
 
 #[derive(Services)]
 struct TestApp {
-    update_state_service: ServiceHandle<UpdateStateService>,
+    update_state_service: OpaqueServiceHandle<UpdateStateService>,
 }
 
 #[test]

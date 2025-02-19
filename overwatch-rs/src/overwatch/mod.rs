@@ -9,7 +9,6 @@ use std::future::Future;
 
 // crates
 
-use async_trait::async_trait;
 use thiserror::Error;
 use tokio::runtime::{Handle, Runtime};
 use tokio::sync::mpsc::Receiver;
@@ -65,11 +64,10 @@ pub type AnySettings = Box<dyn Any + Send>;
 
 /// An overwatch run anything that implements this trait
 /// An implementor of this trait would have to handle the inner [`ServiceCore`](crate::services::ServiceCore)
-#[async_trait]
 pub trait Services: Sized {
     /// Inner [`ServiceCore::Settings`](crate::services::ServiceCore) grouping type.
     /// Normally this will be a settings object that group all the inner services settings.
-    type Settings: Debug + 'static; // 'static is required for cast to `AnySetting`
+    type Settings;
 
     /// Spawn a new instance of the Services object
     /// It returns a `(ServiceId, Runtime)` where Runtime is the `tokio::runtime::Runtime` attached for each
@@ -103,27 +101,28 @@ pub trait Services: Sized {
 /// it is usually one-shot. It contains what it is needed just to be run as a main loop
 /// and a system to be able to stop it running. Meaning that it i responsible of the Overwatch
 /// application lifecycle.
-pub struct OverwatchRunner<S: Services> {
-    services: S,
-    #[allow(unused)]
+pub struct OverwatchRunner<Services> {
+    services: Services,
+    #[expect(unused)]
     handle: OverwatchHandle,
     finish_signal_sender: oneshot::Sender<()>,
+    commands_receiver: Receiver<OverwatchCommand>,
 }
 
 /// Overwatch thread identifier
 /// it is used when creating the `tokio::runtime::Runtime` that Overwatch uses internally
 pub const OVERWATCH_THREAD_NAME: &str = "Overwatch";
 
-impl<S> OverwatchRunner<S>
+impl<ServicesImpl> OverwatchRunner<ServicesImpl>
 where
-    S: Services + Send + 'static,
+    ServicesImpl: Services + Send + 'static,
 {
     /// Start the Overwatch runner process
     /// It creates the `tokio::runtime::Runtime`, initialize the [`Services`] and start listening for
     /// Overwatch related tasks.
     /// Returns the [`Overwatch`] instance that handles this runner.
     pub fn run(
-        settings: S::Settings,
+        settings: ServicesImpl::Settings,
         runtime: Option<Runtime>,
     ) -> std::result::Result<Overwatch, super::DynError> {
         let runtime = runtime.unwrap_or_else(default_multithread_runtime);
@@ -131,14 +130,15 @@ where
         let (finish_signal_sender, finish_runner_signal) = tokio::sync::oneshot::channel();
         let (commands_sender, commands_receiver) = tokio::sync::mpsc::channel(16);
         let handle = OverwatchHandle::new(runtime.handle().clone(), commands_sender);
-        let services = S::new(settings, handle.clone())?;
+        let services = ServicesImpl::new(settings, handle.clone())?;
         let runner = OverwatchRunner {
             services,
             handle: handle.clone(),
             finish_signal_sender,
+            commands_receiver,
         };
 
-        runtime.spawn(async move { runner.run_(commands_receiver).await });
+        runtime.spawn(async move { runner.run_().await });
 
         Ok(Overwatch {
             runtime,
@@ -151,21 +151,22 @@ where
         feature = "instrumentation",
         instrument(name = "overwatch-run", skip_all)
     )]
-    async fn run_(self, mut receiver: Receiver<OverwatchCommand>) {
+    async fn run_(self) {
         let Self {
             mut services,
-            handle: _,
             finish_signal_sender,
+            mut commands_receiver,
+            ..
         } = self;
         let lifecycle_handlers = services.start_all().expect("Services to start running");
-        while let Some(command) = receiver.recv().await {
+        while let Some(command) = commands_receiver.recv().await {
             info!(command = ?command, "Overwatch command received");
             match command {
                 OverwatchCommand::Relay(relay_command) => {
-                    Self::handle_relay(&mut services, relay_command).await;
+                    Self::handle_relay(&mut services, relay_command);
                 }
                 OverwatchCommand::Status(status_command) => {
-                    Self::handle_status(&mut services, status_command).await;
+                    Self::handle_status(&mut services, status_command);
                 }
                 OverwatchCommand::ServiceLifeCycle(msg) => match msg {
                     ServiceLifeCycleCommand {
@@ -197,7 +198,7 @@ where
                     }
                 }
                 OverwatchCommand::Settings(settings) => {
-                    Self::handle_settings_update(&mut services, settings).await;
+                    Self::handle_settings_update(&mut services, settings);
                 }
             }
         }
@@ -207,23 +208,20 @@ where
             .expect("Overwatch run finish signal to be sent properly");
     }
 
-    async fn handle_relay(services: &mut S, command: RelayCommand) {
+    fn handle_relay(services: &mut ServicesImpl, command: RelayCommand) {
         let RelayCommand {
             service_id,
             reply_channel,
         } = command;
         // send requested rely channel result to requesting service
-        if let Err(Err(e)) = reply_channel
-            .reply(services.request_relay(service_id))
-            .await
-        {
-            info!(error=?e, "Error requesting relay for service {}", service_id)
+        if let Err(Err(e)) = reply_channel.reply(services.request_relay(service_id)) {
+            info!(error=?e, "Error requesting relay for service {service_id}");
         }
     }
 
-    async fn handle_settings_update(services: &mut S, command: SettingsCommand) {
+    fn handle_settings_update(services: &mut ServicesImpl, command: SettingsCommand) {
         let SettingsCommand(settings) = command;
-        if let Ok(settings) = settings.downcast::<S::Settings>() {
+        if let Ok(settings) = settings.downcast::<ServicesImpl::Settings>() {
             if let Err(e) = services.update_settings(*settings) {
                 // TODO: add proper logging
                 error!("{e}");
@@ -232,8 +230,9 @@ where
             unreachable!("Statically should always be of the correct type");
         }
     }
-    async fn handle_status(
-        services: &mut S,
+
+    fn handle_status(
+        services: &mut ServicesImpl,
         StatusCommand {
             service_id,
             reply_channel,
@@ -242,8 +241,8 @@ where
         let watcher_result = services.request_status_watcher(service_id);
         match watcher_result {
             Ok(watcher) => {
-                if reply_channel.reply(watcher).await.is_err() {
-                    error!("Error reporting back status watcher for service: {service_id}")
+                if reply_channel.reply(watcher).is_err() {
+                    error!("Error reporting back status watcher for service: {service_id}");
                 }
             }
             Err(e) => {

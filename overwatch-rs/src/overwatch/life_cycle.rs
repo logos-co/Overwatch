@@ -17,9 +17,10 @@ pub struct ServicesLifeCycleHandle {
 }
 
 impl ServicesLifeCycleHandle {
+    #[must_use]
     pub fn empty() -> Self {
         Self {
-            handlers: Default::default(),
+            handlers: HashMap::default(),
         }
     }
 
