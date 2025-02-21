@@ -1,7 +1,3 @@
-[![MIT licensed][mit-badge]][mit-url]
-[![Build Status][actions-badge]][actions-url]
-[![Codecov Status][codecov-badge]][codecov-url]
-
 [mit-badge]: https://img.shields.io/badge/license-MIT-blue.svg
 
 [mit-url]: https://github.com/logos-co/Overwatch/blob/master/LICENSE
@@ -16,6 +12,10 @@
 
 # Overwatch
 
+[![MIT licensed][mit-badge]][mit-url]
+[![Build Status][actions-badge]][actions-url]
+[![Codecov Status][codecov-badge]][codecov-url]
+
 **A lightweight framework for building modular, interconnected applications.**
 
 Overwatch simplifies the development of complex systems by enabling seamless communication between independent
@@ -27,12 +27,17 @@ components. It combines the flexibility of microservices with the simplicity of 
 
 - [Requirements](#requirements)
 - [Quick Start](#quick-start)
+- [Features](#features)
 - [Design Goals](#design-goals)
 - [Components](#components)
 - [Project Structure](#project-structure)
 - [Development Workflow](#development-workflow)
+    - [Running Tests](#running-tests)
+    - [Running Examples](#running-examples)
+    - [Generating Documentation](#generating-documentation)
 - [Contributing](#contributing)
 - [License](#license)
+- [Community](#community)
 
 ---
 
@@ -48,7 +53,7 @@ Add `overwatch` and `overwatch-derive` to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-overwatch = "1"
+overwatch-rs = "1"
 overwatch-derive = "1"
 ```
 
@@ -90,6 +95,18 @@ fn main() {
     my_app.wait_finished();
 }
 ```
+
+---
+
+## Features
+
+- **Modular Design**: Build self-contained, reusable components with clear interfaces.
+- **Asynchronous Communication**: Scalable and non-blocking communication between components.
+- **Lifecycle Management**: Centralized control over component initialization, updates, and shutdown.
+- **Dynamic Configuration**: Handle runtime configuration updates seamlessly.
+- **Testability**: Components are designed for easy testing and mocking.
+
+---
 
 ## Design Goals
 
@@ -155,6 +172,16 @@ Our architecture is built on three core principles:
 
 We welcome contributions! Please read our [Contributing Guidelines](CONTRIBUTING.md) for details on how to get started.
 
+---
+
 ## License
 
 Overwatch is licensed under the [MIT License](LICENSE).
+
+---
+
+## Community
+
+Join the conversation and get help:
+
+- [Discord Server](https://discord.gg/G6q8FgZq)
