@@ -262,7 +262,7 @@ pub struct Overwatch {
 
 impl Overwatch {
     /// Get the overwatch handle
-    /// [`OverwatchHandle`](crate::overwatch::handle::OverwatchHandle) is cloneable, so it can be done on demand
+    /// [`OverwatchHandle`] is cloneable, so it can be done on demand
     pub fn handle(&self) -> &OverwatchHandle {
         &self.handle
     }

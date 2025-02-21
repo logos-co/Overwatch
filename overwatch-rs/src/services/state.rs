@@ -167,7 +167,7 @@ impl<State> StateUpdater<State> {
     }
 }
 
-/// Wrapper over [`tokio::sync::watch::Receiver`]
+/// Wrapper over [`Receiver`]
 pub struct StateWatcher<State> {
     receiver: Receiver<State>,
 }
@@ -193,7 +193,7 @@ where
 }
 
 impl<State> StateWatcher<State> {
-    /// Get a [`Ref`](tokio::sync::watch::Ref) to the last state, this blocks incoming updates until
+    /// Get a [`Ref`] to the last state, this blocks incoming updates until
     /// the `Ref` is dropped. Use with caution.
     #[must_use]
     pub fn state_ref(&self) -> Ref<State> {
