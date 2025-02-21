@@ -1,5 +1,5 @@
-[![MIT licensed][mit-badge]][mit-url]  
-[![Build Status][actions-badge]][actions-url]  
+[![MIT licensed][mit-badge]][mit-url]
+[![Build Status][actions-badge]][actions-url]
 [![Codecov Status][codecov-badge]][codecov-url]
 
 [mit-badge]: https://img.shields.io/badge/license-MIT-blue.svg
