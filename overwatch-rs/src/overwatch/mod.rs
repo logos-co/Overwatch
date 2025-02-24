@@ -73,7 +73,7 @@ pub trait Services: Sized {
     fn new(
         settings: Self::Settings,
         overwatch_handle: OverwatchHandle,
-    ) -> std::result::Result<Self, super::DynError>;
+    ) -> Result<Self, super::DynError>;
 
     /// Start a services attached to the trait implementer
     fn start(&mut self, service_id: ServiceId) -> Result<(), Error>;
@@ -121,10 +121,10 @@ where
     pub fn run(
         settings: ServicesImpl::Settings,
         runtime: Option<Runtime>,
-    ) -> std::result::Result<Overwatch, super::DynError> {
+    ) -> Result<Overwatch, super::DynError> {
         let runtime = runtime.unwrap_or_else(default_multithread_runtime);
 
-        let (finish_signal_sender, finish_runner_signal) = tokio::sync::oneshot::channel();
+        let (finish_signal_sender, finish_runner_signal) = oneshot::channel();
         let (commands_sender, commands_receiver) = tokio::sync::mpsc::channel(16);
         let handle = OverwatchHandle::new(runtime.handle().clone(), commands_sender);
         let services = ServicesImpl::new(settings, handle.clone())?;
@@ -264,7 +264,7 @@ impl Overwatch {
         &self.handle
     }
 
-    /// Get the underlaying tokio runtime handle
+    /// Get the underlying tokio runtime handle
     pub fn runtime(&self) -> &Handle {
         self.runtime.handle()
     }

@@ -4,7 +4,7 @@ use tracing::error;
 #[cfg(feature = "instrumentation")]
 use tracing::instrument;
 
-/// Wrapper around [`tokio::sync::watch::Receiver`]
+/// Wrapper around [`Receiver`]
 pub struct SettingsNotifier<Settings> {
     notifier_channel: Receiver<Settings>,
 }
