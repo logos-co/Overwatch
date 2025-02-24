@@ -53,29 +53,29 @@ impl From<super::DynError> for Error {
     }
 }
 
-/// Signal sent so overwatch finish execution
+/// Signal sent when overwatch finishes execution
 type FinishOverwatchSignal = ();
 
-/// Marker trait for settings related elements
+/// Marker trait for settings' related elements
 pub type AnySettings = Box<dyn Any + Send>;
 
-/// An overwatch run anything that implements this trait
+/// An Overwatch may run anything that implements this trait
 /// An implementor of this trait would have to handle the inner [`ServiceCore`](crate::services::ServiceCore)
 pub trait Services: Sized {
     /// Inner [`ServiceCore::Settings`](crate::services::ServiceCore) grouping type.
-    /// Normally this will be a settings object that group all the inner services settings.
+    /// Normally this will be a settings object that groups all the inner services settings.
     type Settings;
 
-    /// Spawn a new instance of the Services object
-    /// It returns a `(ServiceId, Runtime)` where Runtime is the `tokio::runtime::Runtime` attached for each
-    /// service.
+    /// Spawn a new instance of the [`Services`] object
+    /// It returns a `(ServiceId, Runtime)` where Runtime is the [`Runtime`]
+    /// attached for each service.
     /// It also returns an instance of the implementing type.
     fn new(
         settings: Self::Settings,
         overwatch_handle: OverwatchHandle,
     ) -> Result<Self, super::DynError>;
 
-    /// Start a services attached to the trait implementer
+    /// Start a service attached to the trait implementer
     fn start(&mut self, service_id: ServiceId) -> Result<(), Error>;
 
     // TODO: this probably will be removed once the services lifecycle is implemented
@@ -85,19 +85,20 @@ pub trait Services: Sized {
     /// Stop a service attached to the trait implementer
     fn stop(&mut self, service_id: ServiceId) -> Result<(), Error>;
 
-    /// Request communication relay to one of the services
+    /// Request a communication relay for a service
     fn request_relay(&mut self, service_id: ServiceId) -> RelayResult;
 
+    /// Request a status watcher for a service
     fn request_status_watcher(&self, service_id: ServiceId) -> ServiceStatusResult;
 
     /// Update service settings
     fn update_settings(&mut self, settings: Self::Settings) -> Result<(), Error>;
 }
 
-/// `OverwatchRunner` is the entity that handles a running overwatch
-/// it is usually one-shot. It contains what it is needed just to be run as a main loop
-/// and a system to be able to stop it running. Meaning that it i responsible of the Overwatch
-/// application lifecycle.
+/// Handle a running [`Overwatch`].
+/// It's usually one-shot.
+/// It only contains what's required to run [`Overwatch`] as a main loop and to be able to stop it.
+/// That is, it's responsible for [`Overwatch`]'s application lifecycle.
 pub struct OverwatchRunner<Services> {
     services: Services,
     #[expect(unused)]
@@ -107,7 +108,7 @@ pub struct OverwatchRunner<Services> {
 }
 
 /// Overwatch thread identifier
-/// it is used when creating the `tokio::runtime::Runtime` that Overwatch uses internally
+/// It's used for creating the [`Runtime`] that Overwatch uses internally
 pub const OVERWATCH_THREAD_NAME: &str = "Overwatch";
 
 impl<ServicesImpl> OverwatchRunner<ServicesImpl>
@@ -115,9 +116,9 @@ where
     ServicesImpl: Services + Send + 'static,
 {
     /// Start the Overwatch runner process
-    /// It creates the `tokio::runtime::Runtime`, initialize the [`Services`] and start listening for
-    /// Overwatch related tasks.
-    /// Returns the [`Overwatch`] instance that handles this runner.
+    /// Create the [`Runtime`], initialize the [`Services`] and start listening for [`Overwatch`]
+    /// related tasks.
+    /// Return the [`Overwatch`] instance that handles this runner.
     pub fn run(
         settings: ServicesImpl::Settings,
         runtime: Option<Runtime>,
@@ -210,7 +211,7 @@ where
             service_id,
             reply_channel,
         } = command;
-        // send requested rely channel result to requesting service
+        // Send the requested reply channel result to the requesting service
         if let Err(Err(e)) = reply_channel.reply(services.request_relay(service_id)) {
             info!(error=?e, "Error requesting relay for service {service_id}");
         }
@@ -250,7 +251,7 @@ where
 }
 
 /// Main Overwatch entity
-/// It manages the overwatch runtime and handle
+/// It manages the [`Runtime`] and [`OverwatchHandle`]
 pub struct Overwatch {
     runtime: Runtime,
     handle: OverwatchHandle,
@@ -258,13 +259,13 @@ pub struct Overwatch {
 }
 
 impl Overwatch {
-    /// Get the overwatch handle
-    /// [`OverwatchHandle`] is cloneable, so it can be done on demand
+    /// Get the [`OverwatchHandle`]
+    /// It's cloneable, so it can be done on demand
     pub fn handle(&self) -> &OverwatchHandle {
         &self.handle
     }
 
-    /// Get the underlying tokio runtime handle
+    /// Get the underlying [`Handle`]
     pub fn runtime(&self) -> &Handle {
         self.runtime.handle()
     }
@@ -278,7 +279,7 @@ impl Overwatch {
         self.runtime.spawn(future)
     }
 
-    /// Block until Overwatch finish its execution
+    /// Block until Overwatch finishes executing
     pub fn wait_finished(self) {
         let Self {
             runtime,

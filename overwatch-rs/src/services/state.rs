@@ -13,8 +13,8 @@ use tracing::error;
 // TODO: Constrain this, probably with needed serialize/deserialize options.
 /// Service state initialization traits
 /// It defines what is needed for a service state to be initialized.
-/// Need what set of settings information is required for it to be initialized [`ServiceState::Settings`]
-/// which usually is bound to the service itself [`crate::services::ServiceData::Settings`]
+/// It contains the [`ServiceState::Settings`] required to initialize the service. It's usually
+/// bound to the service itself [`crate::services::ServiceData::Settings`]
 pub trait ServiceState: Sized {
     /// Settings object that the state can be initialized from
     type Settings;
@@ -25,24 +25,34 @@ pub trait ServiceState: Sized {
     fn from_settings(settings: &Self::Settings) -> Result<Self, Self::Error>;
 }
 
-/// A state operator is an entity that can handle a state in a point of time
-/// to perform any operation based on it.
+/// A [`StateOperator`] is an entity that performs an operation on a
+/// [`ServiceData::State`](crate::services::ServiceData::State) snapshot.
 /// A typical use case is to handle recovery: Saving and loading state.
 #[async_trait]
 pub trait StateOperator {
     /// The type of state that the operator can handle
+    /// Usually the same as the [`ServiceState::Settings`]
     type StateInput;
+
     /// The settings to configure the operator
+    /// Usually the same as the [`ServiceState::Settings`]
     type Settings;
+
     /// Errors that can occur during state loading
     type LoadError;
+
     /// State initialization method
-    /// In contrast to [ServiceState::from_settings], this is used to try to initialize
-    /// a (saved) [ServiceState] from an external source (e.g. file, database, etc.)
+    /// This is called to (attempt to) generate the `Service`s initial state before using the
+    /// default mechanism.
+    /// The reason is one of the main use cases for an operator is to handle recovery and,
+    /// therefore, if the [`StateOperator`] can save a state, it should also be able to load it; so
+    /// the full responsibility lies in the same entity.
     fn try_load(settings: &Self::Settings) -> Result<Option<Self::StateInput>, Self::LoadError>;
+
     /// Operator initialization method. Can be implemented over some subset of settings
     fn from_settings(settings: Self::Settings) -> Self;
-    /// Asynchronously perform an operation for a given state
+
+    /// Asynchronously perform an operation for a given state snapshot
     async fn run(&mut self, state: Self::StateInput);
 }
 
@@ -50,13 +60,15 @@ pub trait StateOperator {
 #[derive(Copy)]
 pub struct NoOperator<StateInput, Settings>(PhantomData<(*const StateInput, *const Settings)>);
 
-// NoOperator does not actually hold anything and is thus Sync.
-// Note that we don't use PhantomData<StateInput> as that would
-// suggest we indeed hold an instance of StateInput, see
-// https://doc.rust-lang.org/std/marker/struct.PhantomData.html#ownership-and-the-drop-check
+/// NoOperator does not actually hold anything and is thus Sync.
+///
+/// Note that we don't use PhantomData<StateInput> as that would suggest we indeed hold an instance
+/// of [`StateOperator::StateInput`].
+///
+/// See: https://doc.rust-lang.org/std/marker/struct.PhantomData.html#ownership-and-the-drop-check
 unsafe impl<StateInput, Settings> Send for NoOperator<StateInput, Settings> {}
 
-// auto derive introduces unnecessary Clone bound on T
+// Clone is implemented manually because auto deriving introduces an unnecessary Clone bound on T
 impl<StateInput, Settings> Clone for NoOperator<StateInput, Settings> {
     fn clone(&self) -> Self {
         Self(PhantomData)
@@ -93,7 +105,7 @@ impl<StateInput, Settings> StateOperator for NoOperator<StateInput, Settings> {
 #[derive(Copy)]
 pub struct NoState<Settings>(PhantomData<Settings>);
 
-// auto derive introduces unnecessary Clone bound on T
+// Clone is implemented manually because auto deriving introduces an unnecessary Clone bound on T
 impl<Settings> Clone for NoState<Settings> {
     fn clone(&self) -> Self {
         Self(PhantomData)
@@ -110,14 +122,14 @@ impl<Settings> ServiceState for NoState<Settings> {
 }
 
 /// Receiver part of the state handling mechanism.
-/// A state handle watches a stream of incoming states and triggers the attached operator handling
-/// method over it.
+/// A [`StateHandle`] watches a stream of incoming states and triggers the attached operator
+/// handling method over it.
 pub struct StateHandle<State, Operator> {
     watcher: StateWatcher<State>,
     operator: Operator,
 }
 
-// auto derive introduces unnecessary Clone bound on T
+// Clone is implemented manually because auto deriving introduces an unnecessary Clone bound on T
 impl<State, Operator> Clone for StateHandle<State, Operator>
 where
     Operator: Clone,
@@ -148,7 +160,7 @@ pub struct StateUpdater<State> {
     sender: Arc<Sender<State>>,
 }
 
-// auto derive introduces unnecessary Clone bound on T
+// Clone is implemented manually because auto deriving introduces an unnecessary Clone bound on T
 impl<State> Clone for StateUpdater<State> {
     fn clone(&self) -> Self {
         Self {
@@ -171,7 +183,7 @@ pub struct StateWatcher<State> {
     receiver: Receiver<State>,
 }
 
-// auto derive introduces unnecessary Clone bound on T
+// Clone is implemented manually because auto deriving introduces an unnecessary Clone bound on T
 impl<State> Clone for StateWatcher<State> {
     fn clone(&self) -> Self {
         Self {
@@ -192,8 +204,8 @@ where
 }
 
 impl<State> StateWatcher<State> {
-    /// Get a [`Ref`] to the last state, this blocks incoming updates until
-    /// the `Ref` is dropped. Use with caution.
+    /// Get a [`Ref`] to the last state, this blocks incoming updates until the `Ref` is dropped.
+    /// Use with caution.
     #[must_use]
     pub fn state_ref(&self) -> Ref<State> {
         self.receiver.borrow()

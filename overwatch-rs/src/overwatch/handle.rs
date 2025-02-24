@@ -16,7 +16,7 @@ use tracing::{error, info};
 use crate::services::relay::Relay;
 use crate::services::status::StatusWatcher;
 
-/// Handler object over the main Overwatch runner
+/// Handler object over the main [`crate::overwatch::Overwatch`] runner
 /// It handles communications to the main Overwatch runner.
 #[derive(Clone, Debug)]
 pub struct OverwatchHandle {
@@ -34,7 +34,7 @@ impl OverwatchHandle {
     }
 
     #[must_use]
-    /// Request for a relay
+    /// Request a relay
     pub fn relay<Service>(&self) -> Relay<Service>
     where
         Service: ServiceData,
@@ -43,7 +43,7 @@ impl OverwatchHandle {
         Relay::new(self.clone())
     }
 
-    // Request a status watcher for a service
+    /// Request a [`StatusWatcher`] for a service
     pub async fn status_watcher<Service: ServiceData>(&self) -> StatusWatcher {
         info!("Requesting status watcher for {}", Service::SERVICE_ID);
         let (sender, receiver) = tokio::sync::oneshot::channel();
@@ -67,7 +67,7 @@ impl OverwatchHandle {
         }
     }
 
-    /// Send a shutdown signal to the overwatch runner
+    /// Send a shutdown signal to the [`crate::overwatch::OverwatchRunner`]
     pub async fn shutdown(&self) {
         info!("Shutting down Overwatch");
         if let Err(e) = self
@@ -81,7 +81,7 @@ impl OverwatchHandle {
         }
     }
 
-    /// Send a kill signal to the overwatch runner
+    /// Send a kill signal to the [`crate::overwatch::OverwatchRunner`]
     pub async fn kill(&self) {
         info!("Killing Overwatch");
         if let Err(e) = self
@@ -95,7 +95,7 @@ impl OverwatchHandle {
         }
     }
 
-    /// Send an overwatch command to the overwatch runner
+    /// Send an overwatch command to the [`crate::overwatch::OverwatchRunner`]
     #[cfg_attr(
         feature = "instrumentation",
         instrument(name = "overwatch-command-send", skip(self))
@@ -105,6 +105,7 @@ impl OverwatchHandle {
             error!(error=?e, "Error sending overwatch command");
         }
     }
+
     #[cfg_attr(feature = "instrumentation", instrument(skip(self)))]
     pub async fn update_settings<S: Services>(&self, settings: S::Settings)
     where

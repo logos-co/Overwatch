@@ -18,14 +18,16 @@ where
         Self { notifier_channel }
     }
 
-    /// Get latest settings, it is guaranteed that at least an initial value is present
+    /// Get latest settings.
+    /// It is guaranteed that at least an initial value is present.
     /// This returns a cloned version of the referenced settings. It simplifies the API
     /// at the expense of some efficiency.
-    // TODO: Maybe we can consider returning the Ref<> from the borrowing. But in doing would be
-    // be blocking the updating channel so this responsibility would be dumped into the end user
-    // of the method. Another option would be to spawn a task that updates a settings local value
-    // each time an updated settings is received. This could not be so easy to do, since it will
-    // need to hold a &mut to the holder (or needed to use a Cell/RefCell).
+    // TODO: Alternatives:
+    // - We can consider returning the Ref<> from the borrowing. This would block the updating
+    // channel so this responsibility would be dumped into the end user of the method.
+    // - Spawn a task that updates a settings local value each time an updated settings is received.
+    // This might be harder to do than it seems since it will need to hold a &mut to the holder
+    // (or needed to use a Cell/RefCell).
     #[must_use]
     pub fn get_updated_settings(&self) -> Settings {
         self.notifier_channel.borrow().clone()

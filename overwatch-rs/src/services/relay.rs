@@ -51,7 +51,7 @@ impl RelayMessage for NoMessage {}
 pub type RelayResult = Result<AnyMessage, RelayError>;
 
 /// Marker type for relay messages
-/// Notice that it is bound to 'static.
+/// Note that it is bound to 'static.
 pub trait RelayMessage: 'static {}
 
 /// Channel receiver of a relay connection
@@ -84,8 +84,7 @@ impl<Service> Clone for Relay<Service> {
     }
 }
 
-// Like PhantomData<T> but without
-// ownership of T
+// Like PhantomData<T> but without ownership of T
 #[derive(Debug)]
 struct PhantomBound<T> {
     _inner: PhantomData<*const T>,

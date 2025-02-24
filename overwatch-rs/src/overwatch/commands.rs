@@ -29,7 +29,8 @@ pub struct RelayCommand {
     pub(crate) reply_channel: ReplyChannel<RelayResult>,
 }
 
-/// Command for requesting
+/// Command for requesting [`ServiceStatus`](crate::services::status::ServiceStatus) updates
+/// from another service
 #[derive(Debug)]
 pub struct StatusCommand {
     pub(crate) service_id: ServiceId,
