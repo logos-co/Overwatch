@@ -1,6 +1,5 @@
 // std
 use std::fmt::Debug;
-
 // crates
 use crate::overwatch::commands::{
     OverwatchCommand, OverwatchLifeCycleCommand, ReplyChannel, SettingsCommand, StatusCommand,

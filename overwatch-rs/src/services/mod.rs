@@ -11,7 +11,6 @@ use std::fmt::Debug;
 use async_trait::async_trait;
 use thiserror::Error;
 use tokio::runtime;
-
 // internal
 use crate::services::relay::RelayError;
 use handle::ServiceStateHandle;

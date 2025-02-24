@@ -6,7 +6,6 @@ use std::time::Duration;
 use crate::services::ServiceId;
 use thiserror::Error;
 use tokio::sync::watch;
-// internal
 
 #[derive(Error, Debug)]
 pub enum ServiceStatusError {

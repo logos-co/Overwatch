@@ -1,10 +1,8 @@
-//std
 //crates
 use tokio::sync::watch::{channel, Receiver, Sender};
 use tracing::error;
 #[cfg(feature = "instrumentation")]
 use tracing::instrument;
-//internal
 
 /// Wrapper around [`tokio::sync::watch::Receiver`]
 pub struct SettingsNotifier<Settings> {

@@ -9,7 +9,6 @@ use futures::StreamExt;
 use tokio::sync::watch::{channel, Receiver, Ref, Sender};
 use tokio_stream::wrappers::WatchStream;
 use tracing::error;
-// internal
 
 // TODO: Constrain this, probably with needed serialize/deserialize options.
 /// Service state initialization traits

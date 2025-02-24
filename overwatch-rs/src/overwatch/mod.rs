@@ -1,14 +1,12 @@
 pub mod commands;
 pub mod handle;
 pub mod life_cycle;
-// std
 
+// std
 use std::any::Any;
 use std::fmt::Debug;
 use std::future::Future;
-
 // crates
-
 use thiserror::Error;
 use tokio::runtime::{Handle, Runtime};
 use tokio::sync::mpsc::Receiver;
@@ -17,7 +15,6 @@ use tokio::task::JoinHandle;
 #[cfg(feature = "instrumentation")]
 use tracing::instrument;
 use tracing::{error, info};
-
 // internal
 use crate::overwatch::commands::{
     OverwatchCommand, OverwatchLifeCycleCommand, RelayCommand, ServiceLifeCycleCommand,
