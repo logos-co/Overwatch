@@ -8,10 +8,10 @@ authors = [
 license-file = "LICENSE"
 homepage = "https://github.com/logos-co/Overwatch"
 repository = "https://github.com/logos-co/Overwatch"
-description = "Overwatch is a framework to easily construct applications that requires of several independent parts that needs communication between them. Everything is self-contained, and it matches somewhat the advantages of microservices."
+description = "A lightweight framework for building modular, interconnected applications."
 readme = "README.md"
-keywords = ["async", "services"]
-categories = ["Asynchronous"]
+keywords = ["async", "services", "framework"]
+categories = ["asynchronous"]
 exclude = [
     "./tests",
     ".github",
@@ -25,13 +25,12 @@ instrumentation = []
 
 [dependencies]
 overwatch-derive = { path = "../overwatch-derive", optional = true }
-const-str = "0.3"
-color-eyre = "0.6"
+const-str = "0.6"
 async-trait = "0.1"
 futures = "0.3"
-thiserror = "1.0"
+thiserror = "2.0"
 tokio = { version = "1.32", features = ["rt-multi-thread", "sync", "time"] }
-tokio-stream = {version ="0.1", features = ["sync"] }
+tokio-stream = { version = "0.1", features = ["sync"] }
 tokio-util = "0.7"
 tracing = "0.1"
 
