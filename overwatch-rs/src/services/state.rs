@@ -72,10 +72,10 @@ pub struct NoOperator<StateInput, Settings>(PhantomData<(*const StateInput, *con
 
 /// NoOperator does not actually hold anything and is thus Sync.
 ///
-/// Note that we don't use PhantomData<StateInput> as that would suggest we indeed hold an instance
+/// Note that we don't use `PhantomData<StateInput>` as that would suggest we indeed hold an instance
 /// of [`StateOperator::StateInput`].    
 ///
-/// See: https://doc.rust-lang.org/std/marker/struct.PhantomData.html#ownership-and-the-drop-check
+/// [Ownership and the drop check](https://doc.rust-lang.org/std/marker/struct.PhantomData.html#ownership-and-the-drop-check)
 unsafe impl<StateInput, Settings> Send for NoOperator<StateInput, Settings> {}
 
 // Clone is implemented manually because auto deriving introduces an unnecessary Clone bound on T.

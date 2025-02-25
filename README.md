@@ -70,7 +70,11 @@ overwatch-derive = "1"
 
 Here's a simple example to get you started:
 
-```rust
+```rust ignore
+// This example is for illustration purposes only and is not meant to compile.
+// There's parts of the code that are required to be implemented by the user.
+// Please refer to the examples directory for working code. 
+
 use overwatch_rs::{
     overwatch::OverwatchRunner,
     services::{ServiceCore, ServiceData},
