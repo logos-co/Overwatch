@@ -44,7 +44,7 @@ impl ServicesLifeCycleHandle {
     }
 
     /// Send a [`LifecycleMessage::Kill`] message to the specified service ([`ServiceId`])
-    ///
+    ///[`crate::overwatch::OverwatchRunner`]
     /// # Arguments
     ///
     /// `service` - The [`ServiceId`] of the target service

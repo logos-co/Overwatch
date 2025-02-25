@@ -1,10 +1,10 @@
-//crates
+// crates
 use tokio::sync::watch::{channel, Receiver, Sender};
 use tracing::error;
 #[cfg(feature = "instrumentation")]
 use tracing::instrument;
 
-/// Wrapper around [`Receiver`]
+/// Wrapper around [`Receiver`].
 pub struct SettingsNotifier<Settings> {
     notifier_channel: Receiver<Settings>,
 }
@@ -19,7 +19,9 @@ where
     }
 
     /// Get latest settings.
+    ///
     /// It is guaranteed that at least an initial value is present.
+    ///
     /// This returns a cloned version of the referenced settings. It simplifies the API
     /// at the expense of some efficiency.
     // TODO: Alternatives:
@@ -34,7 +36,7 @@ where
     }
 }
 
-/// Settings update notification sender
+/// Settings update notification sender.
 pub struct SettingsUpdater<Settings> {
     sender: Sender<Settings>,
     receiver: Receiver<Settings>,
@@ -47,7 +49,7 @@ impl<Settings> SettingsUpdater<Settings> {
         Self { sender, receiver }
     }
 
-    /// Send a new settings update notification to the watcher end
+    /// Send a new settings update notification to the watcher end.
     #[cfg_attr(feature = "instrumentation", instrument(skip_all))]
     pub fn update(&self, settings: Settings) {
         self.sender.send(settings).unwrap_or_else(|_e| {
@@ -55,7 +57,7 @@ impl<Settings> SettingsUpdater<Settings> {
         });
     }
 
-    /// Get a new notifier channel, used to get latest settings changes updates
+    /// Get a new notifier channel, used to get latest settings changes updates.
     #[must_use]
     pub fn notifier(&self) -> SettingsNotifier<Settings> {
         SettingsNotifier {

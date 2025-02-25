@@ -10,17 +10,17 @@ use crate::services::state::{StateHandle, StateOperator, StateUpdater};
 use crate::services::status::{StatusHandle, StatusWatcher};
 use crate::services::{ServiceCore, ServiceId, ServiceState};
 
+/// Handle to a service.
+///
+/// This is used to access the different components of the `Service`.
 // TODO: Abstract handle over state to differentiate when the service is running and when it is not.
 // That way we could expose a better API depending on what is happening and it would get rid of
 // the probably unnecessary Option and cloning.
-/// Service handle
-/// This is used to access different parts of the service
 pub struct ServiceHandle<Message, Settings, State> {
     /// Message channel relay
-    /// It contains the channel if the service is running
-    /// Otherwise it'll be [`None`]
+    ///
+    /// It contains the channel if the service is running, otherwise it'll be [`None`]
     outbound_relay: Option<OutboundRelay<Message>>,
-    /// Handle to overwatch
     overwatch_handle: OverwatchHandle,
     settings: SettingsUpdater<Settings>,
     status: StatusHandle,
@@ -28,21 +28,22 @@ pub struct ServiceHandle<Message, Settings, State> {
     relay_buffer_size: usize,
 }
 
-/// Core resources for the `Service`.
-/// Contains everything required to start a new service runner.
+/// Core resources for a `Service`.
+///
+/// Contains everything required to start a new [`ServiceRunner`].
 pub struct ServiceStateHandle<Message, Settings, State> {
-    /// Relay channel to communicate with the service runner
+    /// Message channel relay to receive messages from other services
     pub inbound_relay: InboundRelay<Message>,
     pub status_handle: StatusHandle,
-    /// Overwatch handle
     pub overwatch_handle: OverwatchHandle,
     pub settings_reader: SettingsNotifier<Settings>,
     pub state_updater: StateUpdater<State>,
     pub lifecycle_handle: LifecycleHandle,
 }
 
-/// Main executor for the `Service`
-/// Contains all the necessary information to run the `Service`.
+/// Executor for a `Service`.
+///
+/// Contains all the necessary information to run a `Service`.
 pub struct ServiceRunner<Message, Settings, State, StateOperator> {
     service_state: ServiceStateHandle<Message, Settings, State>,
     state_handle: StateHandle<State, StateOperator>,
@@ -81,29 +82,33 @@ where
         })
     }
 
-    /// Get the service runtime
-    /// It's easily cloneable and can be done on demand
+    /// Get the service's [`Handle`].
+    ///
+    /// It's easily cloneable and can be done on demand.
     pub fn runtime(&self) -> &Handle {
         self.overwatch_handle.runtime()
     }
 
-    /// Get the [`OverwatchHandle`]
-    /// It's easily cloneable and can be done on demand
+    /// Get the service's [`OverwatchHandle`].
+    ///
+    /// It's easily cloneable and can be done on demand.
     pub fn overwatch_handle(&self) -> &OverwatchHandle {
         &self.overwatch_handle
     }
 
-    /// Request a relay with this service
+    /// Request a relay to this service.
+    ///
+    /// If the service is not running, it will return [`None`].
     pub fn relay_with(&self) -> Option<OutboundRelay<Message>> {
         self.outbound_relay.clone()
     }
 
-    /// Get the status watcher
+    /// Get the [`StatusWatcher`] for this service.
     pub fn status_watcher(&self) -> StatusWatcher {
         self.status.watcher()
     }
 
-    /// Update settings
+    /// Update the current settings with a new one.
     pub fn update_settings(&self, settings: Settings) {
         self.settings.update(settings);
     }
@@ -149,8 +154,12 @@ where
     State: Clone + Send + Sync + 'static,
     StateOp: StateOperator<StateInput = State> + Send + 'static,
 {
-    /// Spawn the service main loop and handle its lifecycle
-    /// Return a handle that allows manually aborting the execution
+    /// Spawn the service main loop and handle its lifecycle.
+    ///
+    /// # Returns
+    ///
+    /// A tuple containing the service id and the lifecycle handle, which allows to manually
+    /// abort the execution.
     pub fn run<Service>(self) -> Result<(ServiceId, LifecycleHandle), crate::DynError>
     where
         Service: ServiceCore<Settings = Settings, State = State, Message = Message> + 'static,

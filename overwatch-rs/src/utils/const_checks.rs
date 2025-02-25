@@ -27,7 +27,7 @@ mod test {
 
     #[test]
     fn test_unique_ids() {
-        // this shouldn't even compile if checks fails
+        // This shouldn't even compile if checks fails
         const _: () = assert!(unique_ids(&["A", "B"]));
         const _: () = assert!(!unique_ids(&["A", "A"]));
 

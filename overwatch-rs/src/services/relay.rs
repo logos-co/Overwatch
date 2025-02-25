@@ -39,7 +39,7 @@ pub enum RelayError {
     Receiver(Box<dyn Debug + Send + Sync>),
 }
 
-/// Message wrapper type
+/// Message wrapper type.
 pub type AnyMessage = Box<dyn Any + Send + 'static>;
 
 #[derive(Debug, Clone)]
@@ -47,21 +47,22 @@ pub struct NoMessage;
 
 impl RelayMessage for NoMessage {}
 
-/// Result type when creating a relay connection
+/// Result type when creating a relay connection.
 pub type RelayResult = Result<AnyMessage, RelayError>;
 
-/// Marker type for relay messages
+/// Marker type for relay messages.
+///
 /// Note that it is bound to 'static.
 pub trait RelayMessage: 'static {}
 
-/// Channel receiver of a relay connection
+/// Channel receiver of a relay connection.
 #[derive(Debug)]
 pub struct InboundRelay<Message> {
     receiver: Receiver<Message>,
     _stats: (), // placeholder
 }
 
-/// Channel sender of a relay connection
+/// Channel sender of a relay connection.
 pub struct OutboundRelay<Message> {
     sender: Sender<Message>,
     _stats: (), // placeholder
@@ -102,8 +103,8 @@ impl<Message> Clone for OutboundRelay<Message> {
     }
 }
 
+/// Relay channel builder.
 // TODO: make buffer_size const?
-/// Relay channel builder
 #[must_use]
 pub fn relay<Message>(buffer_size: usize) -> (InboundRelay<Message>, OutboundRelay<Message>) {
     let (sender, receiver) = channel(buffer_size);
@@ -139,8 +140,7 @@ impl<Message> OutboundRelay<Message> {
     ///
     /// # Panics
     ///
-    /// This function panics if called within an asynchronous execution
-    /// context.
+    /// This function panics if called within an asynchronous execution context.
     pub fn blocking_send(&self, message: Message) -> Result<(), (RelayError, Message)> {
         self.sender
             .blocking_send(message)

@@ -8,19 +8,18 @@ use tokio_stream::StreamExt;
 // internal
 use crate::DynError;
 
-/// Type alias for an empty signal
+/// Type alias for an empty signal.
 pub type FinishedSignal = ();
 
-/// Supported lifecycle messages
 #[derive(Clone, Debug)]
 pub enum LifecycleMessage {
-    /// Hold a sender from a broadcast channel. This is used to signal when the service has finished
-    /// handling the shutdown process.
+    /// Holds a sender from a broadcast channel. This is used to signal when the service has
+    /// finished handling the shutdown process.
     Shutdown(Sender<FinishedSignal>),
     Kill,
 }
 
-/// Handle for lifecycle communications with a `Service`
+/// Handle for lifecycle communications with a `Service`.
 pub struct LifecycleHandle {
     message_channel: Receiver<LifecycleMessage>,
     notifier: Sender<LifecycleMessage>,
@@ -39,14 +38,16 @@ impl Clone for LifecycleHandle {
     }
 }
 
+/// A handle to manage [`LifecycleMessage`]s for a `Service`.
+///
+/// All lifecycle computations are processed sequentially to prevent race conditions
+/// (e.g.: unordered messages).
+///
+/// [`LifecycleMessage`] senders wait until the channel is empty before sending a new
+/// message, akin to a mutex.
 impl LifecycleHandle {
     #[must_use]
     pub fn new() -> Self {
-        // Process a single [`LifecycleMessage`] at a time.
-        // All lifecycle computations are processed sequentially to prevent race conditions
-        // (e.g.: unordered messages).
-        // [`LifecycleMessage`] senders wait until the channel is empty before sending a new
-        // message, akin to a mutex.
         let (notifier, message_channel) = channel(1);
         Self {
             message_channel,
@@ -54,7 +55,8 @@ impl LifecycleHandle {
         }
     }
 
-    /// Incoming [`LifecycleMessage`] stream
+    /// Incoming [`LifecycleMessage`] stream for the `Service`.
+    ///
     /// Note that messages are not buffered: Different calls to this method could yield different
     /// messages depending on when the method is called.
     pub fn message_stream(&self) -> impl Stream<Item = LifecycleMessage> {
@@ -62,7 +64,7 @@ impl LifecycleHandle {
             .filter_map(Result::ok)
     }
 
-    /// Send a [`LifecycleMessage`] to the service
+    /// Send a [`LifecycleMessage`] to the `Service`.
     pub fn send(&self, msg: LifecycleMessage) -> Result<(), DynError> {
         self.notifier
             .send(msg)

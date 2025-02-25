@@ -16,8 +16,9 @@ use tracing::{error, info};
 use crate::services::relay::Relay;
 use crate::services::status::StatusWatcher;
 
-/// Handler object over the main [`crate::overwatch::Overwatch`] runner
-/// It handles communications to the main Overwatch runner.
+/// Handler object over the main [`crate::overwatch::Overwatch`] runner.
+///
+/// It handles communications to the main [`OverwatchRunner`](crate::overwatch::OverwatchRunner).
 #[derive(Clone, Debug)]
 pub struct OverwatchHandle {
     runtime_handle: Handle,
@@ -67,7 +68,7 @@ impl OverwatchHandle {
         }
     }
 
-    /// Send a shutdown signal to the [`crate::overwatch::OverwatchRunner`]
+    /// Send a shutdown signal to the [`OverwatchRunner`](crate::overwatch::OverwatchRunner)
     pub async fn shutdown(&self) {
         info!("Shutting down Overwatch");
         if let Err(e) = self
@@ -81,7 +82,7 @@ impl OverwatchHandle {
         }
     }
 
-    /// Send a kill signal to the [`crate::overwatch::OverwatchRunner`]
+    /// Send a kill signal to the [`OverwatchRunner`](crate::overwatch::OverwatchRunner)
     pub async fn kill(&self) {
         info!("Killing Overwatch");
         if let Err(e) = self
@@ -95,7 +96,7 @@ impl OverwatchHandle {
         }
     }
 
-    /// Send an overwatch command to the [`crate::overwatch::OverwatchRunner`]
+    /// Send an overwatch command to the [`OverwatchRunner`](crate::overwatch::OverwatchRunner)
     #[cfg_attr(
         feature = "instrumentation",
         instrument(name = "overwatch-command-send", skip(self))

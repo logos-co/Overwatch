@@ -32,6 +32,8 @@ impl StatusUpdater {
     }
 }
 
+/// Watcher for the service status.
+/// TODO
 #[derive(Debug, Clone)]
 pub struct StatusWatcher(watch::Receiver<ServiceStatus>);
 

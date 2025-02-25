@@ -17,11 +17,11 @@ use handle::ServiceStateHandle;
 use state::ServiceState;
 
 // TODO: Make this type unique for each service?
-/// Services identification type
+/// Services identification type.
 pub type ServiceId = &'static str;
 
-/// The core data a service needs to handle
-/// Holds the necessary information of a service
+/// The core data a service needs to handle.
+/// Holds the necessary information of a service.
 pub trait ServiceData {
     /// Service identification tag
     const SERVICE_ID: ServiceId;
@@ -37,16 +37,16 @@ pub trait ServiceData {
     type Message;
 }
 
-/// Main trait for Services initialization and main loop hook
+/// Main trait for Services initialization and main loop hook.
 #[async_trait]
 pub trait ServiceCore: Sized + ServiceData {
-    /// Initialize the service with the given state
+    /// Initialize the service with the given handle and initial state.
     fn init(
-        service_state: ServiceStateHandle<Self::Message, Self::Settings, Self::State>,
+        service_state_handle: ServiceStateHandle<Self::Message, Self::Settings, Self::State>,
         initial_state: Self::State,
     ) -> Result<Self, super::DynError>;
 
-    /// Service main loop
+    /// Main loop
     async fn run(mut self) -> Result<(), super::DynError>;
 }
 
