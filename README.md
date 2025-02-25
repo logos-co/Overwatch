@@ -1,20 +1,31 @@
-[mit-badge]: https://img.shields.io/badge/license-MIT-blue.svg
+[mit-badge]: https://img.shields.io/github/license/logos-co/Overwatch?style=for-the-badge
 
-[mit-url]: https://github.com/logos-co/Overwatch/blob/master/LICENSE
+[mit-url]: https://github.com/logos-co/Overwatch/blob/main/LICENSE
 
-[actions-badge]: https://github.com/logos-co/Overwatch/workflows/CI/badge.svg
+[actions-badge]: https://img.shields.io/github/actions/workflow/status/logos-co/Overwatch/main.yml?style=for-the-badge&logo=github
 
 [actions-url]: https://github.com/logos-co/Overwatch/actions/workflows/main.yml?query=workflow%3ACI+branch%3Amain
 
-[codecov-badge]: https://codecov.io/github/logos-co/Overwatch/branch/main/graph/badge.svg?token=H4CQWRUCUS
+[codecov-badge]: https://img.shields.io/codecov/c/github/logos-co/Overwatch?style=for-the-badge&logo=codecov
 
 [codecov-url]: https://codecov.io/github/logos-co/Overwatch
 
+[crates-badge]: https://img.shields.io/crates/v/overwatch.svg?style=for-the-badge&color=fc8d62&logo=rust
+
+[crates-url]: https://crates.io/crates/overwatch
+
+[docs-badge]: https://img.shields.io/docsrs/overwatch?style=for-the-badge&logo=docs.rs
+
+[docs-url]: https://docs.rs/overwatch
+
 # Overwatch
 
-[![MIT licensed][mit-badge]][mit-url]
 [![Build Status][actions-badge]][actions-url]
 [![Codecov Status][codecov-badge]][codecov-url]
+
+[![MIT License][mit-badge]][mit-url]
+[![crates.io][crates-badge]][crates-url]
+[![docs.rs][docs-badge]][docs-url]
 
 **A lightweight framework for building modular, interconnected applications.**
 
@@ -53,7 +64,7 @@ Add `overwatch` and `overwatch-derive` to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-overwatch-rs = "1"
+overwatch = "1"
 overwatch-derive = "1"
 ```
 
