@@ -10,8 +10,8 @@ homepage = "https://github.com/logos-co/Overwatch"
 repository = "https://github.com/logos-co/Overwatch"
 description = "Overwatch derive macros"
 readme = "README.md"
-keywords = ["async", "services"]
-categories = ["Asynchronous"]
+keywords = ["async", "services", "framework", "macros", "derive"]
+categories = ["asynchronous"]
 exclude = [
     "./tests",
     ".github",
@@ -22,12 +22,11 @@ exclude = [
 proc-macro = true
 
 [features]
-instrumentation = []
+instrumentation = ["dep:tracing"]
 
 [dependencies]
-heck = "0.4"
-syn = "1.0"
+syn = "2.0"
 quote = "1.0"
 proc-macro2 = "1.0"
 proc-macro-error = "1.0"
-tracing = "0.1"
+tracing = { version = "0.1", optional = true }

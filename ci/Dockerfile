@@ -7,7 +7,7 @@ LABEL description="Overwatch ci build image"
 # Using backports for go 1.19
 RUN echo 'deb http://deb.debian.org/debian bullseye-backports main' >> /etc/apt/sources.list
 
-# Dependecies for publishing documentation and building waku-bindings.
+# Dependencies for publishing documentation and building waku-bindings.
 RUN apt-get update && apt-get install -yq \
     openssh-client git clang \
     golang-src/bullseye-backports \
