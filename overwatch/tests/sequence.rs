@@ -1,11 +1,11 @@
+use overwatch::overwatch::OverwatchRunner;
+use overwatch::services::relay::NoMessage;
+use overwatch::services::state::{NoOperator, NoState};
+use overwatch::services::status::{ServiceStatus, StatusWatcher};
+use overwatch::services::{ServiceCore, ServiceData, ServiceId};
+use overwatch::DynError;
+use overwatch::{OpaqueServiceHandle, OpaqueServiceStateHandle};
 use overwatch_derive::Services;
-use overwatch_rs::overwatch::OverwatchRunner;
-use overwatch_rs::services::relay::NoMessage;
-use overwatch_rs::services::state::{NoOperator, NoState};
-use overwatch_rs::services::status::{ServiceStatus, StatusWatcher};
-use overwatch_rs::services::{ServiceCore, ServiceData, ServiceId};
-use overwatch_rs::DynError;
-use overwatch_rs::{OpaqueServiceHandle, OpaqueServiceStateHandle};
 use std::time::Duration;
 
 pub struct AwaitService1 {

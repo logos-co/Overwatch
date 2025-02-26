@@ -1,11 +1,11 @@
 use async_trait::async_trait;
 use futures::future::select;
+use overwatch::overwatch::OverwatchRunner;
+use overwatch::services::handle::ServiceStateHandle;
+use overwatch::services::state::{NoOperator, NoState};
+use overwatch::services::{ServiceCore, ServiceData, ServiceId};
+use overwatch::OpaqueServiceHandle;
 use overwatch_derive::Services;
-use overwatch_rs::overwatch::OverwatchRunner;
-use overwatch_rs::services::handle::ServiceStateHandle;
-use overwatch_rs::services::state::{NoOperator, NoState};
-use overwatch_rs::services::{ServiceCore, ServiceData, ServiceId};
-use overwatch_rs::OpaqueServiceHandle;
 use std::fmt::Debug;
 use std::time::Duration;
 use tokio::time::sleep;
@@ -30,11 +30,11 @@ impl ServiceCore for GenericService {
     fn init(
         state: ServiceStateHandle<Self::Message, Self::Settings, Self::State>,
         _initial_state: Self::State,
-    ) -> Result<Self, overwatch_rs::DynError> {
+    ) -> Result<Self, overwatch::DynError> {
         Ok(Self { state })
     }
 
-    async fn run(mut self) -> Result<(), overwatch_rs::DynError> {
+    async fn run(mut self) -> Result<(), overwatch::DynError> {
         use tokio::io::{self, AsyncWriteExt};
 
         let Self {

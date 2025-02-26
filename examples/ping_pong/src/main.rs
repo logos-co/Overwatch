@@ -1,7 +1,7 @@
 // Crate
+use overwatch::overwatch::OverwatchRunner;
+use overwatch::OpaqueServiceHandle;
 use overwatch_derive::Services;
-use overwatch_rs::overwatch::OverwatchRunner;
-use overwatch_rs::OpaqueServiceHandle;
 // Internal
 use crate::service_ping::PingService;
 use crate::service_pong::PongService;

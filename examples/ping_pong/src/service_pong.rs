@@ -1,9 +1,9 @@
 // Crates
 use crate::messages::{PingMessage, PongMessage};
 use crate::service_ping::PingService;
-use overwatch_rs::services::state::{NoOperator, NoState};
-use overwatch_rs::services::{ServiceCore, ServiceData, ServiceId};
-use overwatch_rs::{DynError, OpaqueServiceStateHandle};
+use overwatch::services::state::{NoOperator, NoState};
+use overwatch::services::{ServiceCore, ServiceData, ServiceId};
+use overwatch::{DynError, OpaqueServiceStateHandle};
 
 pub struct PongService {
     service_state_handle: OpaqueServiceStateHandle<Self>,

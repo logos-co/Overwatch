@@ -1,5 +1,5 @@
 // Crates
-use overwatch_rs::services::state::ServiceState;
+use overwatch::services::state::ServiceState;
 use serde::{Deserialize, Serialize};
 // Internal
 use crate::settings::PingSettings;

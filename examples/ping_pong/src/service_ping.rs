@@ -1,6 +1,6 @@
 // Crates
-use overwatch_rs::services::{ServiceCore, ServiceData, ServiceId};
-use overwatch_rs::{DynError, OpaqueServiceStateHandle};
+use overwatch::services::{ServiceCore, ServiceData, ServiceId};
+use overwatch::{DynError, OpaqueServiceStateHandle};
 use std::time::Duration;
 use tokio::time::sleep;
 // Internal

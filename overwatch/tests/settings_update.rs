@@ -1,10 +1,10 @@
 use async_trait::async_trait;
+use overwatch::overwatch::OverwatchRunner;
+use overwatch::services::relay::RelayMessage;
+use overwatch::services::state::{NoOperator, NoState};
+use overwatch::services::{ServiceCore, ServiceData, ServiceId};
+use overwatch::{OpaqueServiceHandle, OpaqueServiceStateHandle};
 use overwatch_derive::Services;
-use overwatch_rs::overwatch::OverwatchRunner;
-use overwatch_rs::services::relay::RelayMessage;
-use overwatch_rs::services::state::{NoOperator, NoState};
-use overwatch_rs::services::{ServiceCore, ServiceData, ServiceId};
-use overwatch_rs::{OpaqueServiceHandle, OpaqueServiceStateHandle};
 use std::time::Duration;
 use tokio::time::sleep;
 
@@ -32,11 +32,11 @@ impl ServiceCore for SettingsService {
     fn init(
         state: OpaqueServiceStateHandle<Self>,
         _initial_state: Self::State,
-    ) -> Result<Self, overwatch_rs::DynError> {
+    ) -> Result<Self, overwatch::DynError> {
         Ok(Self { state })
     }
 
-    async fn run(mut self) -> Result<(), overwatch_rs::DynError> {
+    async fn run(mut self) -> Result<(), overwatch::DynError> {
         let Self {
             state:
                 OpaqueServiceStateHandle::<Self> {

@@ -1,7 +1,7 @@
 // STD
 use std::fmt::Debug;
 // Crates
-use overwatch_rs::services::state::StateOperator;
+use overwatch::services::state::StateOperator;
 // Internal
 use crate::{settings::PingSettings, states::PingState};
 

@@ -1,5 +1,5 @@
 // Crate
-use overwatch_rs::services::relay::RelayMessage;
+use overwatch::services::relay::RelayMessage;
 
 #[derive(Debug)]
 pub enum PingMessage {
