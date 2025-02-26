@@ -2,13 +2,13 @@ use std::thread;
 use std::time::Duration;
 // Crates
 use async_trait::async_trait;
+use overwatch::overwatch::OverwatchRunner;
+use overwatch::services::relay::NoMessage;
+use overwatch::services::state::{ServiceState, StateOperator};
+use overwatch::services::{ServiceCore, ServiceData, ServiceId};
+use overwatch::DynError;
+use overwatch::{OpaqueServiceHandle, OpaqueServiceStateHandle};
 use overwatch_derive::Services;
-use overwatch_rs::overwatch::OverwatchRunner;
-use overwatch_rs::services::relay::NoMessage;
-use overwatch_rs::services::state::{ServiceState, StateOperator};
-use overwatch_rs::services::{ServiceCore, ServiceData, ServiceId};
-use overwatch_rs::DynError;
-use overwatch_rs::{OpaqueServiceHandle, OpaqueServiceStateHandle};
 use tokio::sync::broadcast;
 use tokio::sync::broadcast::error::SendError;
 

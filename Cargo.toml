@@ -1,7 +1,7 @@
 [workspace]
 resolver = "2"
 members = [
-    "overwatch-rs",
+    "overwatch",
     "overwatch-derive",
     "examples/ping_pong",
 ]

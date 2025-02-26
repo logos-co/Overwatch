@@ -75,7 +75,7 @@ Here's a simple example to get you started:
 // There's parts of the code that are required to be implemented by the user.
 // Please refer to the examples directory for working code. 
 
-use overwatch_rs::{
+use overwatch::{
     overwatch::OverwatchRunner,
     services::{ServiceCore, ServiceData},
     OpaqueServiceHandle
