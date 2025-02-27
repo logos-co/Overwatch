@@ -32,8 +32,6 @@
 Overwatch simplifies the development of complex systems by enabling seamless communication between independent
 components. It combines the flexibility of microservices with the simplicity of a unified framework.
 
----
-
 ## Table of Contents
 
 - [Requirements](#requirements)
@@ -50,13 +48,9 @@ components. It combines the flexibility of microservices with the simplicity of 
 - [License](#license)
 - [Community](#community)
 
----
-
 ## Requirements
 
 - Rust ≥ 1.63
-
----
 
 ## Quick Start
 
@@ -111,8 +105,6 @@ fn main() {
 }
 ```
 
----
-
 ## Features
 
 - **Modular Design**: Build self-contained, reusable components with clear interfaces.
@@ -120,8 +112,6 @@ fn main() {
 - **Lifecycle Management**: Centralized control over component initialization, updates, and shutdown.
 - **Dynamic Configuration**: Handle runtime configuration updates seamlessly.
 - **Testability**: Components are designed for easy testing and mocking.
-
----
 
 ## Design Goals
 
@@ -144,8 +134,6 @@ Our architecture is built on three core principles:
 - Components are designed for easy testing and monitoring.
 - Asynchronous communication ensures scalability and clarity.
 
----
-
 ## Components
 
 ### **Overwatch**
@@ -159,14 +147,10 @@ Our architecture is built on three core principles:
 - Modular units that perform specific tasks within the system.
 - Operated and coordinated by *Overwatch*.
 
----
-
 ## Project Structure
 
 - `overwatch`: The core framework.
 - `overwatch-derive`: Macros to simplify component implementation.
-
----
 
 ## Development Workflow
 
@@ -187,13 +171,9 @@ Our architecture is built on three core principles:
 
 We welcome contributions! Please read our [Contributing Guidelines](CONTRIBUTING.md) for details on how to get started.
 
----
-
 ## License
 
 Overwatch is licensed under the [MIT License](LICENSE).
-
----
 
 ## Community
 
