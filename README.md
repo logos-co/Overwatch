@@ -1,6 +1,10 @@
-[mit-badge]: https://img.shields.io/github/license/logos-co/Overwatch?style=for-the-badge
+[apache-badge]: https://img.shields.io/badge/License-Apache%202.0-blue?style=for-the-badge
 
-[mit-url]: https://github.com/logos-co/Overwatch/blob/main/LICENSE
+[apache-url]: https://github.com/logos-co/Overwatch/blob/main/LICENSE-APACHE2.0
+
+[mit-badge]: https://img.shields.io/badge/License-MIT-blue?style=for-the-badge
+
+[mit-url]: https://github.com/logos-co/Overwatch/blob/main/LICENSE-MIT]
 
 [actions-badge]: https://img.shields.io/github/actions/workflow/status/logos-co/Overwatch/main.yml?style=for-the-badge&logo=github
 
@@ -20,10 +24,12 @@
 
 # Overwatch
 
+[![MIT License][mit-badge]][mit-url]
+[![Apache License][apache-badge]][apache-url]
+
 [![Build Status][actions-badge]][actions-url]
 [![Codecov Status][codecov-badge]][codecov-url]
 
-[![MIT License][mit-badge]][mit-url]
 [![crates.io][crates-badge]][crates-url]
 [![docs.rs][docs-badge]][docs-url]
 
@@ -191,7 +197,7 @@ We welcome contributions! Please read our [Contributing Guidelines](CONTRIBUTING
 
 ## License
 
-Overwatch is licensed under the [MIT License](LICENSE).
+Overwatch is licensed under the [APACHE-2.0](LICENSE-APACHE2.0) and [MIT](LICENSE-MIT) licenses.
 
 ---
 
