@@ -1,4 +1,3 @@
-// Crates
 use std::time::Duration;
 
 use overwatch::{
@@ -7,10 +6,11 @@ use overwatch::{
 };
 use tokio::time::sleep;
 
-// Internal
-use crate::messages::{PingMessage, PongMessage};
 use crate::{
-    operators::StateSaveOperator, service_pong::PongService, settings::PingSettings,
+    messages::{PingMessage, PongMessage},
+    operators::StateSaveOperator,
+    service_pong::PongService,
+    settings::PingSettings,
     states::PingState,
 };
 

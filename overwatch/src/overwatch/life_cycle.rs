@@ -1,12 +1,14 @@
-// std
 use std::{borrow::Cow, collections::HashMap, default::Default, error::Error};
 
-// crates
 use tokio::sync::broadcast::Sender;
 
-// internal
-use crate::services::life_cycle::{FinishedSignal, LifecycleHandle, LifecycleMessage};
-use crate::{services::ServiceId, DynError};
+use crate::{
+    services::{
+        life_cycle::{FinishedSignal, LifecycleHandle, LifecycleMessage},
+        ServiceId,
+    },
+    DynError,
+};
 
 /// Grouper handle for the [`LifecycleHandle`] of each spawned service.
 #[derive(Clone)]

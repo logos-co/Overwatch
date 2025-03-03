@@ -1,11 +1,10 @@
-// crates
 use tokio::sync::oneshot;
 
-// internal
-use crate::services::relay::RelayResult;
 use crate::{
     overwatch::AnySettings,
-    services::{life_cycle::LifecycleMessage, status::StatusWatcher, ServiceId},
+    services::{
+        life_cycle::LifecycleMessage, relay::RelayResult, status::StatusWatcher, ServiceId,
+    },
 };
 
 #[derive(Debug)]

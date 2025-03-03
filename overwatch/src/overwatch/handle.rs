@@ -1,4 +1,3 @@
-// std
 use std::fmt::Debug;
 
 use tokio::{runtime::Handle, sync::mpsc::Sender};
@@ -6,14 +5,16 @@ use tokio::{runtime::Handle, sync::mpsc::Sender};
 use tracing::instrument;
 use tracing::{error, info};
 
-// crates
-use crate::overwatch::commands::{
-    OverwatchCommand, OverwatchLifeCycleCommand, ReplyChannel, SettingsCommand, StatusCommand,
-};
 // internal
 use crate::services::relay::Relay;
 use crate::{
-    overwatch::Services,
+    overwatch::{
+        commands::{
+            OverwatchCommand, OverwatchLifeCycleCommand, ReplyChannel, SettingsCommand,
+            StatusCommand,
+        },
+        Services,
+    },
     services::{status::StatusWatcher, ServiceData},
 };
 

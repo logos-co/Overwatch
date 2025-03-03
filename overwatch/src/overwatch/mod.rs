@@ -2,10 +2,8 @@ pub mod commands;
 pub mod handle;
 pub mod life_cycle;
 
-// std
 use std::{any::Any, fmt::Debug, future::Future};
 
-// crates
 use thiserror::Error;
 use tokio::{
     runtime::{Handle, Runtime},
@@ -16,14 +14,15 @@ use tokio::{
 use tracing::instrument;
 use tracing::{error, info};
 
-// internal
-use crate::overwatch::commands::{
-    OverwatchCommand, OverwatchLifeCycleCommand, RelayCommand, ServiceLifeCycleCommand,
-    SettingsCommand, StatusCommand,
-};
 pub use crate::overwatch::life_cycle::ServicesLifeCycleHandle;
 use crate::{
-    overwatch::handle::OverwatchHandle,
+    overwatch::{
+        commands::{
+            OverwatchCommand, OverwatchLifeCycleCommand, RelayCommand, ServiceLifeCycleCommand,
+            SettingsCommand, StatusCommand,
+        },
+        handle::OverwatchHandle,
+    },
     services::{
         life_cycle::LifecycleMessage, relay::RelayResult, status::ServiceStatusResult,
         ServiceError, ServiceId,

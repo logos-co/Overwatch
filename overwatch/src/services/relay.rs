@@ -1,4 +1,3 @@
-// std
 use std::{
     any::Any,
     fmt::Debug,
@@ -7,7 +6,6 @@ use std::{
     task::{Context, Poll},
 };
 
-// crates
 use futures::{Sink, Stream};
 use thiserror::Error;
 use tokio::sync::{
@@ -19,10 +17,11 @@ use tracing::error;
 #[cfg(feature = "instrumentation")]
 use tracing::instrument;
 
-// internal
-use crate::overwatch::commands::{OverwatchCommand, RelayCommand, ReplyChannel};
 use crate::{
-    overwatch::handle::OverwatchHandle,
+    overwatch::{
+        commands::{OverwatchCommand, RelayCommand, ReplyChannel},
+        handle::OverwatchHandle,
+    },
     services::{ServiceData, ServiceId},
 };
 

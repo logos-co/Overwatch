@@ -1,8 +1,5 @@
-// std
-use std::marker::PhantomData;
-use std::{convert::Infallible, pin::Pin, sync::Arc};
+use std::{convert::Infallible, marker::PhantomData, pin::Pin, sync::Arc};
 
-// crates
 use async_trait::async_trait;
 use futures::StreamExt;
 use tokio::sync::watch::{channel, Receiver, Ref, Sender};

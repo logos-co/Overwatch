@@ -1,4 +1,3 @@
-// internal
 use crate::overwatch::OVERWATCH_THREAD_NAME;
 
 #[must_use]

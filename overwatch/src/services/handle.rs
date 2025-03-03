@@ -1,16 +1,16 @@
-// crates
 use tokio::runtime::Handle;
 use tracing::info;
 
-// internal
-use crate::overwatch::handle::OverwatchHandle;
-use crate::services::{
-    life_cycle::LifecycleHandle,
-    relay::{relay, InboundRelay, OutboundRelay},
-    settings::{SettingsNotifier, SettingsUpdater},
-    state::{StateHandle, StateOperator, StateUpdater},
-    status::{StatusHandle, StatusWatcher},
-    ServiceCore, ServiceId, ServiceState,
+use crate::{
+    overwatch::handle::OverwatchHandle,
+    services::{
+        life_cycle::LifecycleHandle,
+        relay::{relay, InboundRelay, OutboundRelay},
+        settings::{SettingsNotifier, SettingsUpdater},
+        state::{StateHandle, StateOperator, StateUpdater},
+        status::{StatusHandle, StatusWatcher},
+        ServiceCore, ServiceId, ServiceState,
+    },
 };
 
 /// Handle to a service.

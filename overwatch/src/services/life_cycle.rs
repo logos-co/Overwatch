@@ -1,12 +1,9 @@
-// std
 use std::{default::Default, error::Error};
 
 use futures::Stream;
-// crates
 use tokio::sync::broadcast::{channel, Receiver, Sender};
 use tokio_stream::StreamExt;
 
-// internal
 use crate::DynError;
 
 /// Type alias for an empty signal.
