@@ -26,7 +26,7 @@ mod test {
     use crate::utils::const_checks::unique_ids;
 
     #[test]
-    fn test_unique_ids() {
+    const fn test_unique_ids() {
         // This shouldn't even compile if checks fails
         const _: () = assert!(unique_ids(&["A", "B"]));
         const _: () = assert!(!unique_ids(&["A", "A"]));

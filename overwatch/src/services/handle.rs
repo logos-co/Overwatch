@@ -1,25 +1,30 @@
-// crates
 use tokio::runtime::Handle;
 use tracing::info;
-// internal
-use crate::overwatch::handle::OverwatchHandle;
-use crate::services::life_cycle::LifecycleHandle;
-use crate::services::relay::{relay, InboundRelay, OutboundRelay};
-use crate::services::settings::{SettingsNotifier, SettingsUpdater};
-use crate::services::state::{StateHandle, StateOperator, StateUpdater};
-use crate::services::status::{StatusHandle, StatusWatcher};
-use crate::services::{ServiceCore, ServiceId, ServiceState};
+
+use crate::{
+    overwatch::handle::OverwatchHandle,
+    services::{
+        life_cycle::LifecycleHandle,
+        relay::{relay, InboundRelay, OutboundRelay},
+        settings::{SettingsNotifier, SettingsUpdater},
+        state::{StateHandle, StateOperator, StateUpdater},
+        status::{StatusHandle, StatusWatcher},
+        ServiceCore, ServiceId, ServiceState,
+    },
+};
 
 /// Handle to a service.
 ///
 /// This is used to access the different components of the `Service`.
-// TODO: Abstract handle over state to differentiate when the service is running and when it is not.
-// That way we could expose a better API depending on what is happening and it would get rid of
-// the probably unnecessary Option and cloning.
+// TODO: Abstract handle over state to differentiate when the service is running
+// and when it is not. That way we could expose a better API depending on what
+// is happening and it would get rid of the probably unnecessary Option and
+// cloning.
 pub struct ServiceHandle<Message, Settings, State> {
     /// Message channel relay
     ///
-    /// It contains the channel if the service is running, otherwise it'll be [`None`]
+    /// It contains the channel if the service is running, otherwise it'll be
+    /// [`None`]
     outbound_relay: Option<OutboundRelay<Message>>,
     overwatch_handle: OverwatchHandle,
     settings: SettingsUpdater<Settings>,
@@ -56,6 +61,11 @@ where
     Settings: Clone,
     State: ServiceState<Settings = Settings> + Clone,
 {
+    /// Crate a new service handle.
+    ///
+    /// # Errors
+    ///
+    /// If the service state cannot be loaded from the provided settings.
     pub fn new<StateOp>(
         settings: Settings,
         overwatch_handle: OverwatchHandle,
@@ -85,14 +95,14 @@ where
     /// Get the service's [`Handle`].
     ///
     /// It's easily cloneable and can be done on demand.
-    pub fn runtime(&self) -> &Handle {
+    pub const fn runtime(&self) -> &Handle {
         self.overwatch_handle.runtime()
     }
 
     /// Get the service's [`OverwatchHandle`].
     ///
     /// It's easily cloneable and can be done on demand.
-    pub fn overwatch_handle(&self) -> &OverwatchHandle {
+    pub const fn overwatch_handle(&self) -> &OverwatchHandle {
         &self.overwatch_handle
     }
 
@@ -158,13 +168,17 @@ where
     ///
     /// # Returns
     ///
-    /// A tuple containing the service id and the lifecycle handle, which allows to manually
-    /// abort the execution.
+    /// A tuple containing the service id and the lifecycle handle, which allows
+    /// to manually abort the execution.
+    ///
+    /// # Errors
+    ///
+    /// If the service cannot be initialized properly with the retrieved state.
     pub fn run<Service>(self) -> Result<(ServiceId, LifecycleHandle), crate::DynError>
     where
         Service: ServiceCore<Settings = Settings, State = State, Message = Message> + 'static,
     {
-        let ServiceRunner {
+        let Self {
             service_state,
             state_handle,
             lifecycle_handle,

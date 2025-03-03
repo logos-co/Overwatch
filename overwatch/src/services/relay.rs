@@ -1,22 +1,29 @@
-// std
-use std::any::Any;
-use std::fmt::Debug;
-use std::marker::PhantomData;
-use std::pin::Pin;
-use std::task::{Context, Poll};
-// crates
+use std::{
+    any::Any,
+    fmt::Debug,
+    marker::PhantomData,
+    pin::Pin,
+    task::{Context, Poll},
+};
+
 use futures::{Sink, Stream};
 use thiserror::Error;
-use tokio::sync::mpsc::{channel, Receiver, Sender};
-use tokio::sync::oneshot;
+use tokio::sync::{
+    mpsc::{channel, Receiver, Sender},
+    oneshot,
+};
 use tokio_util::sync::PollSender;
 use tracing::error;
 #[cfg(feature = "instrumentation")]
 use tracing::instrument;
-// internal
-use crate::overwatch::commands::{OverwatchCommand, RelayCommand, ReplyChannel};
-use crate::overwatch::handle::OverwatchHandle;
-use crate::services::{ServiceData, ServiceId};
+
+use crate::{
+    overwatch::{
+        commands::{OverwatchCommand, RelayCommand, ReplyChannel},
+        handle::OverwatchHandle,
+    },
+    services::{ServiceData, ServiceId},
+};
 
 #[derive(Error, Debug)]
 pub enum RelayError {
@@ -126,6 +133,10 @@ impl<Message> InboundRelay<Message> {
 
 impl<Message> OutboundRelay<Message> {
     /// Send a message to the relay connection
+    ///
+    /// # Errors
+    ///
+    /// If the message cannot be sent to the specified service.
     pub async fn send(&self, message: Message) -> Result<(), (RelayError, Message)> {
         self.sender
             .send(message)
@@ -141,6 +152,10 @@ impl<Message> OutboundRelay<Message> {
     /// # Panics
     ///
     /// This function panics if called within an asynchronous execution context.
+    ///
+    /// # Errors
+    ///
+    /// If the message cannot be sent to the specified service.
     pub fn blocking_send(&self, message: Message) -> Result<(), (RelayError, Message)> {
         self.sender
             .blocking_send(message)
@@ -163,7 +178,7 @@ where
     Service::Message: 'static,
 {
     #[must_use]
-    pub fn new(overwatch_handle: OverwatchHandle) -> Self {
+    pub const fn new(overwatch_handle: OverwatchHandle) -> Self {
         Self {
             overwatch_handle,
             _bound: PhantomBound {
@@ -173,6 +188,11 @@ where
     }
 
     #[cfg_attr(feature = "instrumentation", instrument(skip(self), err(Debug)))]
+    /// Consumes the relay to generate a channel with the requested service.
+    ///
+    /// # Errors
+    ///
+    /// If the service responds with an unexpected message.
     pub async fn connect(self) -> Result<OutboundRelay<Service::Message>, RelayError> {
         let (reply, receiver) = oneshot::channel();
         self.request_relay(reply).await;

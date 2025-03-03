@@ -1,16 +1,18 @@
-use std::thread;
-use std::time::Duration;
+use std::{thread, time::Duration};
+
 // Crates
 use async_trait::async_trait;
-use overwatch::overwatch::OverwatchRunner;
-use overwatch::services::relay::NoMessage;
-use overwatch::services::state::{ServiceState, StateOperator};
-use overwatch::services::{ServiceCore, ServiceData, ServiceId};
-use overwatch::DynError;
-use overwatch::{OpaqueServiceHandle, OpaqueServiceStateHandle};
+use overwatch::{
+    overwatch::OverwatchRunner,
+    services::{
+        relay::NoMessage,
+        state::{ServiceState, StateOperator},
+        ServiceCore, ServiceData, ServiceId,
+    },
+    DynError, OpaqueServiceHandle, OpaqueServiceStateHandle,
+};
 use overwatch_derive::Services;
-use tokio::sync::broadcast;
-use tokio::sync::broadcast::error::SendError;
+use tokio::sync::{broadcast, broadcast::error::SendError};
 
 #[derive(Clone)]
 struct TryLoadState;

@@ -1,0 +1,19 @@
+repos:
+  - repo: https://github.com/doublify/pre-commit-rust
+    rev: v1.0
+    hooks:
+      - id: fmt
+        entry: cargo +nightly-2025-01-03 fmt
+      - id: clippy
+  - repo: https://github.com/EmbarkStudios/cargo-deny
+    rev: 0.18.0
+    hooks:
+      - id: cargo-deny
+        args:
+          - check
+          - --hide-inclusion-graph
+          - -c
+          - .cargo-deny.toml
+          - --show-stats
+          - --deny
+          - warnings

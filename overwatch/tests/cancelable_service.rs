@@ -1,13 +1,19 @@
-use overwatch::overwatch::commands::{OverwatchCommand, ServiceLifeCycleCommand};
-use overwatch::overwatch::OverwatchRunner;
-use overwatch::services::life_cycle::LifecycleMessage;
-use overwatch::services::relay::NoMessage;
-use overwatch::services::state::{NoOperator, NoState};
-use overwatch::services::{ServiceCore, ServiceData, ServiceId};
-use overwatch::DynError;
-use overwatch::{OpaqueServiceHandle, OpaqueServiceStateHandle};
-use overwatch_derive::Services;
 use std::time::Duration;
+
+use overwatch::{
+    overwatch::{
+        commands::{OverwatchCommand, ServiceLifeCycleCommand},
+        OverwatchRunner,
+    },
+    services::{
+        life_cycle::LifecycleMessage,
+        relay::NoMessage,
+        state::{NoOperator, NoState},
+        ServiceCore, ServiceData, ServiceId,
+    },
+    DynError, OpaqueServiceHandle, OpaqueServiceStateHandle,
+};
+use overwatch_derive::Services;
 use tokio::time::sleep;
 use tokio_stream::StreamExt;
 
@@ -35,6 +41,7 @@ impl ServiceCore for CancellableService {
     async fn run(self) -> Result<(), DynError> {
         let mut lifecycle_stream = self.service_state.lifecycle_handle.message_stream();
         let mut interval = tokio::time::interval(Duration::from_millis(200));
+        #[expect(clippy::redundant_pub_crate)]
         loop {
             tokio::select! {
                 msg = lifecycle_stream.next() => {

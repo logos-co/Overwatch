@@ -5,16 +5,15 @@ pub mod settings;
 pub mod state;
 pub mod status;
 
-// std
 use std::fmt::Debug;
-// crates
+
 use async_trait::async_trait;
-use thiserror::Error;
-use tokio::runtime;
-// internal
-use crate::services::relay::RelayError;
 use handle::ServiceStateHandle;
 use state::ServiceState;
+use thiserror::Error;
+use tokio::runtime;
+
+use crate::services::relay::RelayError;
 
 // TODO: Make this type unique for each service?
 /// Services identification type.
@@ -41,6 +40,10 @@ pub trait ServiceData {
 #[async_trait]
 pub trait ServiceCore: Sized + ServiceData {
     /// Initialize the service with the given handle and initial state.
+    ///
+    /// # Errors
+    ///
+    /// The initialization creation error.
     fn init(
         service_state_handle: ServiceStateHandle<Self::Message, Self::Settings, Self::State>,
         initial_state: Self::State,
@@ -64,15 +67,15 @@ pub enum ServiceRuntime {
 impl ServiceRuntime {
     pub fn handle(&self) -> runtime::Handle {
         match self {
-            ServiceRuntime::FromParent(handle) => handle.clone(),
-            ServiceRuntime::Custom(runtime) => runtime.handle().clone(),
+            Self::FromParent(handle) => handle.clone(),
+            Self::Custom(runtime) => runtime.handle().clone(),
         }
     }
 
     pub fn runtime(self) -> Option<runtime::Runtime> {
         match self {
-            ServiceRuntime::Custom(runtime) => Some(runtime),
-            ServiceRuntime::FromParent(_) => None,
+            Self::Custom(runtime) => Some(runtime),
+            Self::FromParent(_) => None,
         }
     }
 }

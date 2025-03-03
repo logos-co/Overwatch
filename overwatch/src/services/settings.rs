@@ -14,7 +14,7 @@ where
     Settings: Clone,
 {
     #[must_use]
-    pub fn new(notifier_channel: Receiver<Settings>) -> Self {
+    pub const fn new(notifier_channel: Receiver<Settings>) -> Self {
         Self { notifier_channel }
     }
 
@@ -22,8 +22,8 @@ where
     ///
     /// It is guaranteed that at least an initial value is present.
     ///
-    /// This returns a cloned version of the referenced settings. It simplifies the API
-    /// at the expense of some efficiency.
+    /// This returns a cloned version of the referenced settings. It simplifies
+    /// the API at the expense of some efficiency.
     // TODO: Alternatives:
     // - We can consider returning the Ref<> from the borrowing. This would block the updating
     // channel so this responsibility would be dumped into the end user of the method.
@@ -68,11 +68,11 @@ impl<Settings> SettingsUpdater<Settings> {
 
 #[cfg(test)]
 mod test {
+    use std::{collections::HashSet, time::Duration};
+
+    use tokio::time::{sleep, timeout};
+
     use crate::services::settings::SettingsUpdater;
-    use std::collections::HashSet;
-    use std::time::Duration;
-    use tokio::time::sleep;
-    use tokio::time::timeout;
 
     #[tokio::test]
     async fn settings_updater_sequence() {

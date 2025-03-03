@@ -1,39 +1,34 @@
 [package]
-name = "overwatch"
-version = "0.1.0"
-edition = "2021"
-authors = [
-    "Daniel Sanchez Quiros <danielsq@status.im>"
-]
-license-file = "LICENSE"
-homepage = "https://github.com/logos-co/Overwatch"
-repository = "https://github.com/logos-co/Overwatch"
+authors     = ["Daniel Sanchez Quiros <danielsq@status.im>"]
+categories  = ["asynchronous"]
 description = "A lightweight framework for building modular, interconnected applications."
-readme = "README.md"
-keywords = ["async", "services", "framework"]
-categories = ["asynchronous"]
-exclude = [
-    "./tests",
-    ".github",
-]
+edition     = "2021"
+exclude     = ["./tests", ".github"]
+homepage    = { workspace = true }
+keywords    = ["async", "framework", "services"]
+license     = { workspace = true }
+name        = "overwatch"
+readme      = "README.md"
+repository  = { workspace = true }
+version     = "0.1.0"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 [features]
-default = ["derive"]
-derive = ["dep:overwatch-derive"]
+default         = ["derive"]
+derive          = ["dep:overwatch-derive"]
 instrumentation = []
 
 [dependencies]
-overwatch-derive = { path = "../overwatch-derive", optional = true }
-const-str = "0.6"
-async-trait = "0.1"
-futures = "0.3"
-thiserror = "2.0"
-tokio = { version = "1.32", features = ["rt-multi-thread", "sync", "time"] }
-tokio-stream = { version = "0.1", features = ["sync"] }
-tokio-util = "0.7"
-tracing = "0.1"
+async-trait      = "0.1"
+const-str        = "0.6"
+futures          = "0.3"
+overwatch-derive = { workspace = true, optional = true }
+thiserror        = "2.0"
+tokio            = { version = "1.32", features = ["rt-multi-thread", "sync", "time"] }
+tokio-stream     = { version = "0.1", features = ["sync"] }
+tokio-util       = "0.7"
+tracing          = "0.1"
 
 [dev-dependencies]
-tokio = { version = "1.17", features = ["rt-multi-thread", "sync", "time", "io-std", "io-util", "macros"] }
-overwatch-derive = { path = "../overwatch-derive" }
+overwatch-derive = { workspace = true }
+tokio            = { version = "1.17", features = ["io-std", "io-util", "macros", "rt-multi-thread", "sync", "time"] }

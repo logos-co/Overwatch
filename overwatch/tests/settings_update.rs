@@ -1,11 +1,16 @@
-use async_trait::async_trait;
-use overwatch::overwatch::OverwatchRunner;
-use overwatch::services::relay::RelayMessage;
-use overwatch::services::state::{NoOperator, NoState};
-use overwatch::services::{ServiceCore, ServiceData, ServiceId};
-use overwatch::{OpaqueServiceHandle, OpaqueServiceStateHandle};
-use overwatch_derive::Services;
 use std::time::Duration;
+
+use async_trait::async_trait;
+use overwatch::{
+    overwatch::OverwatchRunner,
+    services::{
+        relay::RelayMessage,
+        state::{NoOperator, NoState},
+        ServiceCore, ServiceData, ServiceId,
+    },
+    OpaqueServiceHandle, OpaqueServiceStateHandle,
+};
+use overwatch_derive::Services;
 use tokio::time::sleep;
 
 pub struct SettingsService {

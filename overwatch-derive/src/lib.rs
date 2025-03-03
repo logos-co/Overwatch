@@ -1,6 +1,6 @@
 mod utils;
 
-use proc_macro_error::{abort_call_site, proc_macro_error};
+use proc_macro_error2::{abort_call_site, proc_macro_error};
 use quote::{format_ident, quote};
 use syn::{punctuated::Punctuated, token::Comma, Data, DeriveInput, Field, Generics};
 

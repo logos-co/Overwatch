@@ -1,21 +1,16 @@
 [package]
-name = "overwatch-derive"
-version = "0.1.0"
-edition = "2021"
-authors = [
-    "Daniel Sanchez Quiros <danielsq@status.im>"
-]
-license-file = "LICENSE"
-homepage = "https://github.com/logos-co/Overwatch"
-repository = "https://github.com/logos-co/Overwatch"
+authors     = ["Daniel Sanchez Quiros <danielsq@status.im>"]
+categories  = ["asynchronous"]
 description = "Overwatch derive macros"
-readme = "README.md"
-keywords = ["async", "services", "framework", "macros", "derive"]
-categories = ["asynchronous"]
-exclude = [
-    "./tests",
-    ".github",
-]
+edition     = "2021"
+exclude     = ["./tests", ".github"]
+homepage    = { workspace = true }
+keywords    = ["async", "derive", "framework", "macros", "services"]
+license     = { workspace = true }
+name        = "overwatch-derive"
+readme      = "README.md"
+repository  = { workspace = true }
+version     = "0.1.0"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 [lib]
@@ -25,8 +20,8 @@ proc-macro = true
 instrumentation = ["dep:tracing"]
 
 [dependencies]
-syn = "2.0"
-quote = "1.0"
-proc-macro2 = "1.0"
-proc-macro-error = "1.0"
-tracing = { version = "0.1", optional = true }
+proc-macro-error2 = "2.0"
+proc-macro2       = "1.0"
+quote             = "1.0"
+syn               = "2.0"
+tracing           = { version = "0.1", optional = true }
