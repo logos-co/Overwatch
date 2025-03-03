@@ -188,6 +188,11 @@ where
     }
 
     #[cfg_attr(feature = "instrumentation", instrument(skip(self), err(Debug)))]
+    /// Consumes the relay to generate a channel with the requested service.
+    ///
+    /// # Errors
+    ///
+    /// If the service responds with an unexpected message.
     pub async fn connect(self) -> Result<OutboundRelay<Service::Message>, RelayError> {
         let (reply, receiver) = oneshot::channel();
         self.request_relay(reply).await;
