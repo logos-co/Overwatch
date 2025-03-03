@@ -60,7 +60,7 @@ impl StateOperator for CounterStateOperator {
     }
 
     fn from_settings(_settings: <Self::StateInput as ServiceState>::Settings) -> Self {
-        CounterStateOperator
+        Self
     }
 
     async fn run(&mut self, state: Self::StateInput) {

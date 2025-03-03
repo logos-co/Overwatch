@@ -140,7 +140,7 @@ where
         let (commands_sender, commands_receiver) = tokio::sync::mpsc::channel(16);
         let handle = OverwatchHandle::new(runtime.handle().clone(), commands_sender);
         let services = ServicesImpl::new(settings, handle.clone())?;
-        let runner = OverwatchRunner {
+        let runner = Self {
             services,
             handle: handle.clone(),
             finish_signal_sender,
@@ -273,7 +273,7 @@ impl Overwatch {
     /// Get the [`OverwatchHandle`]
     ///
     /// It's cloneable, so it can be done on demand
-    pub fn handle(&self) -> &OverwatchHandle {
+    pub const fn handle(&self) -> &OverwatchHandle {
         &self.handle
     }
 
@@ -324,7 +324,7 @@ mod test {
             _settings: Self::Settings,
             _overwatch_handle: OverwatchHandle,
         ) -> Result<Self, Box<dyn std::error::Error + Send + Sync + 'static>> {
-            Ok(EmptyServices)
+            Ok(Self)
         }
 
         fn start(&mut self, service_id: ServiceId) -> Result<(), Error> {

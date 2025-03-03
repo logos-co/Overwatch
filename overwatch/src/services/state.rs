@@ -70,7 +70,7 @@ pub trait StateOperator {
 #[derive(Copy)]
 pub struct NoOperator<StateInput, Settings>(PhantomData<(*const StateInput, *const Settings)>);
 
-/// NoOperator does not actually hold anything and is thus Sync.
+/// `NoOperator` does not actually hold anything and is thus Sync.
 ///
 /// Note that we don't use `PhantomData<StateInput>` as that would suggest we indeed hold an instance
 /// of [`StateOperator::StateInput`].    
@@ -96,7 +96,7 @@ impl<StateInput, Settings> StateOperator for NoOperator<StateInput, Settings> {
     }
 
     fn from_settings(_settings: Self::Settings) -> Self {
-        NoOperator(PhantomData)
+        Self(PhantomData)
     }
 
     fn run<'borrow, 'fut>(

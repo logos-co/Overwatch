@@ -85,14 +85,14 @@ where
     /// Get the service's [`Handle`].
     ///
     /// It's easily cloneable and can be done on demand.
-    pub fn runtime(&self) -> &Handle {
+    pub const fn runtime(&self) -> &Handle {
         self.overwatch_handle.runtime()
     }
 
     /// Get the service's [`OverwatchHandle`].
     ///
     /// It's easily cloneable and can be done on demand.
-    pub fn overwatch_handle(&self) -> &OverwatchHandle {
+    pub const fn overwatch_handle(&self) -> &OverwatchHandle {
         &self.overwatch_handle
     }
 
@@ -164,7 +164,7 @@ where
     where
         Service: ServiceCore<Settings = Settings, State = State, Message = Message> + 'static,
     {
-        let ServiceRunner {
+        let Self {
             service_state,
             state_handle,
             lifecycle_handle,

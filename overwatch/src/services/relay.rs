@@ -163,7 +163,7 @@ where
     Service::Message: 'static,
 {
     #[must_use]
-    pub fn new(overwatch_handle: OverwatchHandle) -> Self {
+    pub const fn new(overwatch_handle: OverwatchHandle) -> Self {
         Self {
             overwatch_handle,
             _bound: PhantomBound {

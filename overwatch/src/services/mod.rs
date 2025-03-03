@@ -64,15 +64,15 @@ pub enum ServiceRuntime {
 impl ServiceRuntime {
     pub fn handle(&self) -> runtime::Handle {
         match self {
-            ServiceRuntime::FromParent(handle) => handle.clone(),
-            ServiceRuntime::Custom(runtime) => runtime.handle().clone(),
+            Self::FromParent(handle) => handle.clone(),
+            Self::Custom(runtime) => runtime.handle().clone(),
         }
     }
 
     pub fn runtime(self) -> Option<runtime::Runtime> {
         match self {
-            ServiceRuntime::Custom(runtime) => Some(runtime),
-            ServiceRuntime::FromParent(_) => None,
+            Self::Custom(runtime) => Some(runtime),
+            Self::FromParent(_) => None,
         }
     }
 }

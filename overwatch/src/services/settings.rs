@@ -14,7 +14,7 @@ where
     Settings: Clone,
 {
     #[must_use]
-    pub fn new(notifier_channel: Receiver<Settings>) -> Self {
+    pub const fn new(notifier_channel: Receiver<Settings>) -> Self {
         Self { notifier_channel }
     }
 

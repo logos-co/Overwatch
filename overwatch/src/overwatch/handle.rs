@@ -27,7 +27,7 @@ pub struct OverwatchHandle {
 
 impl OverwatchHandle {
     #[must_use]
-    pub fn new(runtime_handle: Handle, sender: Sender<OverwatchCommand>) -> Self {
+    pub const fn new(runtime_handle: Handle, sender: Sender<OverwatchCommand>) -> Self {
         Self {
             runtime_handle,
             sender,
@@ -124,7 +124,7 @@ impl OverwatchHandle {
     }
 
     #[must_use]
-    pub fn runtime(&self) -> &Handle {
+    pub const fn runtime(&self) -> &Handle {
         &self.runtime_handle
     }
 }
