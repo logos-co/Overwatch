@@ -1,10 +1,6 @@
 [workspace]
 resolver = "2"
-members = [
-    "overwatch",
-    "overwatch-derive",
-    "examples/ping_pong",
-]
+members = ["overwatch", "overwatch-derive", "examples/ping_pong"]
 
 [profile.release-opt]
 inherits = "release"

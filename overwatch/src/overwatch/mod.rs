@@ -175,7 +175,7 @@ where
                     Self::handle_relay(&mut services, relay_command);
                 }
                 OverwatchCommand::Status(status_command) => {
-                    Self::handle_status(&mut services, status_command);
+                    Self::handle_status(&services, status_command);
                 }
                 OverwatchCommand::ServiceLifeCycle(msg) => match msg {
                     ServiceLifeCycleCommand {
@@ -241,7 +241,7 @@ where
     }
 
     fn handle_status(
-        services: &mut ServicesImpl,
+        services: &ServicesImpl,
         StatusCommand {
             service_id,
             reply_channel,
