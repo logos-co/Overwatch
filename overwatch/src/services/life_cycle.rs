@@ -65,6 +65,10 @@ impl LifecycleHandle {
     }
 
     /// Send a [`LifecycleMessage`] to the `Service`.
+    ///
+    /// # Errors
+    ///
+    /// If the message cannot be sent to the service.
     pub fn send(&self, msg: LifecycleMessage) -> Result<(), DynError> {
         self.notifier
             .send(msg)

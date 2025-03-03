@@ -75,28 +75,55 @@ pub trait Services: Sized {
     /// attached for each service.
     ///
     /// It also returns an instance of the implementing type.
+    ///
+    /// # Errors
+    ///
+    /// The implementer's creation error.
     fn new(
         settings: Self::Settings,
         overwatch_handle: OverwatchHandle,
     ) -> Result<Self, super::DynError>;
 
     /// Start a service attached to the trait implementer.
+    ///
+    /// # Errors
+    ///
+    /// The generated [`Error`].
     fn start(&mut self, service_id: ServiceId) -> Result<(), Error>;
 
     // TODO: this probably will be removed once the services lifecycle is implemented
-    /// Start all services attached to the trait implementer.
+    /// Start all services attaches to the trait implementer.
+    ///
+    /// # Errors
+    ///
+    /// The generated [`Error`].
     fn start_all(&mut self) -> Result<ServicesLifeCycleHandle, Error>;
 
     /// Stop a service attached to the trait implementer.
+    ///
+    /// # Errors
+    ///
+    /// The generated [`Error`].
     fn stop(&mut self, service_id: ServiceId) -> Result<(), Error>;
 
     /// Request a communication relay for a service.
+    ///
+    /// # Errors
+    ///
+    /// The generated [`Error`].
     fn request_relay(&mut self, service_id: ServiceId) -> RelayResult;
 
     /// Request a status watcher for a service.
+    ///
+    /// # Errors
+    ///
+    /// The generated [`Error`].
     fn request_status_watcher(&self, service_id: ServiceId) -> ServiceStatusResult;
 
     /// Update service settings.
+    /// # Errors
+    ///
+    /// The generated [`Error`].
     fn update_settings(&mut self, settings: Self::Settings) -> Result<(), Error>;
 }
 
@@ -130,6 +157,10 @@ where
     /// related tasks.
     ///
     /// Return the [`Overwatch`] instance that handles this runner.
+    ///
+    /// # Errors
+    ///
+    /// If the runner process cannot be created.
     pub fn run(
         settings: ServicesImpl::Settings,
         runtime: Option<Runtime>,
@@ -291,7 +322,11 @@ impl Overwatch {
         self.runtime.spawn(future)
     }
 
-    /// Block until Overwatch finishes executing
+    /// Block until Overwatch finishes executing.
+    ///
+    /// # Panics
+    ///
+    /// If the termination signal is never received.
     pub fn wait_finished(self) {
         let Self {
             runtime,

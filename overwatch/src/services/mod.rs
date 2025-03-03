@@ -41,6 +41,10 @@ pub trait ServiceData {
 #[async_trait]
 pub trait ServiceCore: Sized + ServiceData {
     /// Initialize the service with the given handle and initial state.
+    ///
+    /// # Errors
+    ///
+    /// The initialization creation error.
     fn init(
         service_state_handle: ServiceStateHandle<Self::Message, Self::Settings, Self::State>,
         initial_state: Self::State,

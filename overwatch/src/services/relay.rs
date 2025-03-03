@@ -126,6 +126,10 @@ impl<Message> InboundRelay<Message> {
 
 impl<Message> OutboundRelay<Message> {
     /// Send a message to the relay connection
+    ///
+    /// # Errors
+    ///
+    /// If the message cannot be sent to the specified service.
     pub async fn send(&self, message: Message) -> Result<(), (RelayError, Message)> {
         self.sender
             .send(message)
@@ -141,6 +145,10 @@ impl<Message> OutboundRelay<Message> {
     /// # Panics
     ///
     /// This function panics if called within an asynchronous execution context.
+    ///
+    /// # Errors
+    ///
+    /// If the message cannot be sent to the specified service.
     pub fn blocking_send(&self, message: Message) -> Result<(), (RelayError, Message)> {
         self.sender
             .blocking_send(message)

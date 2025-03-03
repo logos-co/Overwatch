@@ -27,6 +27,10 @@ pub trait ServiceState: Sized {
     /// Initialize a state using the provided settings.
     ///
     /// This is called when [`StateOperator::try_load`] doesn't return a state.
+    ///
+    /// # Errors
+    ///
+    /// The generated [`Error`].
     fn from_settings(settings: &Self::Settings) -> Result<Self, Self::Error>;
 }
 
@@ -57,6 +61,10 @@ pub trait StateOperator {
     /// The reason is one of the main use cases for an operator is to handle recovery and,
     /// therefore, if the [`StateOperator`] can save a state, it should also be able to load it; so
     /// the full responsibility lies in the same entity.
+    ///
+    /// # Errors
+    ///
+    /// The implementer's [`LoadError`].
     fn try_load(settings: &Self::Settings) -> Result<Option<Self::StateInput>, Self::LoadError>;
 
     /// Operator initialization method. Can be implemented over some subset of settings.

@@ -25,6 +25,11 @@ pub enum ServiceStatus {
 pub struct StatusUpdater(watch::Sender<ServiceStatus>);
 
 impl StatusUpdater {
+    /// Send a status update message to the associated service.
+    ///
+    /// # Panics
+    ///
+    /// If the message cannot be sent to the target service.
     pub fn update(&self, status: ServiceStatus) {
         self.0
             .send(status)
@@ -38,6 +43,11 @@ impl StatusUpdater {
 pub struct StatusWatcher(watch::Receiver<ServiceStatus>);
 
 impl StatusWatcher {
+    /// Wait for a [`ServiceStatus`] message.
+    ///
+    /// # Errors
+    ///
+    /// If the message is not received within the specified timeout period.
     pub async fn wait_for(
         &mut self,
         status: ServiceStatus,

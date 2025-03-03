@@ -56,6 +56,11 @@ where
     Settings: Clone,
     State: ServiceState<Settings = Settings> + Clone,
 {
+    /// Crate a new service handle.
+    ///
+    /// # Errors
+    ///
+    /// If the service state cannot be loaded from the provided settings.
     pub fn new<StateOp>(
         settings: Settings,
         overwatch_handle: OverwatchHandle,
@@ -160,6 +165,10 @@ where
     ///
     /// A tuple containing the service id and the lifecycle handle, which allows to manually
     /// abort the execution.
+    ///
+    /// # Errors
+    ///
+    /// If the service cannot be initialized properly with the retrieved state.
     pub fn run<Service>(self) -> Result<(ServiceId, LifecycleHandle), crate::DynError>
     where
         Service: ServiceCore<Settings = Settings, State = State, Message = Message> + 'static,

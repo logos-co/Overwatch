@@ -45,6 +45,9 @@ impl OverwatchHandle {
     }
 
     /// Request a [`StatusWatcher`] for a service
+    ///
+    /// # Panics
+    /// If the service watcher is not available.
     pub async fn status_watcher<Service: ServiceData>(&self) -> StatusWatcher {
         info!("Requesting status watcher for {}", Service::SERVICE_ID);
         let (sender, receiver) = tokio::sync::oneshot::channel();
