@@ -23,5 +23,5 @@ instrumentation = ["dep:tracing"]
 syn = "2.0"
 quote = "1.0"
 proc-macro2 = "1.0"
-proc-macro-error = "1.0"
+proc-macro-error2 = "2.0"
 tracing = { version = "0.1", optional = true }

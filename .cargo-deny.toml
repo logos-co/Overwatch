@@ -6,9 +6,6 @@ exclude-dev = true
 no-default-features = true
 
 [advisories]
-ignore = [
-  { id = "RUSTSEC-2024-0370", reason = "`proc-macro-error` is unmaintained; consider using an alternative. Use `cargo tree -p proc-macro-error -i > tmp.txt` to check the dependency tree." },
-]
 yanked = "deny"
 
 [bans]

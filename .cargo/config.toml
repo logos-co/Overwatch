@@ -3,5 +3,5 @@ rustflags = [
     "-Wclippy::nursery",
     "-Wclippy::pedantic",
     "-Wclippy::cargo",
-    # "-Aclippy::multiple_crate_versions",
+    "-Wclippy::allow_attributes",
 ]
