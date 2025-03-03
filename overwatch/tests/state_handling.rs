@@ -1,14 +1,20 @@
+use std::{convert::Infallible, time::Duration};
+
 use async_trait::async_trait;
-use overwatch::overwatch::OverwatchRunner;
-use overwatch::services::relay::RelayMessage;
-use overwatch::services::state::{ServiceState, StateOperator};
-use overwatch::services::{ServiceCore, ServiceData, ServiceId};
-use overwatch::{OpaqueServiceHandle, OpaqueServiceStateHandle};
+use overwatch::{
+    overwatch::OverwatchRunner,
+    services::{
+        relay::RelayMessage,
+        state::{ServiceState, StateOperator},
+        ServiceCore, ServiceData, ServiceId,
+    },
+    OpaqueServiceHandle, OpaqueServiceStateHandle,
+};
 use overwatch_derive::Services;
-use std::convert::Infallible;
-use std::time::Duration;
-use tokio::io::{self, AsyncWriteExt};
-use tokio::time::sleep;
+use tokio::{
+    io::{self, AsyncWriteExt},
+    time::sleep,
+};
 
 pub struct UpdateStateService {
     state: OpaqueServiceStateHandle<Self>,

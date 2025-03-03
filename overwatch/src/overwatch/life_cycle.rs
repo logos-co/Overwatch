@@ -1,14 +1,12 @@
 // std
-use std::borrow::Cow;
-use std::collections::HashMap;
-use std::default::Default;
-use std::error::Error;
+use std::{borrow::Cow, collections::HashMap, default::Default, error::Error};
+
 // crates
 use tokio::sync::broadcast::Sender;
+
 // internal
 use crate::services::life_cycle::{FinishedSignal, LifecycleHandle, LifecycleMessage};
-use crate::services::ServiceId;
-use crate::DynError;
+use crate::{services::ServiceId, DynError};
 
 /// Grouper handle for the [`LifecycleHandle`] of each spawned service.
 #[derive(Clone)]
@@ -29,12 +27,14 @@ impl ServicesLifeCycleHandle {
     /// # Arguments
     ///
     /// `service` - The [`ServiceId`] of the target service
-    /// `sender` - The sender side of a broadcast channel. It's expected that once the receiver
-    /// finishes processing the message, a signal will be sent back.
+    /// `sender` - The sender side of a broadcast channel. It's expected that
+    /// once the receiver finishes processing the message, a signal will be
+    /// sent back.
     ///
     /// # Errors
     ///
-    /// The error returned when trying to send the shutdown command to the specified service.
+    /// The error returned when trying to send the shutdown command to the
+    /// specified service.
     ///
     /// # Panics
     /// If the specified service handler is not available.
@@ -50,15 +50,16 @@ impl ServicesLifeCycleHandle {
         Ok(())
     }
 
-    /// Send a [`LifecycleMessage::Kill`] message to the specified service ([`ServiceId`])
-    ///[`crate::overwatch::OverwatchRunner`].
+    /// Send a [`LifecycleMessage::Kill`] message to the specified service
+    /// ([`ServiceId`]) [`crate::overwatch::OverwatchRunner`].
     /// # Arguments
     ///
     /// `service` - The [`ServiceId`] of the target service
     ///
     /// # Errors
     ///
-    /// The error returned when trying to send the kill command to the specified service.
+    /// The error returned when trying to send the kill command to the specified
+    /// service.
     ///
     /// # Panics
     /// If the specified service handler is not available.
@@ -69,11 +70,13 @@ impl ServicesLifeCycleHandle {
             .send(LifecycleMessage::Kill)
     }
 
-    /// Send a [`LifecycleMessage::Kill`] message to all services registered in this handle.
+    /// Send a [`LifecycleMessage::Kill`] message to all services registered in
+    /// this handle.
     ///
     /// # Errors
     ///
-    /// The error returned when trying to send the kill command to any of the running services.
+    /// The error returned when trying to send the kill command to any of the
+    /// running services.
     pub fn kill_all(&self) -> Result<(), DynError> {
         for service_id in self.services_ids() {
             self.kill(service_id)?;

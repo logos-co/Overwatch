@@ -1,11 +1,10 @@
 // Crate
-use overwatch::overwatch::OverwatchRunner;
-use overwatch::OpaqueServiceHandle;
+use overwatch::{overwatch::OverwatchRunner, OpaqueServiceHandle};
 use overwatch_derive::Services;
+
 // Internal
 use crate::service_ping::PingService;
-use crate::service_pong::PongService;
-use crate::settings::PingSettings;
+use crate::{service_pong::PongService, settings::PingSettings};
 
 mod messages;
 mod operators;

@@ -1,22 +1,30 @@
 // std
-use std::any::Any;
-use std::fmt::Debug;
-use std::marker::PhantomData;
-use std::pin::Pin;
-use std::task::{Context, Poll};
+use std::{
+    any::Any,
+    fmt::Debug,
+    marker::PhantomData,
+    pin::Pin,
+    task::{Context, Poll},
+};
+
 // crates
 use futures::{Sink, Stream};
 use thiserror::Error;
-use tokio::sync::mpsc::{channel, Receiver, Sender};
-use tokio::sync::oneshot;
+use tokio::sync::{
+    mpsc::{channel, Receiver, Sender},
+    oneshot,
+};
 use tokio_util::sync::PollSender;
 use tracing::error;
 #[cfg(feature = "instrumentation")]
 use tracing::instrument;
+
 // internal
 use crate::overwatch::commands::{OverwatchCommand, RelayCommand, ReplyChannel};
-use crate::overwatch::handle::OverwatchHandle;
-use crate::services::{ServiceData, ServiceId};
+use crate::{
+    overwatch::handle::OverwatchHandle,
+    services::{ServiceData, ServiceId},
+};
 
 #[derive(Error, Debug)]
 pub enum RelayError {

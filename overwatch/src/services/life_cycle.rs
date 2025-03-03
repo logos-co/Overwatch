@@ -1,10 +1,11 @@
 // std
+use std::{default::Default, error::Error};
+
 use futures::Stream;
-use std::default::Default;
-use std::error::Error;
 // crates
 use tokio::sync::broadcast::{channel, Receiver, Sender};
 use tokio_stream::StreamExt;
+
 // internal
 use crate::DynError;
 
@@ -13,8 +14,8 @@ pub type FinishedSignal = ();
 
 #[derive(Clone, Debug)]
 pub enum LifecycleMessage {
-    /// Holds a sender from a broadcast channel. This is used to signal when the service has
-    /// finished handling the shutdown process.
+    /// Holds a sender from a broadcast channel. This is used to signal when the
+    /// service has finished handling the shutdown process.
     Shutdown(Sender<FinishedSignal>),
     Kill,
 }
@@ -40,11 +41,11 @@ impl Clone for LifecycleHandle {
 
 /// A handle to manage [`LifecycleMessage`]s for a `Service`.
 ///
-/// All lifecycle computations are processed sequentially to prevent race conditions
-/// (e.g.: unordered messages).
+/// All lifecycle computations are processed sequentially to prevent race
+/// conditions (e.g.: unordered messages).
 ///
-/// [`LifecycleMessage`] senders wait until the channel is empty before sending a new
-/// message, akin to a mutex.
+/// [`LifecycleMessage`] senders wait until the channel is empty before sending
+/// a new message, akin to a mutex.
 impl LifecycleHandle {
     #[must_use]
     pub fn new() -> Self {
@@ -57,8 +58,9 @@ impl LifecycleHandle {
 
     /// Incoming [`LifecycleMessage`] stream for the `Service`.
     ///
-    /// Note that messages are not buffered: Different calls to this method could yield different
-    /// messages depending on when the method is called.
+    /// Note that messages are not buffered: Different calls to this method
+    /// could yield different messages depending on when the method is
+    /// called.
     pub fn message_stream(&self) -> impl Stream<Item = LifecycleMessage> {
         tokio_stream::wrappers::BroadcastStream::new(self.message_channel.resubscribe())
             .filter_map(Result::ok)

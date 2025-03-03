@@ -1,11 +1,12 @@
 // crates
-use crate::overwatch::AnySettings;
-use crate::services::life_cycle::LifecycleMessage;
 use tokio::sync::oneshot;
+
 // internal
 use crate::services::relay::RelayResult;
-use crate::services::status::StatusWatcher;
-use crate::services::ServiceId;
+use crate::{
+    overwatch::AnySettings,
+    services::{life_cycle::LifecycleMessage, status::StatusWatcher, ServiceId},
+};
 
 #[derive(Debug)]
 pub(crate) struct ReplyChannel<Message>(pub(crate) oneshot::Sender<Message>);
@@ -29,7 +30,8 @@ pub struct RelayCommand {
     pub(crate) reply_channel: ReplyChannel<RelayResult>,
 }
 
-/// Command for requesting [`ServiceStatus`](crate::services::status::ServiceStatus) updates
+/// Command for requesting
+/// [`ServiceStatus`](crate::services::status::ServiceStatus) updates
 /// from another service.
 #[derive(Debug)]
 pub struct StatusCommand {
@@ -37,7 +39,8 @@ pub struct StatusCommand {
     pub(crate) reply_channel: ReplyChannel<StatusWatcher>,
 }
 
-/// Command for managing [`ServiceCore`](crate::services::ServiceCore) lifecycle.
+/// Command for managing [`ServiceCore`](crate::services::ServiceCore)
+/// lifecycle.
 #[derive(Debug)]
 pub struct ServiceLifeCycleCommand {
     pub service_id: ServiceId,

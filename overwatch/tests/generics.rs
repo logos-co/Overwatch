@@ -1,13 +1,17 @@
+use std::{fmt::Debug, time::Duration};
+
 use async_trait::async_trait;
 use futures::future::select;
-use overwatch::overwatch::OverwatchRunner;
-use overwatch::services::handle::ServiceStateHandle;
-use overwatch::services::state::{NoOperator, NoState};
-use overwatch::services::{ServiceCore, ServiceData, ServiceId};
-use overwatch::OpaqueServiceHandle;
+use overwatch::{
+    overwatch::OverwatchRunner,
+    services::{
+        handle::ServiceStateHandle,
+        state::{NoOperator, NoState},
+        ServiceCore, ServiceData, ServiceId,
+    },
+    OpaqueServiceHandle,
+};
 use overwatch_derive::Services;
-use std::fmt::Debug;
-use std::time::Duration;
 use tokio::time::sleep;
 
 pub struct GenericService {

@@ -1,13 +1,19 @@
-use overwatch::overwatch::commands::{OverwatchCommand, ServiceLifeCycleCommand};
-use overwatch::overwatch::OverwatchRunner;
-use overwatch::services::life_cycle::LifecycleMessage;
-use overwatch::services::relay::NoMessage;
-use overwatch::services::state::{NoOperator, NoState};
-use overwatch::services::{ServiceCore, ServiceData, ServiceId};
-use overwatch::DynError;
-use overwatch::{OpaqueServiceHandle, OpaqueServiceStateHandle};
-use overwatch_derive::Services;
 use std::time::Duration;
+
+use overwatch::{
+    overwatch::{
+        commands::{OverwatchCommand, ServiceLifeCycleCommand},
+        OverwatchRunner,
+    },
+    services::{
+        life_cycle::LifecycleMessage,
+        relay::NoMessage,
+        state::{NoOperator, NoState},
+        ServiceCore, ServiceData, ServiceId,
+    },
+    DynError, OpaqueServiceHandle, OpaqueServiceStateHandle,
+};
+use overwatch_derive::Services;
 use tokio::time::sleep;
 use tokio_stream::StreamExt;
 

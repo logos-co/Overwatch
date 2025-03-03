@@ -1,14 +1,18 @@
 // Crates
-use overwatch::services::{ServiceCore, ServiceData, ServiceId};
-use overwatch::{DynError, OpaqueServiceStateHandle};
 use std::time::Duration;
+
+use overwatch::{
+    services::{ServiceCore, ServiceData, ServiceId},
+    DynError, OpaqueServiceStateHandle,
+};
 use tokio::time::sleep;
+
 // Internal
 use crate::messages::{PingMessage, PongMessage};
-use crate::operators::StateSaveOperator;
-use crate::service_pong::PongService;
-use crate::settings::PingSettings;
-use crate::states::PingState;
+use crate::{
+    operators::StateSaveOperator, service_pong::PongService, settings::PingSettings,
+    states::PingState,
+};
 
 pub struct PingService {
     service_state_handle: OpaqueServiceStateHandle<Self>,

@@ -1,11 +1,11 @@
 // std
-use std::default::Default;
-use std::sync::Arc;
-use std::time::Duration;
-// crates
-use crate::services::ServiceId;
+use std::{default::Default, sync::Arc, time::Duration};
+
 use thiserror::Error;
 use tokio::sync::watch;
+
+// crates
+use crate::services::ServiceId;
 
 #[derive(Error, Debug)]
 pub enum ServiceStatusError {

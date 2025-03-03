@@ -7,14 +7,16 @@ pub mod status;
 
 // std
 use std::fmt::Debug;
+
 // crates
 use async_trait::async_trait;
-use thiserror::Error;
-use tokio::runtime;
-// internal
-use crate::services::relay::RelayError;
 use handle::ServiceStateHandle;
 use state::ServiceState;
+use thiserror::Error;
+use tokio::runtime;
+
+// internal
+use crate::services::relay::RelayError;
 
 // TODO: Make this type unique for each service?
 /// Services identification type.

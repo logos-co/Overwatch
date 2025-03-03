@@ -3,30 +3,33 @@ pub mod handle;
 pub mod life_cycle;
 
 // std
-use std::any::Any;
-use std::fmt::Debug;
-use std::future::Future;
+use std::{any::Any, fmt::Debug, future::Future};
+
 // crates
 use thiserror::Error;
-use tokio::runtime::{Handle, Runtime};
-use tokio::sync::mpsc::Receiver;
-use tokio::sync::oneshot;
-use tokio::task::JoinHandle;
+use tokio::{
+    runtime::{Handle, Runtime},
+    sync::{mpsc::Receiver, oneshot},
+    task::JoinHandle,
+};
 #[cfg(feature = "instrumentation")]
 use tracing::instrument;
 use tracing::{error, info};
+
 // internal
 use crate::overwatch::commands::{
     OverwatchCommand, OverwatchLifeCycleCommand, RelayCommand, ServiceLifeCycleCommand,
     SettingsCommand, StatusCommand,
 };
-use crate::overwatch::handle::OverwatchHandle;
 pub use crate::overwatch::life_cycle::ServicesLifeCycleHandle;
-use crate::services::life_cycle::LifecycleMessage;
-use crate::services::relay::RelayResult;
-use crate::services::status::ServiceStatusResult;
-use crate::services::{ServiceError, ServiceId};
-use crate::utils::runtime::default_multithread_runtime;
+use crate::{
+    overwatch::handle::OverwatchHandle,
+    services::{
+        life_cycle::LifecycleMessage, relay::RelayResult, status::ServiceStatusResult,
+        ServiceError, ServiceId,
+    },
+    utils::runtime::default_multithread_runtime,
+};
 
 /// Overwatch base error type.
 #[derive(Error, Debug)]
@@ -64,9 +67,11 @@ pub type AnySettings = Box<dyn Any + Send>;
 /// An implementor of this trait would have to handle the inner.
 /// [`ServiceCore`](crate::services::ServiceCore).
 pub trait Services: Sized {
-    /// Inner [`ServiceCore::Settings`](crate::services::ServiceCore) grouping type.
+    /// Inner [`ServiceCore::Settings`](crate::services::ServiceCore) grouping
+    /// type.
     ///
-    /// Normally this will be a settings object that groups all the inner services settings.
+    /// Normally this will be a settings object that groups all the inner
+    /// services settings.
     type Settings;
 
     /// Spawn a new instance of the [`Services`] object.
@@ -91,7 +96,8 @@ pub trait Services: Sized {
     /// The generated [`Error`].
     fn start(&mut self, service_id: ServiceId) -> Result<(), Error>;
 
-    // TODO: this probably will be removed once the services lifecycle is implemented
+    // TODO: this probably will be removed once the services lifecycle is
+    // implemented
     /// Start all services attaches to the trait implementer.
     ///
     /// # Errors
@@ -131,7 +137,8 @@ pub trait Services: Sized {
 ///
 /// It's usually one-shot.
 ///
-/// It only contains what's required to run [`Overwatch`] as a main loop and to be able to stop it.
+/// It only contains what's required to run [`Overwatch`] as a main loop and to
+/// be able to stop it.
 ///
 /// That is, it's responsible for [`Overwatch`]'s application lifecycle.
 pub struct OverwatchRunner<Services> {
@@ -153,8 +160,8 @@ where
 {
     /// Start the Overwatch runner process.
     ///
-    /// Create the [`Runtime`], initialize the [`Services`] and start listening for [`Overwatch`]
-    /// related tasks.
+    /// Create the [`Runtime`], initialize the [`Services`] and start listening
+    /// for [`Overwatch`] related tasks.
     ///
     /// Return the [`Overwatch`] instance that handles this runner.
     ///
@@ -342,13 +349,20 @@ impl Overwatch {
 
 #[cfg(test)]
 mod test {
-    use crate::overwatch::handle::OverwatchHandle;
-    use crate::overwatch::{Error, OverwatchRunner, Services, ServicesLifeCycleHandle};
-    use crate::services::relay::{RelayError, RelayResult};
-    use crate::services::status::{ServiceStatusError, ServiceStatusResult};
-    use crate::services::ServiceId;
     use std::time::Duration;
+
     use tokio::time::sleep;
+
+    use crate::{
+        overwatch::{
+            handle::OverwatchHandle, Error, OverwatchRunner, Services, ServicesLifeCycleHandle,
+        },
+        services::{
+            relay::{RelayError, RelayResult},
+            status::{ServiceStatusError, ServiceStatusResult},
+            ServiceId,
+        },
+    };
 
     struct EmptyServices;
 

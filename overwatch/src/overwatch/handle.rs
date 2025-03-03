@@ -1,24 +1,26 @@
 // std
 use std::fmt::Debug;
-// crates
-use crate::overwatch::commands::{
-    OverwatchCommand, OverwatchLifeCycleCommand, ReplyChannel, SettingsCommand, StatusCommand,
-};
-use crate::overwatch::Services;
-use crate::services::ServiceData;
-use tokio::runtime::Handle;
-use tokio::sync::mpsc::Sender;
+
+use tokio::{runtime::Handle, sync::mpsc::Sender};
 #[cfg(feature = "instrumentation")]
 use tracing::instrument;
 use tracing::{error, info};
 
+// crates
+use crate::overwatch::commands::{
+    OverwatchCommand, OverwatchLifeCycleCommand, ReplyChannel, SettingsCommand, StatusCommand,
+};
 // internal
 use crate::services::relay::Relay;
-use crate::services::status::StatusWatcher;
+use crate::{
+    overwatch::Services,
+    services::{status::StatusWatcher, ServiceData},
+};
 
 /// Handler object over the main [`crate::overwatch::Overwatch`] runner.
 ///
-/// It handles communications to the main [`OverwatchRunner`](crate::overwatch::OverwatchRunner).
+/// It handles communications to the main
+/// [`OverwatchRunner`](crate::overwatch::OverwatchRunner).
 #[derive(Clone, Debug)]
 pub struct OverwatchHandle {
     runtime_handle: Handle,
@@ -71,7 +73,8 @@ impl OverwatchHandle {
         }
     }
 
-    /// Send a shutdown signal to the [`OverwatchRunner`](crate::overwatch::OverwatchRunner)
+    /// Send a shutdown signal to the
+    /// [`OverwatchRunner`](crate::overwatch::OverwatchRunner)
     pub async fn shutdown(&self) {
         info!("Shutting down Overwatch");
         if let Err(e) = self
@@ -85,7 +88,8 @@ impl OverwatchHandle {
         }
     }
 
-    /// Send a kill signal to the [`OverwatchRunner`](crate::overwatch::OverwatchRunner)
+    /// Send a kill signal to the
+    /// [`OverwatchRunner`](crate::overwatch::OverwatchRunner)
     pub async fn kill(&self) {
         info!("Killing Overwatch");
         if let Err(e) = self
@@ -99,7 +103,8 @@ impl OverwatchHandle {
         }
     }
 
-    /// Send an overwatch command to the [`OverwatchRunner`](crate::overwatch::OverwatchRunner)
+    /// Send an overwatch command to the
+    /// [`OverwatchRunner`](crate::overwatch::OverwatchRunner)
     #[cfg_attr(
         feature = "instrumentation",
         instrument(name = "overwatch-command-send", skip(self))

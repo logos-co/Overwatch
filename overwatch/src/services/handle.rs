@@ -1,25 +1,30 @@
 // crates
 use tokio::runtime::Handle;
 use tracing::info;
+
 // internal
 use crate::overwatch::handle::OverwatchHandle;
-use crate::services::life_cycle::LifecycleHandle;
-use crate::services::relay::{relay, InboundRelay, OutboundRelay};
-use crate::services::settings::{SettingsNotifier, SettingsUpdater};
-use crate::services::state::{StateHandle, StateOperator, StateUpdater};
-use crate::services::status::{StatusHandle, StatusWatcher};
-use crate::services::{ServiceCore, ServiceId, ServiceState};
+use crate::services::{
+    life_cycle::LifecycleHandle,
+    relay::{relay, InboundRelay, OutboundRelay},
+    settings::{SettingsNotifier, SettingsUpdater},
+    state::{StateHandle, StateOperator, StateUpdater},
+    status::{StatusHandle, StatusWatcher},
+    ServiceCore, ServiceId, ServiceState,
+};
 
 /// Handle to a service.
 ///
 /// This is used to access the different components of the `Service`.
-// TODO: Abstract handle over state to differentiate when the service is running and when it is not.
-// That way we could expose a better API depending on what is happening and it would get rid of
-// the probably unnecessary Option and cloning.
+// TODO: Abstract handle over state to differentiate when the service is running
+// and when it is not. That way we could expose a better API depending on what
+// is happening and it would get rid of the probably unnecessary Option and
+// cloning.
 pub struct ServiceHandle<Message, Settings, State> {
     /// Message channel relay
     ///
-    /// It contains the channel if the service is running, otherwise it'll be [`None`]
+    /// It contains the channel if the service is running, otherwise it'll be
+    /// [`None`]
     outbound_relay: Option<OutboundRelay<Message>>,
     overwatch_handle: OverwatchHandle,
     settings: SettingsUpdater<Settings>,
@@ -163,8 +168,8 @@ where
     ///
     /// # Returns
     ///
-    /// A tuple containing the service id and the lifecycle handle, which allows to manually
-    /// abort the execution.
+    /// A tuple containing the service id and the lifecycle handle, which allows
+    /// to manually abort the execution.
     ///
     /// # Errors
     ///
