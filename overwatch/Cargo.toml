@@ -2,20 +2,15 @@
 name = "overwatch"
 version = "0.1.0"
 edition = "2021"
-authors = [
-    "Daniel Sanchez Quiros <danielsq@status.im>"
-]
-license-file = "LICENSE"
-homepage = "https://github.com/logos-co/Overwatch"
-repository = "https://github.com/logos-co/Overwatch"
+authors = ["Daniel Sanchez Quiros <danielsq@status.im>"]
+license = { workspace = true }
+homepage = { workspace = true }
+repository = { workspace = true }
 description = "A lightweight framework for building modular, interconnected applications."
 readme = "README.md"
 keywords = ["async", "services", "framework"]
 categories = ["asynchronous"]
-exclude = [
-    "./tests",
-    ".github",
-]
+exclude = ["./tests", ".github"]
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 [features]
@@ -24,7 +19,7 @@ derive = ["dep:overwatch-derive"]
 instrumentation = []
 
 [dependencies]
-overwatch-derive = { path = "../overwatch-derive", optional = true }
+overwatch-derive = { workspace = true, optional = true }
 const-str = "0.6"
 async-trait = "0.1"
 futures = "0.3"
@@ -35,5 +30,12 @@ tokio-util = "0.7"
 tracing = "0.1"
 
 [dev-dependencies]
-tokio = { version = "1.17", features = ["rt-multi-thread", "sync", "time", "io-std", "io-util", "macros"] }
-overwatch-derive = { path = "../overwatch-derive" }
+tokio = { version = "1.17", features = [
+    "rt-multi-thread",
+    "sync",
+    "time",
+    "io-std",
+    "io-util",
+    "macros",
+] }
+overwatch-derive = { workspace = true }

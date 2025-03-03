@@ -2,20 +2,15 @@
 name = "overwatch-derive"
 version = "0.1.0"
 edition = "2021"
-authors = [
-    "Daniel Sanchez Quiros <danielsq@status.im>"
-]
-license-file = "LICENSE"
-homepage = "https://github.com/logos-co/Overwatch"
-repository = "https://github.com/logos-co/Overwatch"
+authors = ["Daniel Sanchez Quiros <danielsq@status.im>"]
+license = { workspace = true }
+homepage = { workspace = true }
+repository = { workspace = true }
 description = "Overwatch derive macros"
 readme = "README.md"
 keywords = ["async", "services", "framework", "macros", "derive"]
 categories = ["asynchronous"]
-exclude = [
-    "./tests",
-    ".github",
-]
+exclude = ["./tests", ".github"]
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 [lib]

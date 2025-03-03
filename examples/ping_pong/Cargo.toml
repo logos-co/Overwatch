@@ -1,11 +1,16 @@
 [package]
 name = "ping_pong"
+description = "Example of a Overwatch runner implementation that sends messages between a Ping and a Pong service."
 version = "0.1.0"
 edition = "2021"
+license = { workspace = true }
+repository = { workspace = true }
+keywords = ["async", "services", "framework", "examples"]
+categories = ["asynchronous"]
 
 [dependencies]
-overwatch = { path = "../../overwatch" }
-overwatch-derive = { path = "../../overwatch-derive" }
+overwatch = { workspace = true }
+overwatch-derive = { workspace = true }
 async-trait = "0.1.83"
 tokio = { version = "1.42.0", features = ["macros"] }
 thiserror = "2.0.8"
