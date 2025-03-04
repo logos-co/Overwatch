@@ -5,6 +5,10 @@ on:
 
 name: Code checks
 
+concurrency:
+  group: ${{ github.workflow }}@${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   formatting:
     name: Check formatting
