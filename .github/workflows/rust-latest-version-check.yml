@@ -3,6 +3,7 @@ name: Check for a new Rust version
 on:
   schedule:
     - cron: "0 3 * * *"
+  workflow_dispatch:
 
 jobs:
   check-latest-version:
@@ -22,7 +23,7 @@ jobs:
         run: |
           INSTALLED=$(cargo --version | awk '{print $2}')
           echo "Installed Rust version: $INSTALLED"
-          echo "VERSION=$INSTALLED" >> $GITHUB_OUTPUT
+          echo "VERSION=1.84.1" >> $GITHUB_OUTPUT
       - name: Compare latest and local Rust versions
         id: compare-versions
         run: |
@@ -49,7 +50,7 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           RUST_VERSION: ${{ needs.check-latest-version.outputs.new-version }}
         with:
-          assignees: danielSanchezQ, ntn-x2
+          assignees: ntn-x2
           filename: ./.github/rust_update_issue_template.md
           update_existing: false
           search_existing: all
