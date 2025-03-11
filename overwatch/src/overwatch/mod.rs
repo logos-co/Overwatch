@@ -231,6 +231,12 @@ where
                             error!(e);
                         }
                     }
+                    ServiceLifeCycleCommand {
+                        service_id,
+                        msg: LifecycleMessage::Start,
+                    } => {
+                        error!("LifecycleMessage::Start received from service {service_id}, which is unexpected. Ignoring...");
+                    }
                 },
                 OverwatchCommand::OverwatchLifeCycle(command) => {
                     if matches!(
