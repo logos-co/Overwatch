@@ -11,6 +11,7 @@ pub type FinishedSignal = ();
 
 #[derive(Clone, Debug)]
 pub enum LifecycleMessage {
+    Start,
     /// Holds a sender from a broadcast channel. This is used to signal when the
     /// service has finished handling the shutdown process.
     Shutdown(Sender<FinishedSignal>),
