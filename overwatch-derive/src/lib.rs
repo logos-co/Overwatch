@@ -131,8 +131,8 @@ fn generate_services_impl(
 ) -> proc_macro2::TokenStream {
     let services_settings_identifier = service_settings_identifier_from(services_identifier);
     let impl_new = generate_new_impl(fields);
-    let impl_start_all = generate_start_all_impl(fields);
-    let impl_start = generate_start_impl(fields);
+    let impl_init_all = generate_init_all_impl(fields);
+    let impl_start = generate_init_impl(fields);
     let impl_stop = generate_stop_impl(fields);
     let impl_relay = generate_request_relay_impl(fields);
     let impl_status = generate_request_status_watcher_impl(fields);
@@ -146,7 +146,7 @@ fn generate_services_impl(
 
             #impl_new
 
-            #impl_start_all
+            #impl_init_all
 
             #impl_start
 
@@ -200,7 +200,7 @@ fn generate_new_impl(fields: &Punctuated<Field, Comma>) -> proc_macro2::TokenStr
     }
 }
 
-fn generate_start_all_impl(fields: &Punctuated<Field, Comma>) -> proc_macro2::TokenStream {
+fn generate_init_all_impl(fields: &Punctuated<Field, Comma>) -> proc_macro2::TokenStream {
     let call_start = fields.iter().map(|field| {
         let field_identifier = field.ident.as_ref().expect("A struct attribute identifier");
         let type_id = utils::extract_type_from(&field.ty);
@@ -212,13 +212,13 @@ fn generate_start_all_impl(fields: &Punctuated<Field, Comma>) -> proc_macro2::To
     let instrumentation = get_default_instrumentation();
     quote! {
         #instrumentation
-        fn start_all(&mut self) -> Result<::overwatch::overwatch::ServicesLifeCycleHandle, ::overwatch::overwatch::Error> {
+        fn init_all(&mut self) -> Result<::overwatch::overwatch::ServicesLifeCycleHandle, ::overwatch::overwatch::Error> {
             ::std::result::Result::Ok([#( #call_start ),*].try_into()?)
         }
     }
 }
 
-fn generate_start_impl(fields: &Punctuated<Field, Comma>) -> proc_macro2::TokenStream {
+fn generate_init_impl(fields: &Punctuated<Field, Comma>) -> proc_macro2::TokenStream {
     let cases = fields.iter().map(|field| {
         let field_identifier = field.ident.as_ref().expect("A struct attribute identifier");
         let type_id = utils::extract_type_from(&field.ty);
@@ -233,7 +233,7 @@ fn generate_start_impl(fields: &Punctuated<Field, Comma>) -> proc_macro2::TokenS
     let instrumentation = get_default_instrumentation();
     quote! {
         #instrumentation
-        fn start(&mut self, service_id: ::overwatch::services::ServiceId) -> Result<(), ::overwatch::overwatch::Error> {
+        fn init(&mut self, service_id: ::overwatch::services::ServiceId) -> Result<(), ::overwatch::overwatch::Error> {
             match service_id {
                 #( #cases ),*
                 service_id => ::std::result::Result::Err(::overwatch::overwatch::Error::Unavailable { service_id })

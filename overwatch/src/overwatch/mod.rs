@@ -93,7 +93,7 @@ pub trait Services: Sized {
     /// # Errors
     ///
     /// The generated [`Error`].
-    fn start(&mut self, service_id: ServiceId) -> Result<(), Error>;
+    fn init(&mut self, service_id: ServiceId) -> Result<(), Error>;
 
     // TODO: this probably will be removed once the services lifecycle is
     // implemented
@@ -102,7 +102,7 @@ pub trait Services: Sized {
     /// # Errors
     ///
     /// The generated [`Error`].
-    fn start_all(&mut self) -> Result<ServicesLifeCycleHandle, Error>;
+    fn init_all(&mut self) -> Result<ServicesLifeCycleHandle, Error>;
 
     /// Stop a service attached to the trait implementer.
     ///
@@ -204,7 +204,10 @@ where
             mut commands_receiver,
             ..
         } = self;
-        let lifecycle_handlers = services.start_all().expect("Services to start running");
+        let lifecycle_handlers = services.init_all().expect("Services to set up");
+        lifecycle_handlers
+            .start_all()
+            .expect("All services to start");
         while let Some(command) = commands_receiver.recv().await {
             info!(command = ?command, "Overwatch command received");
             match command {
@@ -381,11 +384,11 @@ mod test {
             Ok(Self)
         }
 
-        fn start(&mut self, service_id: ServiceId) -> Result<(), Error> {
+        fn init(&mut self, service_id: ServiceId) -> Result<(), Error> {
             Err(Error::Unavailable { service_id })
         }
 
-        fn start_all(&mut self) -> Result<ServicesLifeCycleHandle, Error> {
+        fn init_all(&mut self) -> Result<ServicesLifeCycleHandle, Error> {
             Ok(ServicesLifeCycleHandle::empty())
         }
 
