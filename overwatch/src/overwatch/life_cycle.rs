@@ -86,6 +86,20 @@ impl ServicesLifeCycleHandle {
         Ok(())
     }
 
+    pub fn start(&self, service: ServiceId) -> Result<(), DynError> {
+        self.handlers
+            .get(service)
+            .unwrap_or_else(|| panic!("Handler not found for service {service}"))
+            .send(LifecycleMessage::Start)
+    }
+
+    pub fn start_all(&self) -> Result<(), DynError> {
+        for service_id in self.services_ids() {
+            self.start(service_id)?;
+        }
+        Ok(())
+    }
+
     /// Get all [`ServiceId`]s registered in this handle
     pub fn services_ids(&self) -> impl Iterator<Item = ServiceId> + '_ {
         self.handlers.keys().copied()
