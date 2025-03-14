@@ -142,13 +142,16 @@ pub trait Services: Sized {
 /// be able to stop it.
 ///
 /// That is, it's responsible for [`Overwatch`]'s application lifecycle.
-pub struct OverwatchRunner<ServicesImpl: Services> {
-    services: ServicesImpl,
+pub struct GenericOverwatchRunner<Services, ServiceId> {
+    services: Services,
     #[expect(unused)]
-    handle: OverwatchHandle<ServicesImpl::AggregatedServiceId>,
+    handle: OverwatchHandle<ServiceId>,
     finish_signal_sender: oneshot::Sender<()>,
     commands_receiver: Receiver<OverwatchCommand>,
 }
+
+pub type OverwatchRunner<ServicesImpl> =
+    GenericOverwatchRunner<ServicesImpl, <ServicesImpl as Services>::AggregatedServiceId>;
 
 /// Overwatch thread identifier.
 ///
