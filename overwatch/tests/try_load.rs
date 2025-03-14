@@ -10,7 +10,7 @@ use overwatch::{
         state::{ServiceState, StateOperator},
         ServiceCore, ServiceData, ServiceId,
     },
-    DynError, OpaqueServiceHandle, OpaqueServiceStateHandle,
+    DynError, OpaqueServiceStateHandle,
 };
 use tokio::sync::{broadcast, broadcast::error::SendError};
 
@@ -94,7 +94,7 @@ impl ServiceCore<AggregatedServiceId> for TryLoad {
 
 #[derive_services]
 struct TryLoadApp {
-    try_load: OpaqueServiceHandle<TryLoad>,
+    try_load: TryLoad,
 }
 
 #[test]

@@ -9,7 +9,7 @@ use overwatch::{
         state::{ServiceState, StateOperator},
         ServiceCore, ServiceData, ServiceId,
     },
-    OpaqueServiceHandle, OpaqueServiceStateHandle,
+    OpaqueServiceStateHandle,
 };
 use tokio::{
     io::{self, AsyncWriteExt},
@@ -111,7 +111,7 @@ impl ServiceCore<AggregatedServiceId> for UpdateStateService {
 
 #[derive_services]
 struct TestApp {
-    update_state_service: OpaqueServiceHandle<UpdateStateService>,
+    update_state_service: UpdateStateService,
 }
 
 #[test]

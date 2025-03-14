@@ -10,7 +10,6 @@ use overwatch::{
         state::{NoOperator, NoState},
         ServiceCore, ServiceData, ServiceId,
     },
-    OpaqueServiceHandle,
 };
 use tokio::time::sleep;
 
@@ -87,7 +86,7 @@ impl ServiceCore<AggregatedServiceId> for GenericService {
 
 #[derive_services]
 struct TestApp {
-    generic_service: OpaqueServiceHandle<GenericService>,
+    generic_service: GenericService,
 }
 
 #[test]

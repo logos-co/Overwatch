@@ -9,7 +9,7 @@ use overwatch::{
         status::{ServiceStatus, StatusWatcher},
         ServiceCore, ServiceData, ServiceId,
     },
-    DynError, OpaqueServiceHandle, OpaqueServiceStateHandle,
+    DynError, OpaqueServiceStateHandle,
 };
 
 pub struct AwaitService1 {
@@ -154,9 +154,9 @@ impl ServiceCore<AggregatedServiceId> for AwaitService3 {
 
 #[derive_services]
 struct SequenceServices {
-    c: OpaqueServiceHandle<AwaitService3>,
-    b: OpaqueServiceHandle<AwaitService2>,
-    a: OpaqueServiceHandle<AwaitService1>,
+    c: AwaitService3,
+    b: AwaitService2,
+    a: AwaitService1,
 }
 
 #[test]

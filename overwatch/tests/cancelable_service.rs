@@ -12,7 +12,7 @@ use overwatch::{
         state::{NoOperator, NoState},
         ServiceCore, ServiceData, ServiceId,
     },
-    DynError, OpaqueServiceHandle, OpaqueServiceStateHandle,
+    DynError, OpaqueServiceStateHandle,
 };
 use tokio::time::sleep;
 use tokio_stream::StreamExt;
@@ -69,7 +69,7 @@ impl ServiceCore<AggregatedServiceId> for CancellableService {
 
 #[derive_services]
 struct CancelableServices {
-    cancelable: OpaqueServiceHandle<CancellableService>,
+    cancelable: CancellableService,
 }
 
 #[test]

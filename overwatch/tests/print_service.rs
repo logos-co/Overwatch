@@ -10,7 +10,7 @@ use overwatch::{
         state::{NoOperator, NoState},
         ServiceCore, ServiceData, ServiceId,
     },
-    OpaqueServiceHandle, OpaqueServiceStateHandle,
+    OpaqueServiceStateHandle,
 };
 use tokio::time::sleep;
 
@@ -89,7 +89,7 @@ impl ServiceCore<AggregatedServiceId> for PrintService {
 
 #[derive_services]
 struct TestApp {
-    print_service: OpaqueServiceHandle<PrintService>,
+    print_service: PrintService,
 }
 
 #[test]

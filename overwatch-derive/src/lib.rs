@@ -28,31 +28,14 @@ pub fn derive_services(_attr: TokenStream, item: TokenStream) -> TokenStream {
         let field_name = &field.ident;
         let field_type = &field.ty;
 
-        let Type::Path(path) = field_type else {
-            return quote! { #field };
+        let aggregated_service_id_type_name = get_aggregated_service_id_type_name();
+        let new_field_type = quote! {
+            ::overwatch::OpaqueServiceHandle<#field_type, #aggregated_service_id_type_name>
         };
-        let Some(segment) = path.path.segments.last() else {
-            return quote! { #field };
-        };
-        if segment.ident != "OpaqueServiceHandle" {
-            return quote! { #field };
+
+        quote! {
+            #field_name: #new_field_type
         }
-        let PathArguments::AngleBracketed(args) = &segment.arguments else {
-            return quote! { #field };
-        };
-        let new_args = {
-            let mut new_args = args.args.clone();
-            new_args.push(GenericArgument::Type(syn::parse_quote!(
-                AggregatedServiceId
-            )));
-            new_args
-        };
-
-        let new_type = quote! {
-            OpaqueServiceHandle<#new_args>
-        };
-
-        quote! { #field_name: #new_type }
     });
 
     // Generate the modified struct with #[derive(Services)]
@@ -481,7 +464,6 @@ fn generate_as_ref_impls(fields: &Punctuated<Field, Comma>) -> proc_macro2::Toke
             return None;
         };
         let path_segment = path.path.segments.last()?;
-        assert!((path_segment.ident == "OpaqueServiceHandle"), "Expected container type definition for overwatch services: `OpaqueServiceHandle`");
 
         // Extract the inner type inside OpaqueServiceHandle<T>
         let PathArguments::AngleBracketed(args) = &path_segment.arguments else {
