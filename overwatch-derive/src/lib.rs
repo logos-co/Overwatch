@@ -1,43 +1,54 @@
+use proc_macro::TokenStream;
+use proc_macro_error2::{abort_call_site, proc_macro_error};
+use quote::{format_ident, quote};
+use syn::{
+    parse, parse_macro_input, parse_quote, parse_str, punctuated::Punctuated, token::Comma, Data,
+    DeriveInput, Field, Fields, GenericArgument, Generics, ItemStruct, PathArguments, Type,
+};
+
+mod utils;
+
 #[proc_macro_attribute]
-pub fn derive_services(
-    _attr: proc_macro::TokenStream,
-    item: proc_macro::TokenStream,
-) -> proc_macro::TokenStream {
+pub fn derive_services(_attr: TokenStream, item: TokenStream) -> TokenStream {
     let input = parse_macro_input!(item as ItemStruct);
     let struct_name = &input.ident;
     let visibility = &input.vis;
     let generics = &input.generics;
 
-    let fields = match &input.fields {
-        Fields::Named(named) => &named.named,
-        _ => panic!("modify_and_derive_services only supports structs with named fields"),
+    let Fields::Named(named_fields) = input.fields else {
+        panic!("`derive_services` macro only supports structs with named fields");
     };
+    let fields = named_fields.named;
 
     let modified_fields = fields.iter().map(|field| {
         let field_name = &field.ident;
         let field_type = &field.ty;
 
-        if let Type::Path(path) = &field_type {
-            if let Some(segment) = path.path.segments.last() {
-                if segment.ident == "OpaqueServiceHandle" {
-                    if let PathArguments::AngleBracketed(args) = &segment.arguments {
-                        let mut new_args = args.args.clone();
-                        new_args.push(GenericArgument::Type(syn::parse_quote!(
-                            AggregatedServiceId
-                        )));
-
-                        let new_type = quote! {
-                            OpaqueServiceHandle<#new_args>
-                        };
-
-                        return quote! { #field_name: #new_type };
-                    }
-                }
-            }
+        let Type::Path(path) = field_type else {
+            return quote! { #field };
+        };
+        let Some(segment) = path.path.segments.last() else {
+            return quote! { #field };
+        };
+        if segment.ident != "OpaqueServiceHandle" {
+            return quote! { #field };
         }
+        let PathArguments::AngleBracketed(args) = &segment.arguments else {
+            return quote! { #field };
+        };
+        let new_args = {
+            let mut new_args = args.args.clone();
+            new_args.push(GenericArgument::Type(syn::parse_quote!(
+                AggregatedServiceId
+            )));
+            new_args
+        };
 
-        // Return unchanged field if it's not OpaqueServiceHandle<T>
-        quote! { #field }
+        let new_type = quote! {
+            OpaqueServiceHandle<#new_args>
+        };
+
+        quote! { #field_name: #new_type }
     });
 
     // Generate the modified struct with #[derive(Services)]
@@ -50,15 +61,6 @@ pub fn derive_services(
 
     modified_struct.into()
 }
-
-mod utils;
-
-use proc_macro_error2::{abort_call_site, proc_macro_error};
-use quote::{format_ident, quote};
-use syn::{
-    parse_macro_input, punctuated::Punctuated, token::Comma, Data, DeriveInput, Field, Fields,
-    GenericArgument, Generics, ItemStruct, PathArguments, Type,
-};
 
 fn get_default_instrumentation() -> proc_macro2::TokenStream {
     #[cfg(feature = "instrumentation")]
@@ -82,8 +84,8 @@ fn get_default_instrumentation_without_settings() -> proc_macro2::TokenStream {
 
 #[proc_macro_derive(Services)]
 #[proc_macro_error]
-pub fn services_derive(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
-    let input: DeriveInput = syn::parse(input).expect("A syn parseable token stream");
+pub fn services_derive(input: TokenStream) -> TokenStream {
+    let input: DeriveInput = parse(input).expect("A syn parseable token stream");
     let derived = impl_services(&input);
     derived.into()
 }
@@ -108,7 +110,7 @@ fn impl_services(input: &DeriveInput) -> proc_macro2::TokenStream {
     let generics = &input.generics;
     match data {
         Data::Struct(DataStruct {
-            fields: syn::Fields::Named(fields),
+            fields: Fields::Named(fields),
             ..
         }) => impl_services_for_struct(struct_identifier, generics, &fields.named),
         _ => {
@@ -154,7 +156,7 @@ fn generate_services_settings(
     let services_settings_identifier = service_settings_identifier_from(services_identifier);
     let where_clause = &generics.where_clause;
     quote! {
-        #[derive(::std::clone::Clone, ::std::fmt::Debug)]
+        #[derive(Clone, Debug)]
         pub struct #services_settings_identifier #generics #where_clause {
             #( #services_settings ),*
         }
@@ -185,6 +187,12 @@ fn generate_assert_unique_identifiers(
     }
 }
 
+const AGGREGATED_SERVICE_ID_TYPE_NAME: &str = "AggregatedServiceId";
+fn get_aggregated_service_id_type_name() -> Type {
+    parse_str(AGGREGATED_SERVICE_ID_TYPE_NAME)
+        .expect("Aggregated service ID type is a valid type token stream.")
+}
+
 fn generate_services_impl(
     services_identifier: &proc_macro2::Ident,
     generics: &Generics,
@@ -201,10 +209,11 @@ fn generate_services_impl(
 
     let (impl_generics, ty_generics, where_clause) = generics.split_for_impl();
 
+    let aggregated_service_id_type_name = get_aggregated_service_id_type_name();
     quote! {
         impl #impl_generics ::overwatch::overwatch::Services for #services_identifier #ty_generics #where_clause {
             type Settings = #services_settings_identifier #ty_generics;
-            type AggregatedServiceId = AggregatedServiceId;
+            type AggregatedServiceId = #aggregated_service_id_type_name;
 
             #impl_new
 
@@ -248,7 +257,7 @@ fn generate_new_impl(fields: &Punctuated<Field, Comma>) -> proc_macro2::TokenStr
     });
 
     quote! {
-        fn new(settings: Self::Settings, overwatch_handle: ::overwatch::overwatch::handle::OverwatchHandle<Self::AggregatedServiceId>) -> ::std::result::Result<Self, ::overwatch::DynError> {
+        fn new(settings: Self::Settings, overwatch_handle: ::overwatch::overwatch::handle::OverwatchHandle<Self::AggregatedServiceId>) -> Result<Self, ::overwatch::DynError> {
             let Self::Settings {
                 #( #fields_settings ),*
             } = settings;
@@ -257,7 +266,7 @@ fn generate_new_impl(fields: &Punctuated<Field, Comma>) -> proc_macro2::TokenStr
                 #( #managers ),*
             };
 
-            ::std::result::Result::Ok(app)
+            Result::Ok(app)
         }
     }
 }
@@ -275,7 +284,7 @@ fn generate_start_all_impl(fields: &Punctuated<Field, Comma>) -> proc_macro2::To
     quote! {
         #instrumentation
         fn start_all(&mut self) -> Result<::overwatch::overwatch::ServicesLifeCycleHandle, ::overwatch::overwatch::Error> {
-            ::std::result::Result::Ok([#( #call_start ),*].try_into()?)
+            Result::Ok([#( #call_start ),*].try_into()?)
         }
     }
 }
@@ -287,7 +296,7 @@ fn generate_start_impl(fields: &Punctuated<Field, Comma>) -> proc_macro2::TokenS
         quote! {
             <#type_id as ::overwatch::services::ServiceData>::SERVICE_ID => {
                 self.#field_identifier.service_runner::<<#type_id as ::overwatch::services::ServiceData>::StateOperator>().run::<#type_id>()?;
-                ::std::result::Result::Ok(())
+                Result::Ok(())
             }
         }
     });
@@ -298,7 +307,7 @@ fn generate_start_impl(fields: &Punctuated<Field, Comma>) -> proc_macro2::TokenS
         fn start(&mut self, service_id: ::overwatch::services::ServiceId) -> Result<(), ::overwatch::overwatch::Error> {
             match service_id {
                 #( #cases ),*
-                service_id => ::std::result::Result::Err(::overwatch::overwatch::Error::Unavailable { service_id })
+                service_id => Result::Err(::overwatch::overwatch::Error::Unavailable { service_id })
             }
         }
     }
@@ -320,7 +329,7 @@ fn generate_stop_impl(fields: &Punctuated<Field, Comma>) -> proc_macro2::TokenSt
         fn stop(&mut self, service_id: ::overwatch::services::ServiceId) -> Result<(), ::overwatch::overwatch::Error> {
             match service_id {
                 #( #cases ),*
-                service_id => ::std::result::Result::Err(::overwatch::overwatch::Error::Unavailable { service_id })
+                service_id => Result::Err(::overwatch::overwatch::Error::Unavailable { service_id })
             }
         }
     }
@@ -332,7 +341,7 @@ fn generate_request_relay_impl(fields: &Punctuated<Field, Comma>) -> proc_macro2
         let type_id = utils::extract_type_from(&field.ty);
         quote! {
             <#type_id as ::overwatch::services::ServiceData>::SERVICE_ID => {
-                ::std::result::Result::Ok(::std::boxed::Box::new(
+                Result::Ok(::std::boxed::Box::new(
                     self.#field_identifier
                         .relay_with()
                         .ok_or(::overwatch::services::relay::RelayError::AlreadyConnected)?
@@ -347,7 +356,7 @@ fn generate_request_relay_impl(fields: &Punctuated<Field, Comma>) -> proc_macro2
         fn request_relay(&mut self, service_id: ::overwatch::services::ServiceId) -> ::overwatch::services::relay::RelayResult {
             match service_id {
                 #( #cases )*
-                service_id => ::std::result::Result::Err(::overwatch::services::relay::RelayError::Unavailable { service_id })
+                service_id => Result::Err(::overwatch::services::relay::RelayError::Unavailable { service_id })
             }
         }
     }
@@ -361,7 +370,7 @@ fn generate_request_status_watcher_impl(
         let type_id = utils::extract_type_from(&field.ty);
         quote! {
             <#type_id as ::overwatch::services::ServiceData>::SERVICE_ID => {
-                    ::std::result::Result::Ok(self.#field_identifier.status_watcher())
+                    Result::Ok(self.#field_identifier.status_watcher())
             }
         }
     });
@@ -372,7 +381,7 @@ fn generate_request_status_watcher_impl(
             {
                 match service_id {
                     #( #cases )*
-                    service_id => ::std::result::Result::Err(::overwatch::services::status::ServiceStatusError::Unavailable { service_id })
+                    service_id => Result::Err(::overwatch::services::status::ServiceStatusError::Unavailable { service_id })
                 }
             }
         }
@@ -406,7 +415,7 @@ fn generate_update_settings_impl(fields: &Punctuated<Field, Comma>) -> proc_macr
 
             #( #update_settings_call )*
 
-            ::std::result::Result::Ok(())
+            Result::Ok(())
         }
     }
 }
@@ -437,10 +446,10 @@ fn generate_aggregate_service_id(fields: &Punctuated<Field, Comma>) -> proc_macr
 
         quote! { #capitalized_service_name }
     });
+    let aggregated_service_id_type_name = get_aggregated_service_id_type_name();
     let expanded = quote! {
         #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-        // TODO: Rename to `ServiceId` once the old `ServiceId` is removed.
-        pub enum AggregatedServiceId {
+        pub enum #aggregated_service_id_type_name {
             #(#enum_variants),*
         }
     };
@@ -484,6 +493,7 @@ fn generate_as_ref_impls(fields: &Punctuated<Field, Comma>) -> proc_macro2::Toke
         };
 
         let inner_ident = &inner_path.path.segments.last().expect("Expected at least one segment in the inner type path").ident;
+        let aggregated_service_id_type_name = get_aggregated_service_id_type_name();
 
         // Extract generics if present, but rename them to T1, T2, etc.
         match inner_path
@@ -498,18 +508,18 @@ fn generate_as_ref_impls(fields: &Punctuated<Field, Comma>) -> proc_macro2::Toke
                         .collect();
 
                     Some(quote! {
-                        impl<#(#generic_params),*> ::overwatch::utils::traits::AsRef<AggregatedServiceId> for #inner_ident<#(#generic_params),*> {
-                            fn as_ref() -> &'static AggregatedServiceId {
-                                &AggregatedServiceId::#capitalized_service_name
+                        impl<#(#generic_params),*> ::overwatch::utils::traits::AsRef<#aggregated_service_id_type_name> for #inner_ident<#(#generic_params),*> {
+                            fn as_ref() -> &'static #aggregated_service_id_type_name {
+                                &#aggregated_service_id_type_name::#capitalized_service_name
                             }
                         }
                     })
                 },
                 // No generics case
                 _ => Some(quote! {
-                    impl ::overwatch::utils::traits::AsRef<AggregatedServiceId> for #inner_ident {
-                        fn as_ref() -> &'static AggregatedServiceId {
-                            &AggregatedServiceId::#capitalized_service_name
+                    impl ::overwatch::utils::traits::AsRef<#aggregated_service_id_type_name> for #inner_ident {
+                        fn as_ref() -> &'static #aggregated_service_id_type_name {
+                            &#aggregated_service_id_type_name::#capitalized_service_name
                         }
                     }
                 }),
