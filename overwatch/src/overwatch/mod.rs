@@ -24,10 +24,10 @@ use crate::{
         handle::OverwatchHandle,
     },
     services::{
-        life_cycle::LifecycleMessage, relay::RelayResult, status::ServiceStatusResult, ServiceData,
+        life_cycle::LifecycleMessage, relay::RelayResult, status::ServiceStatusResult,
         ServiceError, ServiceId,
     },
-    utils::{runtime::default_multithread_runtime, traits::AsRef},
+    utils::runtime::default_multithread_runtime,
 };
 
 /// Overwatch base error type.
@@ -95,9 +95,7 @@ pub trait Services: Sized {
     /// # Errors
     ///
     /// The generated [`Error`].
-    fn start<S>(&mut self) -> Result<(), Error>
-    where
-        S: AsRef<Self::AggregatedServiceId> + ServiceData;
+    fn start(&mut self, service_id: ServiceId) -> Result<(), Error>;
 
     // TODO: this probably will be removed once the services lifecycle is
     // implemented
@@ -113,27 +111,21 @@ pub trait Services: Sized {
     /// # Errors
     ///
     /// The generated [`Error`].
-    fn stop<S>(&mut self) -> Result<(), Error>
-    where
-        S: AsRef<Self::AggregatedServiceId> + ServiceData;
+    fn stop(&mut self, service_id: ServiceId) -> Result<(), Error>;
 
     /// Request a communication relay for a service.
     ///
     /// # Errors
     ///
     /// The generated [`Error`].
-    fn request_relay<S>(&mut self) -> RelayResult
-    where
-        S: AsRef<Self::AggregatedServiceId> + ServiceData;
+    fn request_relay(&mut self, service_id: ServiceId) -> RelayResult;
 
     /// Request a status watcher for a service.
     ///
     /// # Errors
     ///
     /// The generated [`Error`].
-    fn request_status_watcher<S>(&self) -> ServiceStatusResult
-    where
-        S: AsRef<Self::AggregatedServiceId> + ServiceData;
+    fn request_status_watcher(&self, service_id: ServiceId) -> ServiceStatusResult;
 
     /// Update service settings.
     /// # Errors
