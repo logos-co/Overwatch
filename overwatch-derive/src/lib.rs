@@ -2,8 +2,8 @@ use proc_macro::TokenStream;
 use proc_macro_error2::{abort_call_site, proc_macro_error};
 use quote::{format_ident, quote};
 use syn::{
-    parse, parse_macro_input, parse_quote, parse_str, punctuated::Punctuated, token::Comma, Data,
-    DeriveInput, Field, Fields, GenericArgument, Generics, ItemStruct, PathArguments, Type,
+    parse, parse_macro_input, parse_str, punctuated::Punctuated, token::Comma, Data, DeriveInput,
+    Field, Fields, GenericArgument, Generics, ItemStruct, PathArguments, Type,
 };
 
 mod utils;
@@ -85,8 +85,8 @@ fn get_default_instrumentation_without_settings() -> proc_macro2::TokenStream {
 #[proc_macro_derive(Services)]
 #[proc_macro_error]
 pub fn services_derive(input: TokenStream) -> TokenStream {
-    let input: DeriveInput = parse(input).expect("A syn parseable token stream");
-    let derived = impl_services(&input);
+    let parsed_input: DeriveInput = parse(input).expect("A syn parseable token stream");
+    let derived = impl_services(&parsed_input);
     derived.into()
 }
 
