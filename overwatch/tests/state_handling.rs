@@ -11,7 +11,6 @@ use overwatch::{
     },
     OpaqueServiceHandle, OpaqueServiceStateHandle,
 };
-use overwatch_derive::services_derive;
 use tokio::{
     io::{self, AsyncWriteExt},
     time::sleep,

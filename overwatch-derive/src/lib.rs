@@ -42,7 +42,7 @@ pub fn derive_services(
 
     // Generate the modified struct with #[derive(Services)]
     let modified_struct = quote! {
-        #[derive(Services)]
+        #[derive(overwatch_derive::Services)]
         #visibility struct #struct_name #generics {
             #(#modified_fields),*
         }

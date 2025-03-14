@@ -1,5 +1,4 @@
 use overwatch::{derive_services, overwatch::OverwatchRunner, OpaqueServiceHandle};
-use overwatch_derive::services_derive;
 
 use crate::{service_ping::PingService, service_pong::PongService, settings::PingSettings};
 

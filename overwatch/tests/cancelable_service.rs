@@ -14,7 +14,6 @@ use overwatch::{
     },
     DynError, OpaqueServiceHandle, OpaqueServiceStateHandle,
 };
-use overwatch_derive::services_derive;
 use tokio::time::sleep;
 use tokio_stream::StreamExt;
 
