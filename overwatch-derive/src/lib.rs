@@ -56,7 +56,9 @@ fn impl_services(input: &DeriveInput) -> proc_macro2::TokenStream {
             ..
         }) => impl_services_for_struct(struct_identifier, generics, &fields.named),
         _ => {
-            abort_call_site!("Deriving Services is only supported for named Structs");
+            abort_call_site!(
+                "Deriving Services is only supported for named structs with at least one field."
+            );
         }
     }
 }
@@ -69,9 +71,12 @@ fn impl_services_for_struct(
     let settings = generate_services_settings(identifier, generics, fields);
     let unique_ids_check = generate_assert_unique_identifiers(identifier, generics, fields);
     let services_impl = generate_services_impl(identifier, generics, fields);
+    let aggregated_service_type = generate_aggregate_service_types(fields);
 
     quote! {
         #unique_ids_check
+
+        #aggregated_service_type
 
         #settings
 
@@ -346,5 +351,53 @@ fn generate_update_settings_impl(fields: &Punctuated<Field, Comma>) -> proc_macr
 
             ::std::result::Result::Ok(())
         }
+    }
+}
+
+fn generate_aggregate_service_types(fields: &Punctuated<Field, Comma>) -> proc_macro2::TokenStream {
+    let aggregated_service_id = generate_aggregate_service_id(fields);
+
+    quote! {
+        #aggregated_service_id
+    }
+}
+
+fn generate_aggregate_service_id(fields: &Punctuated<Field, Comma>) -> proc_macro2::TokenStream {
+    let services_names = fields.iter().clone().map(|field| &field.ident);
+    let enum_variants = services_names.map(|service_name| {
+        let capitalized_service_name = format_ident!(
+            "{}",
+            utils::field_name_to_type_name(
+                &service_name
+                    .clone()
+                    .expect("Expected struct named fields.")
+                    .to_string()
+            )
+        );
+
+        quote! { #capitalized_service_name }
+    });
+    let expanded = quote! {
+        #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+        // TODO: Rename to `ServiceId` once the old `ServiceId` is removed.
+        pub enum AggregatedServiceId {
+            #(#enum_variants),*
+        }
+
+        impl Default for AggregatedServiceId {
+            fn default() -> Self {
+                unimplemented!()
+            }
+        }
+
+        impl ::std::fmt::Display for AggregatedServiceId {
+            fn fmt(&self, f: &mut ::std::fmt::Formatter<'_>) -> ::std::fmt::Result {
+                unimplemented!()
+            }
+        }
+    };
+
+    quote! {
+        #expanded
     }
 }
