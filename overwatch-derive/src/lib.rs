@@ -151,6 +151,7 @@ fn generate_services_impl(
     quote! {
         impl #impl_generics ::overwatch::overwatch::Services for #services_identifier #ty_generics #where_clause {
             type Settings = #services_settings_identifier #ty_generics;
+            type AggregatedServiceId = AggregatedServiceId;
 
             #impl_new
 
@@ -241,8 +242,8 @@ fn generate_start_impl(fields: &Punctuated<Field, Comma>) -> proc_macro2::TokenS
     let instrumentation = get_default_instrumentation();
     quote! {
         #instrumentation
-        fn start(&mut self, service_id: ::overwatch::services::ServiceId) -> Result<(), ::overwatch::overwatch::Error> {
-            match service_id {
+        fn start<S>(&mut self) -> Result<(), ::overwatch::overwatch::Error> where S: ::overwatch::utils::traits::AsRef<Self::AggregatedServiceId> + ::overwatch::services::ServiceData {
+            match S::SERVICE_ID {
                 #( #cases ),*
                 service_id => ::std::result::Result::Err(::overwatch::overwatch::Error::Unavailable { service_id })
             }
@@ -263,8 +264,8 @@ fn generate_stop_impl(fields: &Punctuated<Field, Comma>) -> proc_macro2::TokenSt
     let instrumentation = get_default_instrumentation();
     quote! {
         #instrumentation
-        fn stop(&mut self, service_id: ::overwatch::services::ServiceId) -> Result<(), ::overwatch::overwatch::Error> {
-            match service_id {
+        fn stop<S>(&mut self) -> Result<(), ::overwatch::overwatch::Error> where S: ::overwatch::utils::traits::AsRef<Self::AggregatedServiceId> + ::overwatch::services::ServiceData {
+            match S::SERVICE_ID {
                 #( #cases ),*
                 service_id => ::std::result::Result::Err(::overwatch::overwatch::Error::Unavailable { service_id })
             }
@@ -290,8 +291,8 @@ fn generate_request_relay_impl(fields: &Punctuated<Field, Comma>) -> proc_macro2
     let instrumentation = get_default_instrumentation();
     quote! {
         #instrumentation
-        fn request_relay(&mut self, service_id: ::overwatch::services::ServiceId) -> ::overwatch::services::relay::RelayResult {
-            match service_id {
+        fn request_relay<S>(&mut self) -> ::overwatch::services::relay::RelayResult where S: ::overwatch::utils::traits::AsRef<Self::AggregatedServiceId> + ::overwatch::services::ServiceData {
+            match S::SERVICE_ID {
                 #( #cases )*
                 service_id => ::std::result::Result::Err(::overwatch::services::relay::RelayError::Unavailable { service_id })
             }
@@ -314,12 +315,10 @@ fn generate_request_status_watcher_impl(
 
     quote! {
         #[::tracing::instrument(skip(self), err)]
-        fn request_status_watcher(&self, service_id: ::overwatch::services::ServiceId) -> ::overwatch::services::status::ServiceStatusResult {
-            {
-                match service_id {
-                    #( #cases )*
-                    service_id => ::std::result::Result::Err(::overwatch::services::status::ServiceStatusError::Unavailable { service_id })
-                }
+        fn request_status_watcher<S>(&self) -> ::overwatch::services::status::ServiceStatusResult where S: ::overwatch::utils::traits::AsRef<Self::AggregatedServiceId> + ::overwatch::services::ServiceData {
+            match S::SERVICE_ID {
+                #( #cases )*
+                service_id => ::std::result::Result::Err(::overwatch::services::status::ServiceStatusError::Unavailable { service_id })
             }
         }
     }

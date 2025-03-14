@@ -24,10 +24,10 @@ use crate::{
         handle::OverwatchHandle,
     },
     services::{
-        life_cycle::LifecycleMessage, relay::RelayResult, status::ServiceStatusResult,
+        life_cycle::LifecycleMessage, relay::RelayResult, status::ServiceStatusResult, ServiceData,
         ServiceError, ServiceId,
     },
-    utils::runtime::default_multithread_runtime,
+    utils::{runtime::default_multithread_runtime, traits::AsRef},
 };
 
 /// Overwatch base error type.
@@ -73,6 +73,8 @@ pub trait Services: Sized {
     /// services settings.
     type Settings;
 
+    type AggregatedServiceId;
+
     /// Spawn a new instance of the [`Services`] object.
     ///
     /// It returns a `(ServiceId, Runtime)` where Runtime is the [`Runtime`]
@@ -93,7 +95,9 @@ pub trait Services: Sized {
     /// # Errors
     ///
     /// The generated [`Error`].
-    fn start(&mut self, service_id: ServiceId) -> Result<(), Error>;
+    fn start<S>(&mut self) -> Result<(), Error>
+    where
+        S: AsRef<Self::AggregatedServiceId> + ServiceData;
 
     // TODO: this probably will be removed once the services lifecycle is
     // implemented
@@ -109,21 +113,27 @@ pub trait Services: Sized {
     /// # Errors
     ///
     /// The generated [`Error`].
-    fn stop(&mut self, service_id: ServiceId) -> Result<(), Error>;
+    fn stop<S>(&mut self) -> Result<(), Error>
+    where
+        S: AsRef<Self::AggregatedServiceId> + ServiceData;
 
     /// Request a communication relay for a service.
     ///
     /// # Errors
     ///
     /// The generated [`Error`].
-    fn request_relay(&mut self, service_id: ServiceId) -> RelayResult;
+    fn request_relay<S>(&mut self) -> RelayResult
+    where
+        S: AsRef<Self::AggregatedServiceId> + ServiceData;
 
     /// Request a status watcher for a service.
     ///
     /// # Errors
     ///
     /// The generated [`Error`].
-    fn request_status_watcher(&self, service_id: ServiceId) -> ServiceStatusResult;
+    fn request_status_watcher<S>(&self) -> ServiceStatusResult
+    where
+        S: AsRef<Self::AggregatedServiceId> + ServiceData;
 
     /// Update service settings.
     /// # Errors
