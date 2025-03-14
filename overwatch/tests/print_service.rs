@@ -3,6 +3,7 @@ use std::time::Duration;
 use async_trait::async_trait;
 use futures::future::select;
 use overwatch::{
+    derive_services,
     overwatch::OverwatchRunner,
     services::{
         relay::RelayMessage,
@@ -11,7 +12,7 @@ use overwatch::{
     },
     OpaqueServiceHandle, OpaqueServiceStateHandle,
 };
-use overwatch_derive::Services;
+use overwatch_derive::services_derive;
 use tokio::time::sleep;
 
 pub struct PrintService {
@@ -87,9 +88,9 @@ impl ServiceCore<AggregatedServiceId> for PrintService {
     }
 }
 
-#[derive(Services)]
+#[derive_services]
 struct TestApp {
-    print_service: OpaqueServiceHandle<PrintService, AggregatedServiceId>,
+    print_service: OpaqueServiceHandle<PrintService>,
 }
 
 #[test]

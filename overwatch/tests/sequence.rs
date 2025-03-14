@@ -1,6 +1,7 @@
 use std::time::Duration;
 
 use overwatch::{
+    derive_services,
     overwatch::OverwatchRunner,
     services::{
         relay::NoMessage,
@@ -10,7 +11,7 @@ use overwatch::{
     },
     DynError, OpaqueServiceHandle, OpaqueServiceStateHandle,
 };
-use overwatch_derive::Services;
+use overwatch_derive::services_derive;
 
 pub struct AwaitService1 {
     service_state: OpaqueServiceStateHandle<Self, AggregatedServiceId>,
@@ -152,11 +153,11 @@ impl ServiceCore<AggregatedServiceId> for AwaitService3 {
     }
 }
 
-#[derive(Services)]
+#[derive_services]
 struct SequenceServices {
-    c: OpaqueServiceHandle<AwaitService3, AggregatedServiceId>,
-    b: OpaqueServiceHandle<AwaitService2, AggregatedServiceId>,
-    a: OpaqueServiceHandle<AwaitService1, AggregatedServiceId>,
+    c: OpaqueServiceHandle<AwaitService3>,
+    b: OpaqueServiceHandle<AwaitService2>,
+    a: OpaqueServiceHandle<AwaitService1>,
 }
 
 #[test]

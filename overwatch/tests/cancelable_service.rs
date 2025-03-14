@@ -1,6 +1,7 @@
 use std::time::Duration;
 
 use overwatch::{
+    derive_services,
     overwatch::{
         commands::{OverwatchCommand, ServiceLifeCycleCommand},
         OverwatchRunner,
@@ -13,7 +14,7 @@ use overwatch::{
     },
     DynError, OpaqueServiceHandle, OpaqueServiceStateHandle,
 };
-use overwatch_derive::Services;
+use overwatch_derive::services_derive;
 use tokio::time::sleep;
 use tokio_stream::StreamExt;
 
@@ -67,9 +68,9 @@ impl ServiceCore<AggregatedServiceId> for CancellableService {
     }
 }
 
-#[derive(Services)]
+#[derive_services]
 struct CancelableServices {
-    cancelable: OpaqueServiceHandle<CancellableService, AggregatedServiceId>,
+    cancelable: OpaqueServiceHandle<CancellableService>,
 }
 
 #[test]

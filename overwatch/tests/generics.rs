@@ -3,6 +3,7 @@ use std::{fmt::Debug, time::Duration};
 use async_trait::async_trait;
 use futures::future::select;
 use overwatch::{
+    derive_services,
     overwatch::OverwatchRunner,
     services::{
         handle::ServiceStateHandle,
@@ -11,7 +12,7 @@ use overwatch::{
     },
     OpaqueServiceHandle,
 };
-use overwatch_derive::Services;
+use overwatch_derive::services_derive;
 use tokio::time::sleep;
 
 pub struct GenericService {
@@ -85,9 +86,9 @@ impl ServiceCore<AggregatedServiceId> for GenericService {
     }
 }
 
-#[derive(Services)]
+#[derive_services]
 struct TestApp {
-    generic_service: OpaqueServiceHandle<GenericService, AggregatedServiceId>,
+    generic_service: OpaqueServiceHandle<GenericService>,
 }
 
 #[test]

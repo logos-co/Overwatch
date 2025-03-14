@@ -1,10 +1,63 @@
+#[proc_macro_attribute]
+pub fn derive_services(
+    _attr: proc_macro::TokenStream,
+    item: proc_macro::TokenStream,
+) -> proc_macro::TokenStream {
+    let input = parse_macro_input!(item as ItemStruct);
+    let struct_name = &input.ident;
+    let visibility = &input.vis;
+    let generics = &input.generics;
+
+    let fields = match &input.fields {
+        Fields::Named(named) => &named.named,
+        _ => panic!("modify_and_derive_services only supports structs with named fields"),
+    };
+
+    let modified_fields = fields.iter().map(|field| {
+        let field_name = &field.ident;
+        let field_type = &field.ty;
+
+        if let Type::Path(path) = &field_type {
+            if let Some(segment) = path.path.segments.last() {
+                if segment.ident == "OpaqueServiceHandle" {
+                    if let PathArguments::AngleBracketed(args) = &segment.arguments {
+                        let mut new_args = args.args.clone();
+                        new_args.push(GenericArgument::Type(syn::parse_quote!(
+                            AggregatedServiceId
+                        )));
+
+                        let new_type = quote! {
+                            OpaqueServiceHandle<#new_args>
+                        };
+
+                        return quote! { #field_name: #new_type };
+                    }
+                }
+            }
+        }
+
+        // Return unchanged field if it's not OpaqueServiceHandle<T>
+        quote! { #field }
+    });
+
+    // Generate the modified struct with #[derive(Services)]
+    let modified_struct = quote! {
+        #[derive(Services)]
+        #visibility struct #struct_name #generics {
+            #(#modified_fields),*
+        }
+    };
+
+    modified_struct.into()
+}
+
 mod utils;
 
 use proc_macro_error2::{abort_call_site, proc_macro_error};
 use quote::{format_ident, quote};
 use syn::{
-    punctuated::Punctuated, token::Comma, Data, DeriveInput, Field, GenericArgument, Generics,
-    PathArguments, Type,
+    parse_macro_input, punctuated::Punctuated, token::Comma, Data, DeriveInput, Field, Fields,
+    GenericArgument, Generics, ItemStruct, PathArguments, Type,
 };
 
 fn get_default_instrumentation() -> proc_macro2::TokenStream {
@@ -29,7 +82,7 @@ fn get_default_instrumentation_without_settings() -> proc_macro2::TokenStream {
 
 #[proc_macro_derive(Services)]
 #[proc_macro_error]
-pub fn derive_services(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
+pub fn services_derive(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
     let input: DeriveInput = syn::parse(input).expect("A syn parseable token stream");
     let derived = impl_services(&input);
     derived.into()

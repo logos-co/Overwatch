@@ -2,6 +2,7 @@ use std::time::Duration;
 
 use async_trait::async_trait;
 use overwatch::{
+    derive_services,
     overwatch::OverwatchRunner,
     services::{
         relay::RelayMessage,
@@ -10,7 +11,7 @@ use overwatch::{
     },
     OpaqueServiceHandle, OpaqueServiceStateHandle,
 };
-use overwatch_derive::Services;
+use overwatch_derive::services_derive;
 use tokio::time::sleep;
 
 pub struct SettingsService {
@@ -68,9 +69,9 @@ impl ServiceCore<AggregatedServiceId> for SettingsService {
     }
 }
 
-#[derive(Services)]
+#[derive_services]
 struct TestApp {
-    settings_service: OpaqueServiceHandle<SettingsService, AggregatedServiceId>,
+    settings_service: OpaqueServiceHandle<SettingsService>,
 }
 
 #[test]

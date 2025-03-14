@@ -2,6 +2,7 @@ use std::{convert::Infallible, time::Duration};
 
 use async_trait::async_trait;
 use overwatch::{
+    derive_services,
     overwatch::OverwatchRunner,
     services::{
         relay::RelayMessage,
@@ -10,7 +11,7 @@ use overwatch::{
     },
     OpaqueServiceHandle, OpaqueServiceStateHandle,
 };
-use overwatch_derive::Services;
+use overwatch_derive::services_derive;
 use tokio::{
     io::{self, AsyncWriteExt},
     time::sleep,
@@ -109,9 +110,9 @@ impl ServiceCore<AggregatedServiceId> for UpdateStateService {
     }
 }
 
-#[derive(Services)]
+#[derive_services]
 struct TestApp {
-    update_state_service: OpaqueServiceHandle<UpdateStateService, AggregatedServiceId>,
+    update_state_service: OpaqueServiceHandle<UpdateStateService>,
 }
 
 #[test]
