@@ -2,7 +2,10 @@ mod utils;
 
 use proc_macro_error2::{abort_call_site, proc_macro_error};
 use quote::{format_ident, quote};
-use syn::{punctuated::Punctuated, token::Comma, Data, DeriveInput, Field, Generics};
+use syn::{
+    punctuated::Punctuated, token::Comma, Data, DeriveInput, Field, GenericArgument, Generics,
+    PathArguments, Type,
+};
 
 fn get_default_instrumentation() -> proc_macro2::TokenStream {
     #[cfg(feature = "instrumentation")]
@@ -68,10 +71,10 @@ fn impl_services_for_struct(
     generics: &Generics,
     fields: &Punctuated<Field, Comma>,
 ) -> proc_macro2::TokenStream {
-    let settings = generate_services_settings(identifier, generics, fields);
     let unique_ids_check = generate_assert_unique_identifiers(identifier, generics, fields);
-    let services_impl = generate_services_impl(identifier, generics, fields);
     let aggregated_service_type = generate_aggregate_service_types(fields);
+    let settings = generate_services_settings(identifier, generics, fields);
+    let services_impl = generate_services_impl(identifier, generics, fields);
 
     quote! {
         #unique_ids_check
@@ -356,9 +359,12 @@ fn generate_update_settings_impl(fields: &Punctuated<Field, Comma>) -> proc_macr
 
 fn generate_aggregate_service_types(fields: &Punctuated<Field, Comma>) -> proc_macro2::TokenStream {
     let aggregated_service_id = generate_aggregate_service_id(fields);
+    let as_ref_impls = generate_as_ref_impls(fields);
 
     quote! {
         #aggregated_service_id
+
+        #as_ref_impls
     }
 }
 
@@ -383,21 +389,85 @@ fn generate_aggregate_service_id(fields: &Punctuated<Field, Comma>) -> proc_macr
         pub enum AggregatedServiceId {
             #(#enum_variants),*
         }
-
-        impl Default for AggregatedServiceId {
-            fn default() -> Self {
-                unimplemented!()
-            }
-        }
-
-        impl ::std::fmt::Display for AggregatedServiceId {
-            fn fmt(&self, f: &mut ::std::fmt::Formatter<'_>) -> ::std::fmt::Result {
-                unimplemented!()
-            }
-        }
     };
 
     quote! {
         #expanded
+    }
+}
+
+fn generate_as_ref_impls(fields: &Punctuated<Field, Comma>) -> proc_macro2::TokenStream {
+    let impl_blocks: Vec<_> = fields.iter().filter_map(|field| {
+        let field_type = &field.ty;
+        let capitalized_service_name = format_ident!(
+            "{}",
+            utils::field_name_to_type_name(
+                &field
+                    .ident
+                    .clone()
+                    .expect("Expected struct named fields.")
+                    .to_string()
+            )
+        );
+
+        if let Type::Path(path) = &field_type {
+            if let Some(path_segment) = path.path.segments.last() {
+                if path_segment.ident == "OpaqueServiceHandle" {
+                    // Extract the inner type inside OpaqueServiceHandle<T>
+                    if let PathArguments::AngleBracketed(args) = &path_segment.arguments {
+                        if let Some(GenericArgument::Type(inner_type)) = &args.args.first() {
+                            match inner_type {
+                                Type::Path(inner_path) => {
+                                    let inner_ident = &inner_path
+                                        .path
+                                        .segments
+                                        .last()
+                                        .expect(
+                                            "Expected at least one segment in the inner type path",
+                                        )
+                                        .ident;
+
+                                    // Extract generics if present, but rename them to T1, T2, etc.
+                                    if let Some(PathArguments::AngleBracketed(generic_args)) =
+                                        &inner_path
+                                            .path
+                                            .segments
+                                            .last()
+                                            .map(|segment| segment.arguments.clone())
+                                    {
+                                        let generic_count = generic_args.args.len();
+                                        let generic_params: Vec<_> = (1..=generic_count)
+                                            .map(|i| format_ident!("T{}", i))
+                                            .collect();
+
+                                        return Some(quote! {
+                                            impl<#(#generic_params),*> ::overwatch::utils::traits::AsRef<AggregatedServiceId> for #inner_ident<#(#generic_params),*> {
+                                                fn as_ref() -> &'static AggregatedServiceId {
+                                                    AggregatedServiceId::#capitalized_service_name
+                                                }
+                                            }
+                                        })
+                                    }
+                                    // No generics case
+                                    return Some(quote! {
+                                        impl ::overwatch::utils::traits::AsRef<AggregatedServiceId> for #inner_ident {
+                                            fn as_ref() -> &'static AggregatedServiceId {
+                                                AggregatedServiceId::#capitalized_service_name
+                                            }
+                                        }
+                                    })
+                                }
+                                _ => Option::<proc_macro2::TokenStream>::None,
+                            };
+                        }
+                    }
+                }
+            }
+        }
+        None
+    }).collect();
+
+    quote! {
+        #(#impl_blocks)*
     }
 }
