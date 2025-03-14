@@ -8,6 +8,10 @@ use syn::{
 
 mod utils;
 
+#[expect(
+    clippy::missing_panics_doc,
+    reason = "We will add docs to this macro later on."
+)]
 #[proc_macro_attribute]
 pub fn derive_services(_attr: TokenStream, item: TokenStream) -> TokenStream {
     let input = parse_macro_input!(item as ItemStruct);
@@ -53,7 +57,7 @@ pub fn derive_services(_attr: TokenStream, item: TokenStream) -> TokenStream {
 
     // Generate the modified struct with #[derive(Services)]
     let modified_struct = quote! {
-        #[derive(overwatch_derive::Services)]
+        #[derive(::overwatch::Services)]
         #visibility struct #struct_name #generics {
             #(#modified_fields),*
         }
