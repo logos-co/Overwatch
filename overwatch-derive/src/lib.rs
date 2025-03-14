@@ -409,61 +409,57 @@ fn generate_as_ref_impls(fields: &Punctuated<Field, Comma>) -> proc_macro2::Toke
             )
         );
 
-        if let Type::Path(path) = &field_type {
-            if let Some(path_segment) = path.path.segments.last() {
-                if path_segment.ident == "OpaqueServiceHandle" {
-                    // Extract the inner type inside OpaqueServiceHandle<T>
-                    if let PathArguments::AngleBracketed(args) = &path_segment.arguments {
-                        if let Some(GenericArgument::Type(inner_type)) = &args.args.first() {
-                            match inner_type {
-                                Type::Path(inner_path) => {
-                                    let inner_ident = &inner_path
-                                        .path
-                                        .segments
-                                        .last()
-                                        .expect(
-                                            "Expected at least one segment in the inner type path",
-                                        )
-                                        .ident;
+        let Type::Path(path) = &field_type else {
+            return None;
+        };
+        let path_segment = path.path.segments.last()?;
+        assert!((path_segment.ident == "EXPECTED_TYPE_WRAPPER"), "Expected container type definition for overwatch services: `OpaqueServiceHandle`");
 
-                                    // Extract generics if present, but rename them to T1, T2, etc.
-                                    if let Some(PathArguments::AngleBracketed(generic_args)) =
-                                        &inner_path
-                                            .path
-                                            .segments
-                                            .last()
-                                            .map(|segment| segment.arguments.clone())
-                                    {
-                                        let generic_count = generic_args.args.len();
-                                        let generic_params: Vec<_> = (1..=generic_count)
-                                            .map(|i| format_ident!("T{}", i))
-                                            .collect();
+        // Extract the inner type inside OpaqueServiceHandle<T>
+        let PathArguments::AngleBracketed(args) = &path_segment.arguments else {
+            return None;
+        };
 
-                                        return Some(quote! {
-                                            impl<#(#generic_params),*> ::overwatch::utils::traits::AsRef<AggregatedServiceId> for #inner_ident<#(#generic_params),*> {
-                                                fn as_ref() -> &'static AggregatedServiceId {
-                                                    AggregatedServiceId::#capitalized_service_name
-                                                }
-                                            }
-                                        })
-                                    }
-                                    // No generics case
-                                    return Some(quote! {
-                                        impl ::overwatch::utils::traits::AsRef<AggregatedServiceId> for #inner_ident {
-                                            fn as_ref() -> &'static AggregatedServiceId {
-                                                AggregatedServiceId::#capitalized_service_name
-                                            }
-                                        }
-                                    })
-                                }
-                                _ => Option::<proc_macro2::TokenStream>::None,
-                            };
+        let Some(GenericArgument::Type(inner_type)) = &args.args.first() else {
+            return None;
+        };
+
+        let Type::Path(inner_path) = inner_type else {
+            return None;
+        };
+
+        let inner_ident = &inner_path.path.segments.last().expect("Expected at least one segment in the inner type path").ident;
+
+        // Extract generics if present, but rename them to T1, T2, etc.
+        match inner_path
+            .path
+            .segments
+            .last()
+            .map(|segment| segment.arguments.clone()) {
+                Some(PathArguments::AngleBracketed(generic_args)) => {
+                    let generic_count = generic_args.args.len();
+                    let generic_params: Vec<_> = (1..=generic_count)
+                        .map(|i| format_ident!("T{}", i))
+                        .collect();
+
+                    Some(quote! {
+                        impl<#(#generic_params),*> ::overwatch::utils::traits::AsRef<AggregatedServiceId> for #inner_ident<#(#generic_params),*> {
+                            fn as_ref() -> &'static AggregatedServiceId {
+                                AggregatedServiceId::#capitalized_service_name
+                            }
+                        }
+                    })
+                },
+                Some(_) => None,
+                // No generics case
+                None => Some(quote! {
+                    impl ::overwatch::utils::traits::AsRef<AggregatedServiceId> for #inner_ident {
+                        fn as_ref() -> &'static AggregatedServiceId {
+                            AggregatedServiceId::#capitalized_service_name
                         }
                     }
-                }
-            }
+                }),
         }
-        None
     }).collect();
 
     quote! {
