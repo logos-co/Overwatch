@@ -415,7 +415,7 @@ fn generate_as_ref_impls(fields: &Punctuated<Field, Comma>) -> proc_macro2::Toke
             return None;
         };
         let path_segment = path.path.segments.last()?;
-        assert!((path_segment.ident == "EXPECTED_TYPE_WRAPPER"), "Expected container type definition for overwatch services: `OpaqueServiceHandle`");
+        assert!((path_segment.ident == "OpaqueServiceHandle"), "Expected container type definition for overwatch services: `OpaqueServiceHandle`");
 
         // Extract the inner type inside OpaqueServiceHandle<T>
         let PathArguments::AngleBracketed(args) = &path_segment.arguments else {
@@ -452,9 +452,8 @@ fn generate_as_ref_impls(fields: &Punctuated<Field, Comma>) -> proc_macro2::Toke
                         }
                     })
                 },
-                Some(_) => None,
                 // No generics case
-                None => Some(quote! {
+                _ => Some(quote! {
                     impl ::overwatch::utils::traits::AsRef<AggregatedServiceId> for #inner_ident {
                         fn as_ref() -> &'static AggregatedServiceId {
                             AggregatedServiceId::#capitalized_service_name
