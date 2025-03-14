@@ -18,7 +18,7 @@ use tokio::time::sleep;
 use tokio_stream::StreamExt;
 
 pub struct CancellableService {
-    service_state: OpaqueServiceStateHandle<Self>,
+    service_state: OpaqueServiceStateHandle<Self, AggregatedServiceId>,
 }
 
 impl ServiceData for CancellableService {
@@ -30,9 +30,9 @@ impl ServiceData for CancellableService {
 }
 
 #[async_trait::async_trait]
-impl ServiceCore for CancellableService {
+impl ServiceCore<AggregatedServiceId> for CancellableService {
     fn init(
-        service_state: OpaqueServiceStateHandle<Self>,
+        service_state: OpaqueServiceStateHandle<Self, AggregatedServiceId>,
         _initial_state: Self::State,
     ) -> Result<Self, DynError> {
         Ok(Self { service_state })
@@ -69,7 +69,7 @@ impl ServiceCore for CancellableService {
 
 #[derive(Services)]
 struct CancelableServices {
-    cancelable: OpaqueServiceHandle<CancellableService>,
+    cancelable: OpaqueServiceHandle<CancellableService, AggregatedServiceId>,
 }
 
 #[test]

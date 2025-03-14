@@ -76,12 +76,15 @@ pub struct OutboundRelay<Message> {
 }
 
 #[derive(Debug)]
-pub struct Relay<Service> {
-    overwatch_handle: OverwatchHandle,
+pub struct Relay<Service, AggregatedServiceId> {
+    overwatch_handle: OverwatchHandle<AggregatedServiceId>,
     _bound: PhantomBound<Service>,
 }
 
-impl<Service> Clone for Relay<Service> {
+impl<Service, AggregatedServiceId> Clone for Relay<Service, AggregatedServiceId>
+where
+    AggregatedServiceId: Clone,
+{
     fn clone(&self) -> Self {
         Self {
             overwatch_handle: self.overwatch_handle.clone(),
@@ -172,13 +175,14 @@ where
     }
 }
 
-impl<Service> Relay<Service>
+impl<Service, AggregatedServiceId> Relay<Service, AggregatedServiceId>
 where
     Service: ServiceData,
     Service::Message: 'static,
+    AggregatedServiceId: Clone,
 {
     #[must_use]
-    pub const fn new(overwatch_handle: OverwatchHandle) -> Self {
+    pub const fn new(overwatch_handle: OverwatchHandle<AggregatedServiceId>) -> Self {
         Self {
             overwatch_handle,
             _bound: PhantomBound {

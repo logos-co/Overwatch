@@ -12,8 +12,8 @@ mod states;
 
 #[derive(Services)]
 struct PingPong {
-    ping: OpaqueServiceHandle<PingService>,
-    pong: OpaqueServiceHandle<PongService>,
+    ping: OpaqueServiceHandle<PingService, AggregatedServiceId>,
+    pong: OpaqueServiceHandle<PongService, AggregatedServiceId>,
 }
 
 const PING_STATE_SAVE_PATH: &str = const_format::formatcp!(

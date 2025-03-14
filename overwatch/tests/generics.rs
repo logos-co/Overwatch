@@ -15,7 +15,7 @@ use overwatch_derive::Services;
 use tokio::time::sleep;
 
 pub struct GenericService {
-    state: ServiceStateHandle<GenericServiceMessage, (), NoState<()>>,
+    state: ServiceStateHandle<GenericServiceMessage, (), NoState<()>, AggregatedServiceId>,
 }
 
 #[derive(Clone, Debug)]
@@ -30,9 +30,9 @@ impl ServiceData for GenericService {
 }
 
 #[async_trait]
-impl ServiceCore for GenericService {
+impl ServiceCore<AggregatedServiceId> for GenericService {
     fn init(
-        state: ServiceStateHandle<Self::Message, Self::Settings, Self::State>,
+        state: ServiceStateHandle<Self::Message, Self::Settings, Self::State, AggregatedServiceId>,
         _initial_state: Self::State,
     ) -> Result<Self, overwatch::DynError> {
         Ok(Self { state })
@@ -87,7 +87,7 @@ impl ServiceCore for GenericService {
 
 #[derive(Services)]
 struct TestApp {
-    generic_service: OpaqueServiceHandle<GenericService>,
+    generic_service: OpaqueServiceHandle<GenericService, AggregatedServiceId>,
 }
 
 #[test]

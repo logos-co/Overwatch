@@ -17,7 +17,7 @@ use tokio::{
 };
 
 pub struct UpdateStateService {
-    state: OpaqueServiceStateHandle<Self>,
+    state: OpaqueServiceStateHandle<Self, AggregatedServiceId>,
 }
 
 #[derive(Clone, Debug)]
@@ -89,9 +89,9 @@ impl ServiceData for UpdateStateService {
 }
 
 #[async_trait]
-impl ServiceCore for UpdateStateService {
+impl ServiceCore<AggregatedServiceId> for UpdateStateService {
     fn init(
-        state: OpaqueServiceStateHandle<Self>,
+        state: OpaqueServiceStateHandle<Self, AggregatedServiceId>,
         _initial_state: Self::State,
     ) -> Result<Self, overwatch::DynError> {
         Ok(Self { state })
@@ -99,7 +99,7 @@ impl ServiceCore for UpdateStateService {
 
     async fn run(mut self) -> Result<(), overwatch::DynError> {
         let Self {
-            state: OpaqueServiceStateHandle::<Self> { state_updater, .. },
+            state: OpaqueServiceStateHandle::<Self, AggregatedServiceId> { state_updater, .. },
         } = self;
         for value in 0..10 {
             state_updater.update(CounterState { value });
@@ -111,7 +111,7 @@ impl ServiceCore for UpdateStateService {
 
 #[derive(Services)]
 struct TestApp {
-    update_state_service: OpaqueServiceHandle<UpdateStateService>,
+    update_state_service: OpaqueServiceHandle<UpdateStateService, AggregatedServiceId>,
 }
 
 #[test]

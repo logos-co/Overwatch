@@ -186,7 +186,7 @@ fn generate_new_impl(fields: &Punctuated<Field, Comma>) -> proc_macro2::TokenStr
         quote! {
             #field_identifier: {
                 let manager =
-                    ::overwatch::OpaqueServiceHandle::<#service_type>::new::<<#service_type as ::overwatch::services::ServiceData>::StateOperator>(
+                    ::overwatch::OpaqueServiceHandle::<#service_type, Self::AggregatedServiceId>::new::<<#service_type as ::overwatch::services::ServiceData>::StateOperator>(
                         #settings_field_identifier, overwatch_handle.clone(), <#service_type as ::overwatch::services::ServiceData>::SERVICE_RELAY_BUFFER_SIZE
                 )?;
                 manager
@@ -195,7 +195,7 @@ fn generate_new_impl(fields: &Punctuated<Field, Comma>) -> proc_macro2::TokenStr
     });
 
     quote! {
-        fn new(settings: Self::Settings, overwatch_handle: ::overwatch::overwatch::handle::OverwatchHandle) -> ::std::result::Result<Self, ::overwatch::DynError> {
+        fn new(settings: Self::Settings, overwatch_handle: ::overwatch::overwatch::handle::OverwatchHandle<Self::AggregatedServiceId>) -> ::std::result::Result<Self, ::overwatch::DynError> {
             let Self::Settings {
                 #( #fields_settings ),*
             } = settings;
@@ -447,7 +447,7 @@ fn generate_as_ref_impls(fields: &Punctuated<Field, Comma>) -> proc_macro2::Toke
                     Some(quote! {
                         impl<#(#generic_params),*> ::overwatch::utils::traits::AsRef<AggregatedServiceId> for #inner_ident<#(#generic_params),*> {
                             fn as_ref() -> &'static AggregatedServiceId {
-                                AggregatedServiceId::#capitalized_service_name
+                                &AggregatedServiceId::#capitalized_service_name
                             }
                         }
                     })
@@ -456,7 +456,7 @@ fn generate_as_ref_impls(fields: &Punctuated<Field, Comma>) -> proc_macro2::Toke
                 _ => Some(quote! {
                     impl ::overwatch::utils::traits::AsRef<AggregatedServiceId> for #inner_ident {
                         fn as_ref() -> &'static AggregatedServiceId {
-                            AggregatedServiceId::#capitalized_service_name
+                            &AggregatedServiceId::#capitalized_service_name
                         }
                     }
                 }),

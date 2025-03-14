@@ -1,4 +1,4 @@
-use std::fmt::Debug;
+use std::{fmt::Debug, marker::PhantomData};
 
 use tokio::{runtime::Handle, sync::mpsc::Sender};
 #[cfg(feature = "instrumentation")]
@@ -16,6 +16,7 @@ use crate::{
         Services,
     },
     services::{status::StatusWatcher, ServiceData},
+    utils::traits::AsRef,
 };
 
 /// Handler object over the main [`crate::overwatch::Overwatch`] runner.
@@ -23,25 +24,30 @@ use crate::{
 /// It handles communications to the main
 /// [`OverwatchRunner`](crate::overwatch::OverwatchRunner).
 #[derive(Clone, Debug)]
-pub struct OverwatchHandle {
+pub struct OverwatchHandle<AggregatedServiceId> {
     runtime_handle: Handle,
     sender: Sender<OverwatchCommand>,
+    _phantom: PhantomData<AggregatedServiceId>,
 }
 
-impl OverwatchHandle {
+impl<AggregatedServiceId> OverwatchHandle<AggregatedServiceId>
+where
+    AggregatedServiceId: Clone,
+{
     #[must_use]
     pub const fn new(runtime_handle: Handle, sender: Sender<OverwatchCommand>) -> Self {
         Self {
             runtime_handle,
             sender,
+            _phantom: PhantomData,
         }
     }
 
     #[must_use]
     /// Request a relay
-    pub fn relay<Service>(&self) -> Relay<Service>
+    pub fn relay<Service>(&self) -> Relay<Service, AggregatedServiceId>
     where
-        Service: ServiceData,
+        Service: ServiceData + AsRef<AggregatedServiceId>,
         Service::Message: 'static,
     {
         Relay::new(self.clone())
