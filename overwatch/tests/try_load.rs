@@ -12,7 +12,6 @@ use overwatch::{
     },
     DynError, OpaqueServiceHandle, OpaqueServiceStateHandle,
 };
-
 use tokio::sync::{broadcast, broadcast::error::SendError};
 
 #[derive(Clone)]

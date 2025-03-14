@@ -12,7 +12,6 @@ use overwatch::{
     DynError, OpaqueServiceHandle, OpaqueServiceStateHandle,
 };
 
-
 pub struct AwaitService1 {
     service_state: OpaqueServiceStateHandle<Self, AggregatedServiceId>,
 }

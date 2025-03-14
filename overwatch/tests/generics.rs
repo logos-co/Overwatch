@@ -12,7 +12,6 @@ use overwatch::{
     },
     OpaqueServiceHandle,
 };
-
 use tokio::time::sleep;
 
 pub struct GenericService {

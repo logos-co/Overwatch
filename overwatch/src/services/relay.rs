@@ -177,9 +177,9 @@ where
 
 impl<Service, AggregatedServiceId> Relay<Service, AggregatedServiceId>
 where
-    Service: ServiceData,
+    Service: ServiceData + Sync,
     Service::Message: 'static,
-    AggregatedServiceId: Clone,
+    AggregatedServiceId: Clone + Send + Sync,
 {
     #[must_use]
     pub const fn new(overwatch_handle: OverwatchHandle<AggregatedServiceId>) -> Self {

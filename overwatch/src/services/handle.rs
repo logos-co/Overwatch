@@ -61,7 +61,7 @@ impl<Message, Settings, State, AggregateServiceId>
 where
     Settings: Clone,
     State: ServiceState<Settings = Settings> + Clone,
-    AggregateServiceId: Clone,
+    AggregateServiceId: Clone + Send + Sync,
 {
     /// Crate a new service handle.
     ///
@@ -168,7 +168,7 @@ impl<Message, Settings, State, StateOp, AggregateServiceId>
 where
     State: Clone + Send + Sync + 'static,
     StateOp: StateOperator<StateInput = State> + Send + 'static,
-    AggregateServiceId: Clone,
+    AggregateServiceId: Clone + Send + Sync,
 {
     /// Spawn the service main loop and handle its lifecycle.
     ///

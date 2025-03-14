@@ -161,7 +161,7 @@ pub const OVERWATCH_THREAD_NAME: &str = "Overwatch";
 impl<ServicesImpl> OverwatchRunner<ServicesImpl>
 where
     ServicesImpl: Services + Send + 'static,
-    ServicesImpl::AggregatedServiceId: Clone + Send,
+    ServicesImpl::AggregatedServiceId: Clone + Send + Sync,
 {
     /// Start the Overwatch runner process.
     ///

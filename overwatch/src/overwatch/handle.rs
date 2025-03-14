@@ -32,7 +32,7 @@ pub struct OverwatchHandle<AggregatedServiceId> {
 
 impl<AggregatedServiceId> OverwatchHandle<AggregatedServiceId>
 where
-    AggregatedServiceId: Clone,
+    AggregatedServiceId: Clone + Send + Sync,
 {
     #[must_use]
     pub const fn new(runtime_handle: Handle, sender: Sender<OverwatchCommand>) -> Self {
@@ -47,7 +47,7 @@ where
     /// Request a relay
     pub fn relay<Service>(&self) -> Relay<Service, AggregatedServiceId>
     where
-        Service: ServiceData + AsRef<AggregatedServiceId>,
+        Service: ServiceData + AsRef<AggregatedServiceId> + Sync,
         Service::Message: 'static,
     {
         Relay::new(self.clone())
