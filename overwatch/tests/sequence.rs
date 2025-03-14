@@ -1,6 +1,7 @@
 use std::time::Duration;
 
 use overwatch::{
+    derive_services,
     overwatch::OverwatchRunner,
     services::{
         relay::NoMessage,
@@ -8,20 +9,19 @@ use overwatch::{
         status::{ServiceStatus, StatusWatcher},
         ServiceCore, ServiceData, ServiceId,
     },
-    DynError, OpaqueServiceHandle, OpaqueServiceStateHandle,
+    DynError, OpaqueServiceStateHandle,
 };
-use overwatch_derive::Services;
 
 pub struct AwaitService1 {
-    service_state: OpaqueServiceStateHandle<Self>,
+    service_state: OpaqueServiceStateHandle<Self, AggregatedServiceId>,
 }
 
 pub struct AwaitService2 {
-    service_state: OpaqueServiceStateHandle<Self>,
+    service_state: OpaqueServiceStateHandle<Self, AggregatedServiceId>,
 }
 
 pub struct AwaitService3 {
-    service_state: OpaqueServiceStateHandle<Self>,
+    service_state: OpaqueServiceStateHandle<Self, AggregatedServiceId>,
 }
 
 impl ServiceData for AwaitService1 {
@@ -49,9 +49,9 @@ impl ServiceData for AwaitService3 {
 }
 
 #[async_trait::async_trait]
-impl ServiceCore for AwaitService1 {
+impl ServiceCore<AggregatedServiceId> for AwaitService1 {
     fn init(
-        service_state: OpaqueServiceStateHandle<Self>,
+        service_state: OpaqueServiceStateHandle<Self, AggregatedServiceId>,
         _initial_state: Self::State,
     ) -> Result<Self, DynError> {
         Ok(Self { service_state })
@@ -73,9 +73,9 @@ impl ServiceCore for AwaitService1 {
 }
 
 #[async_trait::async_trait]
-impl ServiceCore for AwaitService2 {
+impl ServiceCore<AggregatedServiceId> for AwaitService2 {
     fn init(
-        service_state: OpaqueServiceStateHandle<Self>,
+        service_state: OpaqueServiceStateHandle<Self, AggregatedServiceId>,
         _initial_state: Self::State,
     ) -> Result<Self, DynError> {
         Ok(Self { service_state })
@@ -113,9 +113,9 @@ impl ServiceCore for AwaitService2 {
 }
 
 #[async_trait::async_trait]
-impl ServiceCore for AwaitService3 {
+impl ServiceCore<AggregatedServiceId> for AwaitService3 {
     fn init(
-        service_state: OpaqueServiceStateHandle<Self>,
+        service_state: OpaqueServiceStateHandle<Self, AggregatedServiceId>,
         _initial_state: Self::State,
     ) -> Result<Self, DynError> {
         Ok(Self { service_state })
@@ -152,11 +152,11 @@ impl ServiceCore for AwaitService3 {
     }
 }
 
-#[derive(Services)]
+#[derive_services]
 struct SequenceServices {
-    c: OpaqueServiceHandle<AwaitService3>,
-    b: OpaqueServiceHandle<AwaitService2>,
-    a: OpaqueServiceHandle<AwaitService1>,
+    c: AwaitService3,
+    b: AwaitService2,
+    a: AwaitService1,
 }
 
 #[test]

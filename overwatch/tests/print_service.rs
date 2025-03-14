@@ -3,19 +3,19 @@ use std::time::Duration;
 use async_trait::async_trait;
 use futures::future::select;
 use overwatch::{
+    derive_services,
     overwatch::OverwatchRunner,
     services::{
         relay::RelayMessage,
         state::{NoOperator, NoState},
         ServiceCore, ServiceData, ServiceId,
     },
-    OpaqueServiceHandle, OpaqueServiceStateHandle,
+    OpaqueServiceStateHandle,
 };
-use overwatch_derive::Services;
 use tokio::time::sleep;
 
 pub struct PrintService {
-    state: OpaqueServiceStateHandle<Self>,
+    state: OpaqueServiceStateHandle<Self, AggregatedServiceId>,
 }
 
 #[derive(Clone, Debug)]
@@ -32,9 +32,9 @@ impl ServiceData for PrintService {
 }
 
 #[async_trait]
-impl ServiceCore for PrintService {
+impl ServiceCore<AggregatedServiceId> for PrintService {
     fn init(
-        state: OpaqueServiceStateHandle<Self>,
+        state: OpaqueServiceStateHandle<Self, AggregatedServiceId>,
         _initial_state: Self::State,
     ) -> Result<Self, overwatch::DynError> {
         Ok(Self { state })
@@ -45,7 +45,7 @@ impl ServiceCore for PrintService {
 
         let Self {
             state:
-                OpaqueServiceStateHandle::<Self> {
+                OpaqueServiceStateHandle::<Self, AggregatedServiceId> {
                     mut inbound_relay, ..
                 },
         } = self;
@@ -87,9 +87,9 @@ impl ServiceCore for PrintService {
     }
 }
 
-#[derive(Services)]
+#[derive_services]
 struct TestApp {
-    print_service: OpaqueServiceHandle<PrintService>,
+    print_service: PrintService,
 }
 
 #[test]
