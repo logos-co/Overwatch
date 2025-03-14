@@ -160,7 +160,7 @@ fn generate_services_settings(
     let services_settings_identifier = service_settings_identifier_from(services_identifier);
     let where_clause = &generics.where_clause;
     quote! {
-        #[derive(Clone, Debug)]
+        #[derive(::core::clone::Clone, ::core::fmt::Debug)]
         pub struct #services_settings_identifier #generics #where_clause {
             #( #services_settings ),*
         }
@@ -261,7 +261,7 @@ fn generate_new_impl(fields: &Punctuated<Field, Comma>) -> proc_macro2::TokenStr
     });
 
     quote! {
-        fn new(settings: Self::Settings, overwatch_handle: ::overwatch::overwatch::handle::OverwatchHandle<Self::AggregatedServiceId>) -> Result<Self, ::overwatch::DynError> {
+        fn new(settings: Self::Settings, overwatch_handle: ::overwatch::overwatch::handle::OverwatchHandle<Self::AggregatedServiceId>) -> ::core::result::Result<Self, ::overwatch::DynError> {
             let Self::Settings {
                 #( #fields_settings ),*
             } = settings;
@@ -270,7 +270,7 @@ fn generate_new_impl(fields: &Punctuated<Field, Comma>) -> proc_macro2::TokenStr
                 #( #managers ),*
             };
 
-            Result::Ok(app)
+            ::core::result::Result::Ok(app)
         }
     }
 }
@@ -287,8 +287,8 @@ fn generate_start_all_impl(fields: &Punctuated<Field, Comma>) -> proc_macro2::To
     let instrumentation = get_default_instrumentation();
     quote! {
         #instrumentation
-        fn start_all(&mut self) -> Result<::overwatch::overwatch::ServicesLifeCycleHandle, ::overwatch::overwatch::Error> {
-            Result::Ok([#( #call_start ),*].try_into()?)
+        fn start_all(&mut self) -> ::core::result::Result<::overwatch::overwatch::ServicesLifeCycleHandle, ::overwatch::overwatch::Error> {
+            ::core::result::Result::Ok([#( #call_start ),*].try_into()?)
         }
     }
 }
@@ -300,7 +300,7 @@ fn generate_start_impl(fields: &Punctuated<Field, Comma>) -> proc_macro2::TokenS
         quote! {
             <#type_id as ::overwatch::services::ServiceData>::SERVICE_ID => {
                 self.#field_identifier.service_runner::<<#type_id as ::overwatch::services::ServiceData>::StateOperator>().run::<#type_id>()?;
-                Result::Ok(())
+                ::core::result::Result::Ok(())
             }
         }
     });
@@ -308,10 +308,10 @@ fn generate_start_impl(fields: &Punctuated<Field, Comma>) -> proc_macro2::TokenS
     let instrumentation = get_default_instrumentation();
     quote! {
         #instrumentation
-        fn start(&mut self, service_id: ::overwatch::services::ServiceId) -> Result<(), ::overwatch::overwatch::Error> {
+        fn start(&mut self, service_id: ::overwatch::services::ServiceId) -> ::core::result::Result<(), ::overwatch::overwatch::Error> {
             match service_id {
                 #( #cases ),*
-                service_id => Result::Err(::overwatch::overwatch::Error::Unavailable { service_id })
+                service_id => ::core::result::Result::Err(::overwatch::overwatch::Error::Unavailable { service_id })
             }
         }
     }
@@ -330,10 +330,10 @@ fn generate_stop_impl(fields: &Punctuated<Field, Comma>) -> proc_macro2::TokenSt
     let instrumentation = get_default_instrumentation();
     quote! {
         #instrumentation
-        fn stop(&mut self, service_id: ::overwatch::services::ServiceId) -> Result<(), ::overwatch::overwatch::Error> {
+        fn stop(&mut self, service_id: ::overwatch::services::ServiceId) -> ::core::result::Result<(), ::overwatch::overwatch::Error> {
             match service_id {
                 #( #cases ),*
-                service_id => Result::Err(::overwatch::overwatch::Error::Unavailable { service_id })
+                service_id => ::core::result::Result::Err(::overwatch::overwatch::Error::Unavailable { service_id })
             }
         }
     }
@@ -345,7 +345,7 @@ fn generate_request_relay_impl(fields: &Punctuated<Field, Comma>) -> proc_macro2
         let type_id = utils::extract_type_from(&field.ty);
         quote! {
             <#type_id as ::overwatch::services::ServiceData>::SERVICE_ID => {
-                Result::Ok(::std::boxed::Box::new(
+                ::core::result::Result::Ok(::std::boxed::Box::new(
                     self.#field_identifier
                         .relay_with()
                         .ok_or(::overwatch::services::relay::RelayError::AlreadyConnected)?
@@ -360,7 +360,7 @@ fn generate_request_relay_impl(fields: &Punctuated<Field, Comma>) -> proc_macro2
         fn request_relay(&mut self, service_id: ::overwatch::services::ServiceId) -> ::overwatch::services::relay::RelayResult {
             match service_id {
                 #( #cases )*
-                service_id => Result::Err(::overwatch::services::relay::RelayError::Unavailable { service_id })
+                service_id => ::core::result::Result::Err(::overwatch::services::relay::RelayError::Unavailable { service_id })
             }
         }
     }
@@ -374,7 +374,7 @@ fn generate_request_status_watcher_impl(
         let type_id = utils::extract_type_from(&field.ty);
         quote! {
             <#type_id as ::overwatch::services::ServiceData>::SERVICE_ID => {
-                    Result::Ok(self.#field_identifier.status_watcher())
+                ::core::result::Result::Ok(self.#field_identifier.status_watcher())
             }
         }
     });
@@ -385,7 +385,7 @@ fn generate_request_status_watcher_impl(
             {
                 match service_id {
                     #( #cases )*
-                    service_id => Result::Err(::overwatch::services::status::ServiceStatusError::Unavailable { service_id })
+                    service_id => ::core::result::Result::Err(::overwatch::services::status::ServiceStatusError::Unavailable { service_id })
                 }
             }
         }
@@ -412,14 +412,14 @@ fn generate_update_settings_impl(fields: &Punctuated<Field, Comma>) -> proc_macr
     let instrumentation = get_default_instrumentation_without_settings();
     quote! {
         #instrumentation
-        fn update_settings(&mut self, settings: Self::Settings) -> Result<(), ::overwatch::overwatch::Error> {
+        fn update_settings(&mut self, settings: Self::Settings) -> ::core::result::Result<(), ::overwatch::overwatch::Error> {
             let Self::Settings {
                 #( #fields_settings ),*
             } = settings;
 
             #( #update_settings_call )*
 
-            Result::Ok(())
+            ::core::result::Result::Ok(())
         }
     }
 }
@@ -452,7 +452,7 @@ fn generate_aggregate_service_id(fields: &Punctuated<Field, Comma>) -> proc_macr
     });
     let aggregated_service_id_type_name = get_aggregated_service_id_type_name();
     let expanded = quote! {
-        #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+        #[derive(::core::fmt::Debug, ::core::clone::Clone, ::core::marker::Copy, ::core::cmp::PartialEq, ::core::cmp::Eq, ::core::hash::Hash)]
         pub enum #aggregated_service_id_type_name {
             #(#enum_variants),*
         }
