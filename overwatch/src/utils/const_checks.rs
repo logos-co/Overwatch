@@ -1,4 +1,3 @@
-// internal
 use crate::services::ServiceId;
 
 #[must_use]

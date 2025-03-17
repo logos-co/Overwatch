@@ -1,6 +1,5 @@
 use std::{thread, time::Duration};
 
-// Crates
 use async_trait::async_trait;
 use overwatch::{
     overwatch::OverwatchRunner,

@@ -8,20 +8,19 @@ use tokio::{
 use tracing::instrument;
 use tracing::{error, info};
 
-// internal
-use crate::{
-    overwatch::commands::RelayCommand,
-    services::relay::{OutboundRelay, RelayError},
-};
 use crate::{
     overwatch::{
         commands::{
-            OverwatchCommand, OverwatchLifeCycleCommand, ReplyChannel, SettingsCommand,
-            StatusCommand,
+            OverwatchCommand, OverwatchLifeCycleCommand, RelayCommand, ReplyChannel,
+            SettingsCommand, StatusCommand,
         },
         Services,
     },
-    services::{status::StatusWatcher, ServiceData},
+    services::{
+        relay::{OutboundRelay, RelayError},
+        status::StatusWatcher,
+        ServiceData,
+    },
 };
 
 /// Handler object over the main [`crate::overwatch::Overwatch`] runner.
