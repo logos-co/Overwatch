@@ -9,7 +9,10 @@ use tracing::instrument;
 use tracing::{error, info};
 
 // internal
-use crate::services::relay::Relay;
+use crate::{
+    overwatch::commands::RelayCommand,
+    services::relay::{OutboundRelay, RelayError},
+};
 use crate::{
     overwatch::{
         commands::{
@@ -40,15 +43,33 @@ impl OverwatchHandle {
         }
     }
 
-    // TODO: Update this
-    #[must_use]
-    /// Request a relay
-    pub fn relay<Service>(&self) -> Relay<Service>
+    /// Request a relay with a service
+    pub async fn relay<Service>(&self) -> Result<OutboundRelay<Service::Message>, RelayError>
     where
         Service: ServiceData,
         Service::Message: 'static,
     {
-        Relay::new(self.clone())
+        info!("Requesting relay with {}", Service::SERVICE_ID);
+        let (sender, receiver) = tokio::sync::oneshot::channel();
+        let Ok(()) = self
+            .send(OverwatchCommand::Relay(RelayCommand {
+                service_id: Service::SERVICE_ID,
+                reply_channel: ReplyChannel::from(sender),
+            }))
+            .await
+        else {
+            unreachable!("Service relay should always be available");
+        };
+        let message = receiver
+            .await
+            .map_err(|e| RelayError::Receiver(Box::new(e)))??;
+        message
+            .downcast::<OutboundRelay<Service::Message>>()
+            .map(|r| *r)
+            .map_err(|m| RelayError::InvalidMessage {
+                type_id: format!("{:?}", (*m).type_id()),
+                service_id: Service::SERVICE_ID,
+            })
     }
 
     /// Request a [`StatusWatcher`] for a service

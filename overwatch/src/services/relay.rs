@@ -8,22 +8,11 @@ use std::{
 
 use futures::{Sink, Stream};
 use thiserror::Error;
-use tokio::sync::{
-    mpsc::{channel, Receiver, Sender},
-    oneshot,
-};
+use tokio::sync::mpsc::{channel, Receiver, Sender};
 use tokio_util::sync::PollSender;
 use tracing::error;
-#[cfg(feature = "instrumentation")]
-use tracing::instrument;
 
-use crate::{
-    overwatch::{
-        commands::{OverwatchCommand, RelayCommand, ReplyChannel},
-        handle::OverwatchHandle,
-    },
-    services::{ServiceData, ServiceId},
-};
+use crate::{overwatch::handle::OverwatchHandle, services::ServiceId};
 
 #[derive(Error, Debug)]
 pub enum RelayError {
@@ -52,15 +41,8 @@ pub type AnyMessage = Box<dyn Any + Send + 'static>;
 #[derive(Debug, Clone)]
 pub struct NoMessage;
 
-impl RelayMessage for NoMessage {}
-
 /// Result type when creating a relay connection.
 pub type RelayResult = Result<AnyMessage, RelayError>;
-
-/// Marker type for relay messages.
-///
-/// Note that it is bound to 'static.
-pub trait RelayMessage: 'static {}
 
 /// Channel receiver of a relay connection.
 #[derive(Debug)]
@@ -75,7 +57,6 @@ pub struct OutboundRelay<Message> {
     _stats: (), // placeholder
 }
 
-#[derive(Debug)]
 pub struct Relay<Service> {
     overwatch_handle: OverwatchHandle,
     _bound: PhantomBound<Service>,
@@ -169,61 +150,6 @@ where
 {
     pub fn into_sink(self) -> impl Sink<Message> {
         PollSender::new(self.sender)
-    }
-}
-
-impl<Service> Relay<Service>
-where
-    Service: ServiceData,
-    Service::Message: 'static,
-{
-    #[must_use]
-    pub const fn new(overwatch_handle: OverwatchHandle) -> Self {
-        Self {
-            overwatch_handle,
-            _bound: PhantomBound {
-                _inner: PhantomData,
-            },
-        }
-    }
-
-    #[cfg_attr(feature = "instrumentation", instrument(skip(self), err(Debug)))]
-    /// Consumes the relay to generate a channel with the requested service.
-    ///
-    /// # Errors
-    ///
-    /// If the service responds with an unexpected message.
-    pub async fn connect(self) -> Result<OutboundRelay<Service::Message>, RelayError> {
-        let (reply, receiver) = oneshot::channel();
-        self.request_relay(reply).await;
-        self.handle_relay_response(receiver).await
-    }
-
-    async fn request_relay(&self, reply: oneshot::Sender<RelayResult>) {
-        let relay_command = OverwatchCommand::Relay(RelayCommand {
-            service_id: Service::SERVICE_ID,
-            reply_channel: ReplyChannel(reply),
-        });
-        self.overwatch_handle.send(relay_command).await;
-    }
-
-    #[cfg_attr(feature = "instrumentation", instrument(skip_all, err(Debug)))]
-    async fn handle_relay_response(
-        &self,
-        receiver: oneshot::Receiver<RelayResult>,
-    ) -> Result<OutboundRelay<Service::Message>, RelayError> {
-        let response = receiver.await;
-        match response {
-            Ok(Ok(message)) => match message.downcast::<OutboundRelay<Service::Message>>() {
-                Ok(channel) => Ok(*channel),
-                Err(m) => Err(RelayError::InvalidMessage {
-                    type_id: format!("{:?}", (*m).type_id()),
-                    service_id: Service::SERVICE_ID,
-                }),
-            },
-            Ok(Err(e)) => Err(e),
-            Err(e) => Err(RelayError::Receiver(Box::new(e))),
-        }
     }
 }
 
