@@ -24,8 +24,7 @@ use crate::{
         handle::OverwatchHandle,
     },
     services::{
-        life_cycle::LifecycleMessage, relay::RelayResult, status::ServiceStatusResult,
-        ServiceError, ServiceId,
+        life_cycle::LifecycleMessage, relay::RelayResult, status::ServiceStatusResult, ServiceId,
     },
     utils::runtime::default_multithread_runtime,
 };
@@ -33,9 +32,6 @@ use crate::{
 /// Overwatch base error type.
 #[derive(Error, Debug)]
 pub enum Error {
-    #[error(transparent)]
-    Relay(#[from] ServiceError),
-
     #[error("Service {service_id} is unavailable")]
     Unavailable { service_id: ServiceId },
 
@@ -97,7 +93,7 @@ pub trait Services: Sized {
 
     // TODO: this probably will be removed once the services lifecycle is
     // implemented
-    /// Start all services attaches to the trait implementer.
+    /// Start all services attached to the trait implementer.
     ///
     /// # Errors
     ///

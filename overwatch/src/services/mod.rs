@@ -5,15 +5,9 @@ pub mod settings;
 pub mod state;
 pub mod status;
 
-use std::fmt::Debug;
-
 use async_trait::async_trait;
 use handle::ServiceStateHandle;
 use state::ServiceState;
-use thiserror::Error;
-use tokio::runtime;
-
-use crate::services::relay::RelayError;
 
 // TODO: Make this type unique for each service?
 /// Services identification type.
@@ -51,31 +45,4 @@ pub trait ServiceCore: Sized + ServiceData {
 
     /// Main loop
     async fn run(mut self) -> Result<(), super::DynError>;
-}
-
-#[derive(Error, Debug)]
-pub enum ServiceError {
-    #[error(transparent)]
-    RelayError(#[from] RelayError),
-}
-
-pub enum ServiceRuntime {
-    FromParent(runtime::Handle),
-    Custom(runtime::Runtime),
-}
-
-impl ServiceRuntime {
-    pub fn handle(&self) -> runtime::Handle {
-        match self {
-            Self::FromParent(handle) => handle.clone(),
-            Self::Custom(runtime) => runtime.handle().clone(),
-        }
-    }
-
-    pub fn runtime(self) -> Option<runtime::Runtime> {
-        match self {
-            Self::Custom(runtime) => Some(runtime),
-            Self::FromParent(_) => None,
-        }
-    }
 }

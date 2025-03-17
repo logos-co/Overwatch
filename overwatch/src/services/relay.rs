@@ -22,8 +22,6 @@ pub enum RelayError {
     Send,
     #[error("relay is already connected")]
     AlreadyConnected,
-    #[error("service relay is disconnected")]
-    Disconnected,
     #[error("service {service_id} is not available")]
     Unavailable { service_id: ServiceId },
     #[error("invalid message with type id [{type_id}] for service {service_id}")]
@@ -59,28 +57,17 @@ pub struct OutboundRelay<Message> {
 
 pub struct Relay<Service> {
     overwatch_handle: OverwatchHandle,
-    _bound: PhantomBound<Service>,
+    _bound: PhantomData<Service>,
 }
 
 impl<Service> Clone for Relay<Service> {
     fn clone(&self) -> Self {
         Self {
             overwatch_handle: self.overwatch_handle.clone(),
-            _bound: PhantomBound {
-                _inner: PhantomData,
-            },
+            _bound: PhantomData,
         }
     }
 }
-
-// Like PhantomData<T> but without ownership of T
-#[derive(Debug)]
-struct PhantomBound<T> {
-    _inner: PhantomData<*const T>,
-}
-
-unsafe impl<T> Send for PhantomBound<T> {}
-unsafe impl<T> Sync for PhantomBound<T> {}
 
 impl<Message> Clone for OutboundRelay<Message> {
     fn clone(&self) -> Self {

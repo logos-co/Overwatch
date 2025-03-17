@@ -87,8 +87,8 @@ impl ServicesLifeCycleHandle {
     }
 
     /// Get all [`ServiceId`]s registered in this handle
-    pub fn services_ids(&self) -> impl Iterator<Item = ServiceId> + '_ {
-        self.handlers.keys().copied()
+    pub fn services_ids(&self) -> impl Iterator<Item = &ServiceId> {
+        self.handlers.keys()
     }
 }
 
