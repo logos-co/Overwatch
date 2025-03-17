@@ -142,8 +142,6 @@ pub trait Services: Sized {
 /// That is, it's responsible for [`Overwatch`]'s application lifecycle.
 pub struct OverwatchRunner<Services> {
     services: Services,
-    #[expect(unused)]
-    handle: OverwatchHandle,
     finish_signal_sender: oneshot::Sender<()>,
     commands_receiver: Receiver<OverwatchCommand>,
 }
@@ -179,7 +177,6 @@ where
         let services = ServicesImpl::new(settings, handle.clone())?;
         let runner = Self {
             services,
-            handle: handle.clone(),
             finish_signal_sender,
             commands_receiver,
         };
