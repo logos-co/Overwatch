@@ -1,7 +1,6 @@
 use std::{
     any::Any,
     fmt::Debug,
-    marker::PhantomData,
     pin::Pin,
     task::{Context, Poll},
 };
@@ -12,7 +11,7 @@ use tokio::sync::mpsc::{channel, Receiver, Sender};
 use tokio_util::sync::PollSender;
 use tracing::error;
 
-use crate::{overwatch::handle::OverwatchHandle, services::ServiceId};
+use crate::services::ServiceId;
 
 #[derive(Error, Debug)]
 pub enum RelayError {
@@ -53,20 +52,6 @@ pub struct InboundRelay<Message> {
 pub struct OutboundRelay<Message> {
     sender: Sender<Message>,
     _stats: (), // placeholder
-}
-
-pub struct Relay<Service> {
-    overwatch_handle: OverwatchHandle,
-    _bound: PhantomData<Service>,
-}
-
-impl<Service> Clone for Relay<Service> {
-    fn clone(&self) -> Self {
-        Self {
-            overwatch_handle: self.overwatch_handle.clone(),
-            _bound: PhantomData,
-        }
-    }
 }
 
 impl<Message> Clone for OutboundRelay<Message> {
