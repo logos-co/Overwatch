@@ -49,7 +49,6 @@ impl ServiceCore for PingService {
         let pong_outbound_relay = service_state_handle
             .overwatch_handle
             .relay::<PongService>()
-            .connect()
             .await?;
 
         let Self::State { mut pong_count } = initial_state;

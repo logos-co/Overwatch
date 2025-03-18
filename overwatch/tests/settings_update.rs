@@ -4,7 +4,6 @@ use async_trait::async_trait;
 use overwatch::{
     overwatch::OverwatchRunner,
     services::{
-        relay::RelayMessage,
         state::{NoOperator, NoState},
         ServiceCore, ServiceData, ServiceId,
     },
@@ -21,8 +20,6 @@ type SettingsServiceSettings = String;
 
 #[derive(Clone, Debug)]
 pub struct SettingsMsg;
-
-impl RelayMessage for SettingsMsg {}
 
 impl ServiceData for SettingsService {
     const SERVICE_ID: ServiceId = "FooService";

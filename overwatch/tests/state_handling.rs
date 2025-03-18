@@ -4,7 +4,6 @@ use async_trait::async_trait;
 use overwatch::{
     overwatch::OverwatchRunner,
     services::{
-        relay::RelayMessage,
         state::{ServiceState, StateOperator},
         ServiceCore, ServiceData, ServiceId,
     },
@@ -22,8 +21,6 @@ pub struct UpdateStateService {
 
 #[derive(Clone, Debug)]
 pub struct UpdateStateServiceMessage;
-
-impl RelayMessage for UpdateStateServiceMessage {}
 
 #[derive(Debug)]
 pub struct UnitError;

@@ -97,11 +97,10 @@ fn derive_generic_service() {
     };
     let overwatch = OverwatchRunner::<TestApp>::run(settings, None).unwrap();
     let handle = overwatch.handle().clone();
-    let generic_service_relay = handle.relay::<GenericService>();
 
     overwatch.spawn(async move {
-        let generic_service_relay = generic_service_relay
-            .connect()
+        let generic_service_relay = handle
+            .relay::<GenericService>()
             .await
             .expect("A connection to the generic service is established");
 
@@ -118,6 +117,7 @@ fn derive_generic_service() {
             .expect("stop message to be sent");
     });
 
+    let handle = overwatch.handle().clone();
     overwatch.spawn(async move {
         sleep(Duration::from_secs(1)).await;
         handle.shutdown().await;
