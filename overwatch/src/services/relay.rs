@@ -24,9 +24,6 @@ pub enum RelayError {
 /// Message wrapper type.
 pub type AnyMessage = Box<dyn Any + Send + 'static>;
 
-#[derive(Debug, Clone)]
-pub struct NoMessage;
-
 /// Result type when creating a relay connection.
 pub type RelayResult = Result<AnyMessage, RelayError>;
 
@@ -35,6 +32,21 @@ pub type RelayResult = Result<AnyMessage, RelayError>;
 pub struct InboundRelay<Message> {
     receiver: Receiver<Message>,
     _stats: (), // placeholder
+}
+
+impl<Message> InboundRelay<Message> {
+    /// Receive a message from the relay connections
+    pub async fn recv(&mut self) -> Option<Message> {
+        self.receiver.recv().await
+    }
+}
+
+impl<Message> Stream for InboundRelay<Message> {
+    type Item = Message;
+
+    fn poll_next(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Option<Self::Item>> {
+        self.receiver.poll_recv(cx)
+    }
 }
 
 /// Channel sender of a relay connection.
@@ -49,27 +61,6 @@ impl<Message> Clone for OutboundRelay<Message> {
             sender: self.sender.clone(),
             _stats: (),
         }
-    }
-}
-
-/// Relay channel builder.
-// TODO: make buffer_size const?
-#[must_use]
-pub fn relay<Message>(buffer_size: usize) -> (InboundRelay<Message>, OutboundRelay<Message>) {
-    let (sender, receiver) = channel(buffer_size);
-    (
-        InboundRelay {
-            receiver,
-            _stats: (),
-        },
-        OutboundRelay { sender, _stats: () },
-    )
-}
-
-impl<Message> InboundRelay<Message> {
-    /// Receive a message from the relay connections
-    pub async fn recv(&mut self) -> Option<Message> {
-        self.receiver.recv().await
     }
 }
 
@@ -106,21 +97,22 @@ where
             .blocking_send(message)
             .map_err(|e| (RelayError::Send, e.0))
     }
-}
 
-impl<Message> OutboundRelay<Message>
-where
-    Message: Send,
-{
     pub fn into_sink(self) -> impl Sink<Message> {
         PollSender::new(self.sender)
     }
 }
 
-impl<Message> Stream for InboundRelay<Message> {
-    type Item = Message;
-
-    fn poll_next(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Option<Self::Item>> {
-        self.receiver.poll_recv(cx)
-    }
+/// Relay channel builder.
+// TODO: make buffer_size const?
+#[must_use]
+pub fn relay<Message>(buffer_size: usize) -> (InboundRelay<Message>, OutboundRelay<Message>) {
+    let (sender, receiver) = channel(buffer_size);
+    (
+        InboundRelay {
+            receiver,
+            _stats: (),
+        },
+        OutboundRelay { sender, _stats: () },
+    )
 }

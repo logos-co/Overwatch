@@ -6,7 +6,6 @@ use overwatch::{
     derive_services,
     overwatch::OverwatchRunner,
     services::{
-        relay::NoMessage,
         state::{ServiceState, StateOperator},
         ServiceCore, ServiceData,
     },
@@ -66,7 +65,7 @@ impl ServiceData for TryLoad {
     type Settings = TryLoadSettings;
     type State = TryLoadState;
     type StateOperator = TryLoadOperator;
-    type Message = NoMessage;
+    type Message = ();
 }
 
 #[async_trait]

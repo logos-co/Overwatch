@@ -4,7 +4,6 @@ use overwatch::{
     derive_services,
     overwatch::OverwatchRunner,
     services::{
-        relay::NoMessage,
         state::{NoOperator, NoState},
         status::{ServiceStatus, StatusWatcher},
         ServiceCore, ServiceData,
@@ -28,21 +27,21 @@ impl ServiceData for AwaitService1 {
     type Settings = ();
     type State = NoState<Self::Settings>;
     type StateOperator = NoOperator<Self::State, Self::Settings>;
-    type Message = NoMessage;
+    type Message = ();
 }
 
 impl ServiceData for AwaitService2 {
     type Settings = ();
     type State = NoState<Self::Settings>;
     type StateOperator = NoOperator<Self::State, Self::Settings>;
-    type Message = NoMessage;
+    type Message = ();
 }
 
 impl ServiceData for AwaitService3 {
     type Settings = ();
     type State = NoState<Self::Settings>;
     type StateOperator = NoOperator<Self::State, Self::Settings>;
-    type Message = NoMessage;
+    type Message = ();
 }
 
 #[async_trait::async_trait]

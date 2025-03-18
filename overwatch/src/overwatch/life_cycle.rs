@@ -49,7 +49,7 @@ where
     ) -> Result<(), DynError> {
         self.handlers
             .get(service)
-            .unwrap()
+            .expect("Map populated from macro, so service always exists.")
             .send(LifecycleMessage::Shutdown(sender))?;
         Ok(())
     }
@@ -70,7 +70,7 @@ where
     pub fn kill(&self, service: &AggregatedServiceId) -> Result<(), DynError> {
         self.handlers
             .get(service)
-            .unwrap()
+            .expect("Map populated from macro, so service always exists.")
             .send(LifecycleMessage::Kill)
     }
 

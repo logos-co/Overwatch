@@ -8,7 +8,6 @@ use overwatch::{
     },
     services::{
         life_cycle::LifecycleMessage,
-        relay::NoMessage,
         state::{NoOperator, NoState},
         ServiceCore, ServiceData, ServiceId,
     },
@@ -25,7 +24,7 @@ impl ServiceData for CancellableService {
     type Settings = ();
     type State = NoState<Self::Settings>;
     type StateOperator = NoOperator<Self::State, Self::Settings>;
-    type Message = NoMessage;
+    type Message = ();
 }
 
 #[async_trait::async_trait]

@@ -7,7 +7,6 @@ use std::{
     fmt::{Debug, Display},
     future::Future,
     hash::Hash,
-    marker::PhantomData,
 };
 
 use thiserror::Error;
@@ -38,12 +37,6 @@ use crate::{
 pub enum Error {
     #[error(transparent)]
     Any(super::DynError),
-}
-
-impl Error {
-    pub fn any<T: std::error::Error + Send + Sync + 'static>(err: T) -> Self {
-        Self::Any(Box::new(err))
-    }
 }
 
 impl From<super::DynError> for Error {
@@ -143,7 +136,6 @@ pub struct GenericOverwatchRunner<Services, ServiceId> {
     services: Services,
     finish_signal_sender: oneshot::Sender<()>,
     commands_receiver: Receiver<OverwatchCommand<ServiceId>>,
-    _phantom: PhantomData<ServiceId>,
 }
 
 pub type OverwatchRunner<ServicesImpl> =
@@ -183,7 +175,6 @@ where
             services,
             finish_signal_sender,
             commands_receiver,
-            _phantom: PhantomData,
         };
 
         runtime.spawn(async move { runner.run_().await });
