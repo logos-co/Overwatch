@@ -52,6 +52,16 @@ pub fn derive_services(_attr: TokenStream, item: TokenStream) -> TokenStream {
 fn get_default_instrumentation() -> proc_macro2::TokenStream {
     #[cfg(feature = "instrumentation")]
     quote! {
+        #[tracing::instrument(skip(self))]
+    }
+
+    #[cfg(not(feature = "instrumentation"))]
+    quote! {}
+}
+
+fn get_default_instrumentation_for_result() -> proc_macro2::TokenStream {
+    #[cfg(feature = "instrumentation")]
+    quote! {
         #[tracing::instrument(skip(self), err)]
     }
 
@@ -62,17 +72,7 @@ fn get_default_instrumentation() -> proc_macro2::TokenStream {
 fn get_default_instrumentation_without_settings() -> proc_macro2::TokenStream {
     #[cfg(feature = "instrumentation")]
     quote! {
-        #[tracing::instrument(skip(self, settings), err)]
-    }
-
-    #[cfg(not(feature = "instrumentation"))]
-    quote! {}
-}
-
-fn get_default_instrumentation_without_status_watcher() -> proc_macro2::TokenStream {
-    #[cfg(feature = "instrumentation")]
-    quote! {
-        #[tracing::instrument(skip(self, status), err)]
+        #[tracing::instrument(skip(self, settings))]
     }
 
     #[cfg(not(feature = "instrumentation"))]
@@ -250,7 +250,9 @@ fn generate_start_all_impl(fields: &Punctuated<Field, Comma>) -> proc_macro2::To
         }
     });
 
+    let instrumentation = get_default_instrumentation_for_result();
     quote! {
+        #instrumentation
         fn start_all(&mut self) -> ::core::result::Result<::overwatch::overwatch::ServicesLifeCycleHandle<Self::AggregatedServiceId>, ::overwatch::overwatch::Error> {
             ::core::result::Result::Ok([#( #call_start ),*].try_into()?)
         }
@@ -270,7 +272,9 @@ fn generate_start_impl(fields: &Punctuated<Field, Comma>) -> proc_macro2::TokenS
         }
     });
 
+    let instrumentation = get_default_instrumentation_for_result();
     quote! {
+        #instrumentation
         fn start(&mut self, service_id: &Self::AggregatedServiceId) -> ::core::result::Result<(), ::overwatch::overwatch::Error> {
             match service_id {
                 #( #cases ),*
@@ -290,7 +294,9 @@ fn generate_stop_impl(fields: &Punctuated<Field, Comma>) -> proc_macro2::TokenSt
         }
     });
 
+    let instrumentation = get_default_instrumentation();
     quote! {
+        #instrumentation
         fn stop(&mut self, service_id: &Self::AggregatedServiceId) {
             match service_id {
                 #( #cases ),*
@@ -315,7 +321,9 @@ fn generate_request_relay_impl(fields: &Punctuated<Field, Comma>) -> proc_macro2
         }
     });
 
+    let instrumentation = get_default_instrumentation_for_result();
     quote! {
+        #instrumentation
         fn request_relay(&mut self, service_id: &Self::AggregatedServiceId) -> ::overwatch::services::relay::RelayResult {
             match service_id {
                 #( #cases )*
@@ -338,7 +346,9 @@ fn generate_request_status_watcher_impl(
         }
     });
 
+    let instrumentation = get_default_instrumentation();
     quote! {
+        #instrumentation
         fn request_status_watcher(&self, service_id: &Self::AggregatedServiceId) -> ::overwatch::services::status::StatusWatcher {
             match service_id {
                 #( #cases )*
@@ -364,7 +374,9 @@ fn generate_update_settings_impl(fields: &Punctuated<Field, Comma>) -> proc_macr
         }
     });
 
+    let instrumentation = get_default_instrumentation_without_settings();
     quote! {
+        #instrumentation
         fn update_settings(&mut self, settings: Self::Settings) {
             let Self::Settings {
                 #( #fields_settings ),*
