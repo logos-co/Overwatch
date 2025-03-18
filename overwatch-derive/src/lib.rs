@@ -494,18 +494,18 @@ fn generate_as_ref_impls(fields: &Punctuated<Field, Comma>) -> proc_macro2::Toke
                         .collect();
 
                     Some(quote! {
-                        impl<#(#generic_params),*> ::overwatch::utils::traits::AsRuntimeId<#aggregated_service_id_type_name> for #inner_ident<#(#generic_params),*> {
-                            fn runtime_id() -> &'static #aggregated_service_id_type_name {
-                                &#aggregated_service_id_type_name::#capitalized_service_name
+                        impl<#(#generic_params),*> ::overwatch::utils::traits::RuntimeId<#aggregated_service_id_type_name> for #inner_ident<#(#generic_params),*> {
+                            fn runtime_id() -> #aggregated_service_id_type_name {
+                                #aggregated_service_id_type_name::#capitalized_service_name
                             }
                         }
                     })
                 },
                 // No generics case
                 _ => Some(quote! {
-                    impl ::overwatch::utils::traits::AsRuntimeId<#aggregated_service_id_type_name> for #inner_ident {
-                        fn runtime_id() -> &'static #aggregated_service_id_type_name {
-                            &#aggregated_service_id_type_name::#capitalized_service_name
+                    impl ::overwatch::utils::traits::RuntimeId<#aggregated_service_id_type_name> for #inner_ident {
+                        fn runtime_id() -> #aggregated_service_id_type_name {
+                            #aggregated_service_id_type_name::#capitalized_service_name
                         }
                     }
                 }),

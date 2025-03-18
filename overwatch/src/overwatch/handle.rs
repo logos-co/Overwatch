@@ -21,7 +21,7 @@ use crate::{
         status::StatusWatcher,
         ServiceData,
     },
-    utils::traits::AsRuntimeId,
+    utils::traits::RuntimeId,
 };
 
 /// Handler object over the main [`crate::overwatch::Overwatch`] runner.
@@ -58,7 +58,7 @@ where
     /// Request a relay with a service
     pub async fn relay<Service>(&self) -> Result<OutboundRelay<Service::Message>, RelayError>
     where
-        Service: ServiceData + AsRuntimeId<AggregatedServiceId>,
+        Service: ServiceData + RuntimeId<AggregatedServiceId>,
         Service::Message: 'static,
     {
         info!("Requesting relay with {}", Service::SERVICE_ID);
@@ -87,7 +87,7 @@ where
     /// If the service watcher is not available.
     pub async fn status_watcher<Service>(&self) -> StatusWatcher
     where
-        Service: ServiceData + AsRuntimeId<AggregatedServiceId>,
+        Service: ServiceData + RuntimeId<AggregatedServiceId>,
     {
         info!("Requesting status watcher for {}", Service::SERVICE_ID);
         let (sender, receiver) = tokio::sync::oneshot::channel();

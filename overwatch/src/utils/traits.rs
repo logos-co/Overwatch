@@ -1,3 +1,3 @@
-pub trait AsRuntimeId<T> {
-    fn runtime_id() -> &'static T;
+pub trait RuntimeId<T> {
+    fn runtime_id() -> T;
 }
