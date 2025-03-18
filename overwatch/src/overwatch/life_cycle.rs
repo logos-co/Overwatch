@@ -1,22 +1,24 @@
-use std::{borrow::Cow, collections::HashMap, default::Default, error::Error};
+use std::{
+    borrow::Cow, collections::HashMap, default::Default, error::Error, fmt::Display, hash::Hash,
+};
 
 use tokio::sync::broadcast::Sender;
 
 use crate::{
-    services::{
-        life_cycle::{FinishedSignal, LifecycleHandle, LifecycleMessage},
-        ServiceId,
-    },
+    services::life_cycle::{FinishedSignal, LifecycleHandle, LifecycleMessage},
     DynError,
 };
 
 /// Grouper handle for the [`LifecycleHandle`] of each spawned service.
 #[derive(Clone)]
-pub struct ServicesLifeCycleHandle {
-    handlers: HashMap<ServiceId, LifecycleHandle>,
+pub struct ServicesLifeCycleHandle<AggregatedServiceId> {
+    handlers: HashMap<AggregatedServiceId, LifecycleHandle>,
 }
 
-impl ServicesLifeCycleHandle {
+impl<AggregatedServiceId> ServicesLifeCycleHandle<AggregatedServiceId>
+where
+    AggregatedServiceId: Eq + Hash,
+{
     #[must_use]
     pub fn empty() -> Self {
         Self {
@@ -42,7 +44,7 @@ impl ServicesLifeCycleHandle {
     /// If the specified service handler is not available.
     pub fn shutdown(
         &self,
-        service: ServiceId,
+        service: &AggregatedServiceId,
         sender: Sender<FinishedSignal>,
     ) -> Result<(), DynError> {
         self.handlers
@@ -65,7 +67,7 @@ impl ServicesLifeCycleHandle {
     ///
     /// # Panics
     /// If the specified service handler is not available.
-    pub fn kill(&self, service: ServiceId) -> Result<(), DynError> {
+    pub fn kill(&self, service: &AggregatedServiceId) -> Result<(), DynError> {
         self.handlers
             .get(service)
             .unwrap()
@@ -87,19 +89,23 @@ impl ServicesLifeCycleHandle {
     }
 
     /// Get all [`ServiceId`]s registered in this handle
-    pub fn services_ids(&self) -> impl Iterator<Item = &ServiceId> {
+    pub fn services_ids(&self) -> impl Iterator<Item = &AggregatedServiceId> {
         self.handlers.keys()
     }
 }
 
-impl<const N: usize> TryFrom<[(ServiceId, LifecycleHandle); N]> for ServicesLifeCycleHandle {
+impl<const N: usize, AggregatedServiceId> TryFrom<[(AggregatedServiceId, LifecycleHandle); N]>
+    for ServicesLifeCycleHandle<AggregatedServiceId>
+where
+    AggregatedServiceId: Eq + Hash + Display,
+{
     // TODO: On errors refactor extract into a concrete error type with `thiserror`
     type Error = Box<dyn Error + Send + Sync>;
 
-    fn try_from(value: [(ServiceId, LifecycleHandle); N]) -> Result<Self, Self::Error> {
+    fn try_from(value: [(AggregatedServiceId, LifecycleHandle); N]) -> Result<Self, Self::Error> {
         let mut handlers = HashMap::new();
         for (service_id, handle) in value {
-            if handlers.contains_key(service_id) {
+            if handlers.contains_key(&service_id) {
                 return Err(Box::<dyn Error + Send + Sync>::from(Cow::Owned(format!(
                     "Duplicated serviceId: {service_id}"
                 ))));

@@ -3,15 +3,14 @@ use std::{default::Default, sync::Arc, time::Duration};
 use thiserror::Error;
 use tokio::sync::watch;
 
-use crate::services::ServiceId;
-
 #[derive(Error, Debug)]
-pub enum ServiceStatusError {
+pub enum ServiceStatusError<AggregatedServiceId> {
     #[error("service {service_id} is not available")]
-    Unavailable { service_id: ServiceId },
+    Unavailable { service_id: AggregatedServiceId },
 }
 
-pub type ServiceStatusResult = Result<StatusWatcher, ServiceStatusError>;
+pub type ServiceStatusResult<AggregatedServiceId> =
+    Result<StatusWatcher, ServiceStatusError<AggregatedServiceId>>;
 
 #[derive(Copy, Clone, Eq, PartialEq, Debug)]
 pub enum ServiceStatus {
