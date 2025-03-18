@@ -3,19 +3,18 @@ use std::{fmt::Debug, time::Duration};
 use async_trait::async_trait;
 use futures::future::select;
 use overwatch::{
+    derive_services,
     overwatch::OverwatchRunner,
     services::{
         handle::ServiceStateHandle,
         state::{NoOperator, NoState},
         ServiceCore, ServiceData, ServiceId,
     },
-    OpaqueServiceHandle,
 };
-use overwatch_derive::Services;
 use tokio::time::sleep;
 
 pub struct GenericService {
-    state: ServiceStateHandle<GenericServiceMessage, (), NoState<()>>,
+    state: ServiceStateHandle<GenericServiceMessage, (), NoState<()>, AggregatedServiceId>,
 }
 
 #[derive(Clone, Debug)]
@@ -30,9 +29,9 @@ impl ServiceData for GenericService {
 }
 
 #[async_trait]
-impl ServiceCore for GenericService {
+impl ServiceCore<AggregatedServiceId> for GenericService {
     fn init(
-        state: ServiceStateHandle<Self::Message, Self::Settings, Self::State>,
+        state: ServiceStateHandle<Self::Message, Self::Settings, Self::State, AggregatedServiceId>,
         _initial_state: Self::State,
     ) -> Result<Self, overwatch::DynError> {
         Ok(Self { state })
@@ -85,9 +84,9 @@ impl ServiceCore for GenericService {
     }
 }
 
-#[derive(Services)]
+#[derive_services]
 struct TestApp {
-    generic_service: OpaqueServiceHandle<GenericService>,
+    generic_service: GenericService,
 }
 
 #[test]
@@ -97,10 +96,11 @@ fn derive_generic_service() {
     };
     let overwatch = OverwatchRunner::<TestApp>::run(settings, None).unwrap();
     let handle = overwatch.handle().clone();
+    let generic_service_relay = handle.relay::<GenericService>();
 
     overwatch.spawn(async move {
-        let generic_service_relay = handle
-            .relay::<GenericService>()
+        let generic_service_relay = generic_service_relay
+            .connect()
             .await
             .expect("A connection to the generic service is established");
 
@@ -117,7 +117,6 @@ fn derive_generic_service() {
             .expect("stop message to be sent");
     });
 
-    let handle = overwatch.handle().clone();
     overwatch.spawn(async move {
         sleep(Duration::from_secs(1)).await;
         handle.shutdown().await;
