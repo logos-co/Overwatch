@@ -95,7 +95,7 @@ pub trait Services: Sized {
 
     // TODO: this probably will be removed once the services lifecycle is
     // implemented
-    /// Start all services attaches to the trait implementer.
+    /// Start all services attached to the trait implementer.
     ///
     /// # Errors
     ///
