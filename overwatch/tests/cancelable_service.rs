@@ -12,6 +12,7 @@ use overwatch::{
         state::{NoOperator, NoState},
         ServiceCore, ServiceData, ServiceId,
     },
+    utils::traits::RuntimeId,
     DynError, OpaqueServiceStateHandle,
 };
 use tokio::time::sleep;
@@ -83,7 +84,7 @@ fn run_overwatch_then_shutdown_service_and_kill() {
         let _ = handle
             .send(OverwatchCommand::ServiceLifeCycle(
                 ServiceLifeCycleCommand {
-                    service_id: <CancellableService as ServiceData>::SERVICE_ID,
+                    service_id: <CancellableService as RuntimeId<AggregatedServiceId>>::RUNTIME_ID,
                     msg: LifecycleMessage::Shutdown(sender),
                 },
             ))
