@@ -60,33 +60,6 @@ impl<AggregatedServiceId> OverwatchHandle<AggregatedServiceId>
 where
     AggregatedServiceId: Display + Debug + Sync,
 {
-    /// Request a [`StatusWatcher`] for a service
-    ///
-    /// # Panics
-    /// If the service watcher is not available.
-    pub async fn status_watcher<Service>(&self) -> StatusWatcher
-    where
-        Service: ServiceId<AggregatedServiceId>,
-    {
-        info!("Requesting status watcher for {}", Service::SERVICE_ID);
-        let (sender, receiver) = tokio::sync::oneshot::channel();
-        let Ok(()) = self
-            .send(OverwatchCommand::Status(StatusCommand {
-                service_id: Service::SERVICE_ID,
-                reply_channel: ReplyChannel::from(sender),
-            }))
-            .await
-        else {
-            unreachable!("Service watcher should always be available");
-        };
-        receiver.await.unwrap_or_else(|_| {
-            panic!(
-                "Service {} watcher should always be available",
-                Service::SERVICE_ID
-            )
-        })
-    }
-
     /// Request a relay with a service
     pub async fn relay<Service>(&self) -> Result<OutboundRelay<Service::Message>, RelayError>
     where
@@ -113,6 +86,33 @@ where
         };
         Ok(*downcasted_message)
     }
+
+    /// Request a [`StatusWatcher`] for a service
+    ///
+    /// # Panics
+    /// If the service watcher is not available.
+    pub async fn status_watcher<Service>(&self) -> StatusWatcher
+    where
+        Service: ServiceId<AggregatedServiceId>,
+    {
+        info!("Requesting status watcher for {}", Service::SERVICE_ID);
+        let (sender, receiver) = tokio::sync::oneshot::channel();
+        let Ok(()) = self
+            .send(OverwatchCommand::Status(StatusCommand {
+                service_id: Service::SERVICE_ID,
+                reply_channel: ReplyChannel::from(sender),
+            }))
+            .await
+        else {
+            unreachable!("Service watcher should always be available");
+        };
+        receiver.await.unwrap_or_else(|_| {
+            panic!(
+                "Service {} watcher should always be available",
+                Service::SERVICE_ID
+            )
+        })
+    }
 }
 
 impl<AggregatedServiceId> OverwatchHandle<AggregatedServiceId>
@@ -129,19 +129,6 @@ where
             ))
             .await
             .map_err(|e| dbg!(e));
-    }
-
-    #[cfg_attr(feature = "instrumentation", instrument(skip(self)))]
-    pub async fn update_settings<S: Services>(&self, settings: S::Settings)
-    where
-        S::Settings: Send + Debug + 'static,
-    {
-        let _: Result<(), _> = self
-            .send(OverwatchCommand::Settings(SettingsCommand(Box::new(
-                settings,
-            ))))
-            .await
-            .map_err(|e| error!(error=?e, "Error updating settings"));
     }
 
     /// Send a kill signal to the
@@ -175,5 +162,18 @@ where
             error!(error=?e, "Error sending overwatch command");
             e
         })
+    }
+
+    #[cfg_attr(feature = "instrumentation", instrument(skip(self)))]
+    pub async fn update_settings<S: Services>(&self, settings: S::Settings)
+    where
+        S::Settings: Send + Debug + 'static,
+    {
+        let _: Result<(), _> = self
+            .send(OverwatchCommand::Settings(SettingsCommand(Box::new(
+                settings,
+            ))))
+            .await
+            .map_err(|e| error!(error=?e, "Error updating settings"));
     }
 }
