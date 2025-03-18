@@ -6,7 +6,7 @@ use overwatch::{
     overwatch::OverwatchRunner,
     services::{
         state::{NoOperator, NoState},
-        ServiceCore, ServiceData, ServiceId,
+        ServiceCore, ServiceData,
     },
     OpaqueServiceStateHandle,
 };
@@ -22,7 +22,6 @@ type SettingsServiceSettings = String;
 pub struct SettingsMsg;
 
 impl ServiceData for SettingsService {
-    const SERVICE_ID: ServiceId = "FooService";
     type Settings = SettingsServiceSettings;
     type State = NoState<Self::Settings>;
     type StateOperator = NoOperator<Self::State, Self::Settings>;

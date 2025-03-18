@@ -1,7 +1,7 @@
 use std::time::Duration;
 
 use overwatch::{
-    services::{ServiceCore, ServiceData, ServiceId},
+    services::{ServiceCore, ServiceData},
     DynError, OpaqueServiceStateHandle,
 };
 use tokio::time::sleep;
@@ -21,7 +21,6 @@ pub struct PingService {
 }
 
 impl ServiceData for PingService {
-    const SERVICE_ID: ServiceId = "ping";
     type Settings = PingSettings;
     type State = PingState;
     type StateOperator = StateSaveOperator;

@@ -9,9 +9,8 @@ use crate::{
         settings::{SettingsNotifier, SettingsUpdater},
         state::{StateHandle, StateOperator, StateUpdater},
         status::{StatusHandle, StatusWatcher},
-        ServiceCore, ServiceState,
+        ServiceCore, ServiceId, ServiceState,
     },
-    utils::traits::RuntimeId,
 };
 
 /// Handle to a service.
@@ -185,7 +184,7 @@ where
     pub fn run<Service>(self) -> Result<(AggregateServiceId, LifecycleHandle), crate::DynError>
     where
         Service: ServiceCore<AggregateServiceId, Settings = Settings, State = State, Message = Message>
-            + RuntimeId<AggregateServiceId>
+            + ServiceId<AggregateServiceId>
             + 'static,
     {
         let Self {
@@ -202,6 +201,6 @@ where
         runtime.spawn(service.run());
         runtime.spawn(state_handle.run());
 
-        Ok((Service::RUNTIME_ID, lifecycle_handle))
+        Ok((Service::SERVICE_ID, lifecycle_handle))
     }
 }

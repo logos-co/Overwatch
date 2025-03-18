@@ -6,7 +6,7 @@ use overwatch::{
     overwatch::OverwatchRunner,
     services::{
         state::{ServiceState, StateOperator},
-        ServiceCore, ServiceData, ServiceId,
+        ServiceCore, ServiceData,
     },
     OpaqueServiceStateHandle,
 };
@@ -78,7 +78,6 @@ impl StateOperator for CounterStateOperator {
 }
 
 impl ServiceData for UpdateStateService {
-    const SERVICE_ID: ServiceId = "FooService";
     type Settings = ();
     type State = CounterState;
     type StateOperator = CounterStateOperator;

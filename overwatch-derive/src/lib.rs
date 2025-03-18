@@ -113,14 +113,11 @@ fn impl_services_for_struct(
     generics: &Generics,
     fields: &Punctuated<Field, Comma>,
 ) -> proc_macro2::TokenStream {
-    let unique_ids_check = generate_assert_unique_identifiers(identifier, generics, fields);
     let aggregated_service_type = generate_aggregate_service_types(fields);
     let settings = generate_services_settings(identifier, generics, fields);
     let services_impl = generate_services_impl(identifier, generics, fields);
 
     quote! {
-        #unique_ids_check
-
         #aggregated_service_type
 
         #settings
@@ -146,30 +143,6 @@ fn generate_services_settings(
         #[derive(::core::clone::Clone, ::core::fmt::Debug)]
         pub struct #services_settings_identifier #generics #where_clause {
             #( #services_settings ),*
-        }
-    }
-}
-
-fn generate_assert_unique_identifiers(
-    services_identifier: &proc_macro2::Ident,
-    generics: &Generics,
-    fields: &Punctuated<Field, Comma>,
-) -> proc_macro2::TokenStream {
-    let services_ids = fields.iter().map(|field| {
-        let _type = utils::extract_type_from(&field.ty);
-        quote! {
-            <#_type as ::overwatch::services::ServiceData>::SERVICE_ID
-        }
-    });
-    let services_ids_check = format_ident!(
-        "__{}__CONST_CHECK_UNIQUE_SERVICES_IDS",
-        services_identifier.to_string().to_uppercase()
-    );
-    let (impl_generics, ty_generics, where_clause) = generics.split_for_impl();
-
-    quote! {
-        impl #impl_generics #services_identifier #ty_generics #where_clause {
-            const #services_ids_check: () = assert!(::overwatch::utils::const_checks::unique_ids(&[#( #services_ids ),*]));
         }
     }
 }
@@ -282,7 +255,7 @@ fn generate_start_impl(fields: &Punctuated<Field, Comma>) -> proc_macro2::TokenS
         let type_id = utils::extract_type_from(&field.ty);
         let aggregated_service_id_type_name = get_aggregated_service_id_type_name();
         quote! {
-            &<#type_id as ::overwatch::utils::traits::RuntimeId<#aggregated_service_id_type_name>>::RUNTIME_ID => {
+            &<#type_id as ::overwatch::services::ServiceId<#aggregated_service_id_type_name>>::SERVICE_ID => {
                 self.#field_identifier.service_runner::<<#type_id as ::overwatch::services::ServiceData>::StateOperator>().run::<#type_id>()?;
                 ::core::result::Result::Ok(())
             }
@@ -308,7 +281,7 @@ fn generate_stop_impl(fields: &Punctuated<Field, Comma>) -> proc_macro2::TokenSt
         let aggregated_service_id_type_name = get_aggregated_service_id_type_name();
         // TODO: actually stop them here once service lifecycle is implemented
         quote! {
-            &<#type_id as ::overwatch::utils::traits::RuntimeId<#aggregated_service_id_type_name>>::RUNTIME_ID => { unimplemented!() }
+            &<#type_id as ::overwatch::services::ServiceId<#aggregated_service_id_type_name>>::SERVICE_ID => { unimplemented!() }
         }
     });
 
@@ -330,7 +303,7 @@ fn generate_request_relay_impl(fields: &Punctuated<Field, Comma>) -> proc_macro2
         let type_id = utils::extract_type_from(&field.ty);
         let aggregated_service_id_type_name = get_aggregated_service_id_type_name();
         quote! {
-            &<#type_id as ::overwatch::utils::traits::RuntimeId<#aggregated_service_id_type_name>>::RUNTIME_ID => {
+            &<#type_id as ::overwatch::services::ServiceId<#aggregated_service_id_type_name>>::SERVICE_ID => {
                 ::core::result::Result::Ok(::std::boxed::Box::new(
                     self.#field_identifier
                         .relay_with()
@@ -360,7 +333,7 @@ fn generate_request_status_watcher_impl(
         let type_id = utils::extract_type_from(&field.ty);
         let aggregated_service_id_type_name = get_aggregated_service_id_type_name();
         quote! {
-            &<#type_id as ::overwatch::utils::traits::RuntimeId<#aggregated_service_id_type_name>>::RUNTIME_ID => {
+            &<#type_id as ::overwatch::services::ServiceId<#aggregated_service_id_type_name>>::SERVICE_ID => {
                 ::core::result::Result::Ok(self.#field_identifier.status_watcher())
             }
         }
@@ -411,15 +384,15 @@ fn generate_update_settings_impl(fields: &Punctuated<Field, Comma>) -> proc_macr
 
 fn generate_aggregate_service_types(fields: &Punctuated<Field, Comma>) -> proc_macro2::TokenStream {
     let aggregated_service_id = generate_aggregate_service_id(fields);
-    let runtime_id_trait_impls = generate_runtime_id_trait_impls();
-    let runtime_id_impls = generate_runtime_id_impls(fields);
+    let service_id_trait_impls = generate_service_id_trait_impls();
+    let service_id_impls = generate_service_id_impls(fields);
 
     quote! {
         #aggregated_service_id
 
-        #runtime_id_trait_impls
+        #service_id_trait_impls
 
-        #runtime_id_impls
+        #service_id_impls
     }
 }
 
@@ -451,7 +424,7 @@ fn generate_aggregate_service_id(fields: &Punctuated<Field, Comma>) -> proc_macr
     }
 }
 
-fn generate_runtime_id_trait_impls() -> proc_macro2::TokenStream {
+fn generate_service_id_trait_impls() -> proc_macro2::TokenStream {
     let aggregated_service_id_type_name = get_aggregated_service_id_type_name();
     quote! {
         impl ::core::fmt::Display for #aggregated_service_id_type_name {
@@ -462,7 +435,7 @@ fn generate_runtime_id_trait_impls() -> proc_macro2::TokenStream {
     }
 }
 
-fn generate_runtime_id_impls(fields: &Punctuated<Field, Comma>) -> proc_macro2::TokenStream {
+fn generate_service_id_impls(fields: &Punctuated<Field, Comma>) -> proc_macro2::TokenStream {
     let impl_blocks: Vec<_> = fields.iter().filter_map(|field| {
         let field_type = &field.ty;
         let capitalized_service_name = format_ident!(
@@ -510,15 +483,15 @@ fn generate_runtime_id_impls(fields: &Punctuated<Field, Comma>) -> proc_macro2::
                         .collect();
 
                     Some(quote! {
-                        impl<#(#generic_params),*> ::overwatch::utils::traits::RuntimeId<#aggregated_service_id_type_name> for #inner_ident<#(#generic_params),*> {
-                            const RUNTIME_ID: #aggregated_service_id_type_name = #aggregated_service_id_type_name::#capitalized_service_name;
+                        impl<#(#generic_params),*> ::overwatch::utils::traits::ServiceId<#aggregated_service_id_type_name> for #inner_ident<#(#generic_params),*> {
+                            const SERVICE_ID: #aggregated_service_id_type_name = #aggregated_service_id_type_name::#capitalized_service_name;
                         }
                     })
                 },
                 // No generics case
                 _ => Some(quote! {
-                    impl ::overwatch::utils::traits::RuntimeId<#aggregated_service_id_type_name> for #inner_ident {
-                        const RUNTIME_ID: #aggregated_service_id_type_name = #aggregated_service_id_type_name::#capitalized_service_name;
+                    impl ::overwatch::services::ServiceId<#aggregated_service_id_type_name> for #inner_ident {
+                        const SERVICE_ID: #aggregated_service_id_type_name = #aggregated_service_id_type_name::#capitalized_service_name;
                     }
                 }),
         }

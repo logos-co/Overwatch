@@ -9,15 +9,9 @@ use async_trait::async_trait;
 use handle::ServiceStateHandle;
 use state::ServiceState;
 
-// TODO: Make this type unique for each service?
-/// Services identification type.
-pub type ServiceId = &'static str;
-
 /// The core data a service needs to handle.
 /// Holds the necessary information of a service.
 pub trait ServiceData {
-    /// Service identification tag
-    const SERVICE_ID: ServiceId;
     /// Service relay buffer size
     const SERVICE_RELAY_BUFFER_SIZE: usize = 16;
     /// Service settings object
@@ -28,6 +22,10 @@ pub trait ServiceData {
     type StateOperator;
     /// Service messages that the service itself understands and can react to
     type Message;
+}
+
+pub trait ServiceId<T>: ServiceData {
+    const SERVICE_ID: T;
 }
 
 /// Main trait for Services initialization and main loop hook.

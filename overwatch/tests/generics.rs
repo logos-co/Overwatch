@@ -8,7 +8,7 @@ use overwatch::{
     services::{
         handle::ServiceStateHandle,
         state::{NoOperator, NoState},
-        ServiceCore, ServiceData, ServiceId,
+        ServiceCore, ServiceData,
     },
 };
 use tokio::time::sleep;
@@ -21,7 +21,6 @@ pub struct GenericService {
 pub struct GenericServiceMessage(String);
 
 impl ServiceData for GenericService {
-    const SERVICE_ID: ServiceId = "FooService";
     type Settings = ();
     type State = NoState<Self::Settings>;
     type StateOperator = NoOperator<Self::State, Self::Settings>;

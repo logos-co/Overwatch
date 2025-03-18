@@ -7,7 +7,7 @@ use overwatch::{
         relay::NoMessage,
         state::{NoOperator, NoState},
         status::{ServiceStatus, StatusWatcher},
-        ServiceCore, ServiceData, ServiceId,
+        ServiceCore, ServiceData,
     },
     DynError, OpaqueServiceStateHandle,
 };
@@ -25,7 +25,6 @@ pub struct AwaitService3 {
 }
 
 impl ServiceData for AwaitService1 {
-    const SERVICE_ID: ServiceId = "S1";
     type Settings = ();
     type State = NoState<Self::Settings>;
     type StateOperator = NoOperator<Self::State, Self::Settings>;
@@ -33,7 +32,6 @@ impl ServiceData for AwaitService1 {
 }
 
 impl ServiceData for AwaitService2 {
-    const SERVICE_ID: ServiceId = "S2";
     type Settings = ();
     type State = NoState<Self::Settings>;
     type StateOperator = NoOperator<Self::State, Self::Settings>;
@@ -41,7 +39,6 @@ impl ServiceData for AwaitService2 {
 }
 
 impl ServiceData for AwaitService3 {
-    const SERVICE_ID: ServiceId = "S3";
     type Settings = ();
     type State = NoState<Self::Settings>;
     type StateOperator = NoOperator<Self::State, Self::Settings>;

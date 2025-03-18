@@ -8,7 +8,7 @@ use overwatch::{
     services::{
         relay::NoMessage,
         state::{ServiceState, StateOperator},
-        ServiceCore, ServiceData, ServiceId,
+        ServiceCore, ServiceData,
     },
     DynError, OpaqueServiceStateHandle,
 };
@@ -63,7 +63,6 @@ struct TryLoad {
 }
 
 impl ServiceData for TryLoad {
-    const SERVICE_ID: ServiceId = "try_load";
     type Settings = TryLoadSettings;
     type State = TryLoadState;
     type StateOperator = TryLoadOperator;

@@ -1,7 +1,7 @@
 use overwatch::{
     services::{
         state::{NoOperator, NoState},
-        ServiceCore, ServiceData, ServiceId,
+        ServiceCore, ServiceData,
     },
     DynError, OpaqueServiceStateHandle,
 };
@@ -17,7 +17,6 @@ pub struct PongService {
 }
 
 impl ServiceData for PongService {
-    const SERVICE_ID: ServiceId = "pong";
     type Settings = ();
     type State = NoState<Self::Settings>;
     type StateOperator = NoOperator<Self::State, Self::Settings>;

@@ -1,4 +1,7 @@
-use std::{fmt::Debug, marker::PhantomData};
+use std::{
+    fmt::{Debug, Display},
+    marker::PhantomData,
+};
 
 use tokio::{
     runtime::Handle,
@@ -19,9 +22,8 @@ use crate::{
     services::{
         relay::{OutboundRelay, RelayError},
         status::StatusWatcher,
-        ServiceData,
+        ServiceId,
     },
-    utils::traits::RuntimeId,
 };
 
 /// Handler object over the main [`crate::overwatch::Overwatch`] runner.
@@ -56,7 +58,7 @@ impl<AggregatedServiceId> OverwatchHandle<AggregatedServiceId> {
 
 impl<AggregatedServiceId> OverwatchHandle<AggregatedServiceId>
 where
-    AggregatedServiceId: Debug + Sync,
+    AggregatedServiceId: Display + Debug + Sync,
 {
     /// Request a [`StatusWatcher`] for a service
     ///
@@ -64,13 +66,13 @@ where
     /// If the service watcher is not available.
     pub async fn status_watcher<Service>(&self) -> StatusWatcher
     where
-        Service: ServiceData + RuntimeId<AggregatedServiceId>,
+        Service: ServiceId<AggregatedServiceId>,
     {
         info!("Requesting status watcher for {}", Service::SERVICE_ID);
         let (sender, receiver) = tokio::sync::oneshot::channel();
         let Ok(()) = self
             .send(OverwatchCommand::Status(StatusCommand {
-                service_id: Service::RUNTIME_ID,
+                service_id: Service::SERVICE_ID,
                 reply_channel: ReplyChannel::from(sender),
             }))
             .await
@@ -146,14 +148,14 @@ where
 
 impl<AggregatedServiceId> OverwatchHandle<AggregatedServiceId>
 where
-    AggregatedServiceId: Debug + Sync + 'static,
+    AggregatedServiceId: Display + Debug + Sync + 'static,
 {
     /// Request a relay with a service
     pub async fn relay<Service>(
         &self,
     ) -> Result<OutboundRelay<Service::Message, AggregatedServiceId>, RelayError<AggregatedServiceId>>
     where
-        Service: ServiceData + RuntimeId<AggregatedServiceId>,
+        Service: ServiceId<AggregatedServiceId>,
         Service::Message: 'static,
     {
         info!("Requesting relay with {}", Service::SERVICE_ID);
@@ -161,7 +163,7 @@ where
 
         let Ok(()) = self
             .send(OverwatchCommand::Relay(RelayCommand {
-                service_id: Service::RUNTIME_ID,
+                service_id: Service::SERVICE_ID,
                 reply_channel: ReplyChannel::from(sender),
             }))
             .await
