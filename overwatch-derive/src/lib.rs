@@ -281,7 +281,7 @@ fn generate_start_impl(fields: &Punctuated<Field, Comma>) -> proc_macro2::TokenS
         let field_identifier = field.ident.as_ref().expect("A struct attribute identifier");
         let type_id = utils::extract_type_from(&field.ty);
         quote! {
-            &<#type_id as ::overwatch::utils::traits::RuntimeId>::runtime_id() => {
+            &#type_id::RUNTIME_ID => {
                 self.#field_identifier.service_runner::<<#type_id as ::overwatch::services::ServiceData>::StateOperator>().run::<#type_id>()?;
                 ::core::result::Result::Ok(())
             }
@@ -292,6 +292,8 @@ fn generate_start_impl(fields: &Punctuated<Field, Comma>) -> proc_macro2::TokenS
     quote! {
         #instrumentation
         fn start(&mut self, service_id: &Self::AggregatedServiceId) -> ::core::result::Result<(), ::overwatch::overwatch::Error<Self::AggregatedServiceId>> {
+            use ::overwatch::utils::traits::RuntimeId as _;
+
             match service_id {
                 #( #cases ),*
                 service_id => panic!("Service IDs are statically checked.")
@@ -306,7 +308,7 @@ fn generate_stop_impl(fields: &Punctuated<Field, Comma>) -> proc_macro2::TokenSt
         let type_id = utils::extract_type_from(&field.ty);
         // TODO: actually stop them here once service lifecycle is implemented
         quote! {
-            &<#type_id as ::overwatch::utils::traits::RuntimeId>::runtime_id() => { unimplemented!() }
+            &#type_id::RUNTIME_ID => { unimplemented!() }
         }
     });
 
@@ -314,6 +316,8 @@ fn generate_stop_impl(fields: &Punctuated<Field, Comma>) -> proc_macro2::TokenSt
     quote! {
         #instrumentation
         fn stop(&mut self, service_id: &Self::AggregatedServiceId) -> ::core::result::Result<(), ::overwatch::overwatch::Error<Self::AggregatedServiceId>> {
+            use ::overwatch::utils::traits::RuntimeId as _;
+
             match service_id {
                 #( #cases ),*
                 service_id => panic!("Service IDs are statically checked.")
@@ -327,7 +331,7 @@ fn generate_request_relay_impl(fields: &Punctuated<Field, Comma>) -> proc_macro2
         let field_identifier = field.ident.as_ref().expect("A struct attribute identifier");
         let type_id = utils::extract_type_from(&field.ty);
         quote! {
-            &<#type_id as ::overwatch::utils::traits::RuntimeId>::runtime_id() => {
+            &#type_id::RUNTIME_ID => {
                 ::core::result::Result::Ok(::std::boxed::Box::new(
                     self.#field_identifier
                         .relay_with()
@@ -341,6 +345,8 @@ fn generate_request_relay_impl(fields: &Punctuated<Field, Comma>) -> proc_macro2
     quote! {
         #instrumentation
         fn request_relay(&mut self, service_id: &Self::AggregatedServiceId) -> ::overwatch::services::relay::RelayResult<Self::AggregatedServiceId> {
+            use ::overwatch::utils::traits::RuntimeId as _;
+
             match service_id {
                 #( #cases )*
                 service_id => panic!("Service IDs are statically checked.")
@@ -356,7 +362,7 @@ fn generate_request_status_watcher_impl(
         let field_identifier = field.ident.as_ref().expect("A struct attribute identifier");
         let type_id = utils::extract_type_from(&field.ty);
         quote! {
-            &<#type_id as ::overwatch::utils::traits::RuntimeId>::runtime_id() => {
+            &#type_id::RUNTIME_ID => {
                 ::core::result::Result::Ok(self.#field_identifier.status_watcher())
             }
         }
@@ -365,11 +371,10 @@ fn generate_request_status_watcher_impl(
     quote! {
         #[::tracing::instrument(skip(self), err)]
         fn request_status_watcher(&self, service_id: &Self::AggregatedServiceId) -> ::overwatch::services::status::ServiceStatusResult<Self::AggregatedServiceId> {
-            {
-                match service_id {
-                    #( #cases )*
-                    service_id => panic!("Service IDs are statically checked.")
-                }
+            use ::overwatch::utils::traits::RuntimeId as _;
+            match service_id {
+                #( #cases )*
+                service_id => panic!("Service IDs are statically checked.")
             }
         }
     }
@@ -509,18 +514,14 @@ fn generate_runtime_id_impls(fields: &Punctuated<Field, Comma>) -> proc_macro2::
 
                     Some(quote! {
                         impl<#(#generic_params),*> ::overwatch::utils::traits::RuntimeId<#aggregated_service_id_type_name> for #inner_ident<#(#generic_params),*> {
-                            fn runtime_id() -> #aggregated_service_id_type_name {
-                                #aggregated_service_id_type_name::#capitalized_service_name
-                            }
+                            const RUNTIME_ID: #aggregated_service_id_type_name = #aggregated_service_id_type_name::#capitalized_service_name;
                         }
                     })
                 },
                 // No generics case
                 _ => Some(quote! {
                     impl ::overwatch::utils::traits::RuntimeId<#aggregated_service_id_type_name> for #inner_ident {
-                        fn runtime_id() -> #aggregated_service_id_type_name {
-                            #aggregated_service_id_type_name::#capitalized_service_name
-                        }
+                        const RUNTIME_ID: #aggregated_service_id_type_name = #aggregated_service_id_type_name::#capitalized_service_name;
                     }
                 }),
         }

@@ -1,3 +1,3 @@
 pub trait RuntimeId<T> {
-    fn runtime_id() -> T;
+    const RUNTIME_ID: T;
 }

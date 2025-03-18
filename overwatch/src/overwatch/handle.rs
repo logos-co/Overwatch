@@ -70,7 +70,7 @@ where
         let (sender, receiver) = tokio::sync::oneshot::channel();
         let Ok(()) = self
             .send(OverwatchCommand::Status(StatusCommand {
-                service_id: Service::runtime_id(),
+                service_id: Service::RUNTIME_ID,
                 reply_channel: ReplyChannel::from(sender),
             }))
             .await
@@ -110,7 +110,12 @@ where
     }
 
     /// Send an overwatch command to the
-    /// [`OverwatchRunner`](crate::overwatch::OverwatchRunner)
+    /// [`OverwatchRunner`](crate::overwatch::OverwatchRunner).
+    ///
+    /// # Errors
+    ///
+    /// If the received side of the channel is closed and the message cannot be
+    /// sent.
     #[cfg_attr(
         feature = "instrumentation",
         instrument(name = "overwatch-command-send", skip(self))
@@ -153,9 +158,10 @@ where
     {
         info!("Requesting relay with {}", Service::SERVICE_ID);
         let (sender, receiver) = tokio::sync::oneshot::channel();
+
         let Ok(()) = self
             .send(OverwatchCommand::Relay(RelayCommand {
-                service_id: Service::runtime_id(),
+                service_id: Service::RUNTIME_ID,
                 reply_channel: ReplyChannel::from(sender),
             }))
             .await

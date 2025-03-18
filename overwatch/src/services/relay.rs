@@ -94,7 +94,11 @@ impl<Message> InboundRelay<Message> {
     }
 }
 
-impl<Message, AggregatedServiceId> OutboundRelay<Message, AggregatedServiceId> {
+impl<Message, AggregatedServiceId> OutboundRelay<Message, AggregatedServiceId>
+where
+    Message: Send,
+    AggregatedServiceId: Sync,
+{
     /// Send a message to the relay connection
     ///
     /// # Errors
