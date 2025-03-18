@@ -15,10 +15,7 @@ pub struct ServicesLifeCycleHandle<AggregatedServiceId> {
     handlers: HashMap<AggregatedServiceId, LifecycleHandle>,
 }
 
-impl<AggregatedServiceId> ServicesLifeCycleHandle<AggregatedServiceId>
-where
-    AggregatedServiceId: Eq + Hash,
-{
+impl<AggregatedServiceId> ServicesLifeCycleHandle<AggregatedServiceId> {
     #[must_use]
     pub fn empty() -> Self {
         Self {
@@ -26,6 +23,16 @@ where
         }
     }
 
+    /// Get all [`ServiceId`]s registered in this handle
+    pub fn services_ids(&self) -> impl Iterator<Item = &AggregatedServiceId> {
+        self.handlers.keys()
+    }
+}
+
+impl<AggregatedServiceId> ServicesLifeCycleHandle<AggregatedServiceId>
+where
+    AggregatedServiceId: Eq + Hash,
+{
     /// Send a `Shutdown` message to the specified service.
     ///
     /// # Arguments
@@ -86,11 +93,6 @@ where
             self.kill(service_id)?;
         }
         Ok(())
-    }
-
-    /// Get all [`ServiceId`]s registered in this handle
-    pub fn services_ids(&self) -> impl Iterator<Item = &AggregatedServiceId> {
-        self.handlers.keys()
     }
 }
 

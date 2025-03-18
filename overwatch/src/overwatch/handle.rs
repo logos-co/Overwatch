@@ -87,6 +87,38 @@ where
         })
     }
 
+    /// Request a relay with a service
+    pub async fn relay<Service>(&self) -> Result<OutboundRelay<Service::Message>, RelayError>
+    where
+        Service: ServiceId<AggregatedServiceId>,
+        Service::Message: 'static,
+    {
+        info!("Requesting relay with {}", Service::SERVICE_ID);
+        let (sender, receiver) = tokio::sync::oneshot::channel();
+
+        let Ok(()) = self
+            .send(OverwatchCommand::Relay(RelayCommand {
+                service_id: Service::SERVICE_ID,
+                reply_channel: ReplyChannel::from(sender),
+            }))
+            .await
+        else {
+            unreachable!("Service relay should always be available");
+        };
+        let message = receiver
+            .await
+            .map_err(|e| RelayError::Receiver(Box::new(e)))??;
+        let Ok(downcasted_message) = message.downcast::<OutboundRelay<Service::Message>>() else {
+            unreachable!("Statically should always be of the correct type");
+        };
+        Ok(*downcasted_message)
+    }
+}
+
+impl<AggregatedServiceId> OverwatchHandle<AggregatedServiceId>
+where
+    AggregatedServiceId: Debug + Sync,
+{
     /// Send a shutdown signal to the
     /// [`OverwatchRunner`](crate::overwatch::OverwatchRunner)
     pub async fn shutdown(&self) {
@@ -97,6 +129,19 @@ where
             ))
             .await
             .map_err(|e| dbg!(e));
+    }
+
+    #[cfg_attr(feature = "instrumentation", instrument(skip(self)))]
+    pub async fn update_settings<S: Services>(&self, settings: S::Settings)
+    where
+        S::Settings: Send + Debug + 'static,
+    {
+        let _: Result<(), _> = self
+            .send(OverwatchCommand::Settings(SettingsCommand(Box::new(
+                settings,
+            ))))
+            .await
+            .map_err(|e| error!(error=?e, "Error updating settings"));
     }
 
     /// Send a kill signal to the
@@ -130,50 +175,5 @@ where
             error!(error=?e, "Error sending overwatch command");
             e
         })
-    }
-
-    #[cfg_attr(feature = "instrumentation", instrument(skip(self)))]
-    pub async fn update_settings<S: Services>(&self, settings: S::Settings)
-    where
-        S::Settings: Send + Debug + 'static,
-    {
-        let _: Result<(), _> = self
-            .send(OverwatchCommand::Settings(SettingsCommand(Box::new(
-                settings,
-            ))))
-            .await
-            .map_err(|e| error!(error=?e, "Error updating settings"));
-    }
-}
-
-impl<AggregatedServiceId> OverwatchHandle<AggregatedServiceId>
-where
-    AggregatedServiceId: Display + Debug + Sync + 'static,
-{
-    /// Request a relay with a service
-    pub async fn relay<Service>(&self) -> Result<OutboundRelay<Service::Message>, RelayError>
-    where
-        Service: ServiceId<AggregatedServiceId>,
-        Service::Message: 'static,
-    {
-        info!("Requesting relay with {}", Service::SERVICE_ID);
-        let (sender, receiver) = tokio::sync::oneshot::channel();
-
-        let Ok(()) = self
-            .send(OverwatchCommand::Relay(RelayCommand {
-                service_id: Service::SERVICE_ID,
-                reply_channel: ReplyChannel::from(sender),
-            }))
-            .await
-        else {
-            unreachable!("Service relay should always be available");
-        };
-        let message = receiver
-            .await
-            .map_err(|e| RelayError::Receiver(Box::new(e)))??;
-        let Ok(downcasted_message) = message.downcast::<OutboundRelay<Service::Message>>() else {
-            unreachable!("Statically should always be of the correct type");
-        };
-        Ok(*downcasted_message)
     }
 }
