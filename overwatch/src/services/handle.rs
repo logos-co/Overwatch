@@ -25,7 +25,7 @@ pub struct ServiceHandle<Message, Settings, State, AggregateServiceId> {
     ///
     /// It contains the channel if the service is running, otherwise it'll be
     /// [`None`]
-    outbound_relay: Option<OutboundRelay<Message, AggregateServiceId>>,
+    outbound_relay: Option<OutboundRelay<Message>>,
     overwatch_handle: OverwatchHandle<AggregateServiceId>,
     settings: SettingsUpdater<Settings>,
     status: StatusHandle,
@@ -111,7 +111,7 @@ where
     /// Request a relay to this service.
     ///
     /// If the service is not running, it will return [`None`].
-    pub fn relay_with(&self) -> Option<OutboundRelay<Message, AggregateServiceId>> {
+    pub fn relay_with(&self) -> Option<OutboundRelay<Message>> {
         self.outbound_relay.clone()
     }
 
@@ -134,8 +134,7 @@ where
     {
         // TODO: Add proper status handling here.
         // A service should be able to produce a runner if it is already running.
-        let (inbound_relay, outbound_relay) =
-            relay::<Message, AggregateServiceId>(self.relay_buffer_size);
+        let (inbound_relay, outbound_relay) = relay::<Message>(self.relay_buffer_size);
         let settings_reader = self.settings.notifier();
         // Add relay channel to handle
         self.outbound_relay = Some(outbound_relay);

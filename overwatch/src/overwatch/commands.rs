@@ -24,7 +24,7 @@ impl<Message> ReplyChannel<Message> {
 #[derive(Debug)]
 pub struct RelayCommand<AggregatedServiceId> {
     pub(crate) service_id: AggregatedServiceId,
-    pub(crate) reply_channel: ReplyChannel<RelayResult<AggregatedServiceId>>,
+    pub(crate) reply_channel: ReplyChannel<RelayResult>,
 }
 
 /// Command for requesting

@@ -151,9 +151,7 @@ where
     AggregatedServiceId: Display + Debug + Sync + 'static,
 {
     /// Request a relay with a service
-    pub async fn relay<Service>(
-        &self,
-    ) -> Result<OutboundRelay<Service::Message, AggregatedServiceId>, RelayError<AggregatedServiceId>>
+    pub async fn relay<Service>(&self) -> Result<OutboundRelay<Service::Message>, RelayError>
     where
         Service: ServiceId<AggregatedServiceId>,
         Service::Message: 'static,
@@ -173,9 +171,7 @@ where
         let message = receiver
             .await
             .map_err(|e| RelayError::Receiver(Box::new(e)))??;
-        let Ok(downcasted_message) =
-            message.downcast::<OutboundRelay<Service::Message, AggregatedServiceId>>()
-        else {
+        let Ok(downcasted_message) = message.downcast::<OutboundRelay<Service::Message>>() else {
             unreachable!("Statically should always be of the correct type");
         };
         Ok(*downcasted_message)

@@ -69,6 +69,16 @@ fn get_default_instrumentation_without_settings() -> proc_macro2::TokenStream {
     quote! {}
 }
 
+fn get_default_instrumentation_without_status_watcher() -> proc_macro2::TokenStream {
+    #[cfg(feature = "instrumentation")]
+    quote! {
+        #[tracing::instrument(skip(self, status), err)]
+    }
+
+    #[cfg(not(feature = "instrumentation"))]
+    quote! {}
+}
+
 #[proc_macro_derive(Services)]
 #[proc_macro_error]
 pub fn services_derive(input: TokenStream) -> TokenStream {
@@ -240,10 +250,8 @@ fn generate_start_all_impl(fields: &Punctuated<Field, Comma>) -> proc_macro2::To
         }
     });
 
-    let instrumentation = get_default_instrumentation();
     quote! {
-        #instrumentation
-        fn start_all(&mut self) -> ::core::result::Result<::overwatch::overwatch::ServicesLifeCycleHandle<Self::AggregatedServiceId>, ::overwatch::overwatch::Error<Self::AggregatedServiceId>> {
+        fn start_all(&mut self) -> ::core::result::Result<::overwatch::overwatch::ServicesLifeCycleHandle<Self::AggregatedServiceId>, ::overwatch::overwatch::Error> {
             ::core::result::Result::Ok([#( #call_start ),*].try_into()?)
         }
     }
@@ -262,13 +270,10 @@ fn generate_start_impl(fields: &Punctuated<Field, Comma>) -> proc_macro2::TokenS
         }
     });
 
-    let instrumentation = get_default_instrumentation();
     quote! {
-        #instrumentation
-        fn start(&mut self, service_id: &Self::AggregatedServiceId) -> ::core::result::Result<(), ::overwatch::overwatch::Error<Self::AggregatedServiceId>> {
+        fn start(&mut self, service_id: &Self::AggregatedServiceId) -> ::core::result::Result<(), ::overwatch::overwatch::Error> {
             match service_id {
                 #( #cases ),*
-                service_id => panic!("Service IDs are statically checked.")
             }
         }
     }
@@ -285,13 +290,10 @@ fn generate_stop_impl(fields: &Punctuated<Field, Comma>) -> proc_macro2::TokenSt
         }
     });
 
-    let instrumentation = get_default_instrumentation();
     quote! {
-        #instrumentation
-        fn stop(&mut self, service_id: &Self::AggregatedServiceId) -> ::core::result::Result<(), ::overwatch::overwatch::Error<Self::AggregatedServiceId>> {
+        fn stop(&mut self, service_id: &Self::AggregatedServiceId) {
             match service_id {
                 #( #cases ),*
-                service_id => panic!("Service IDs are statically checked.")
             }
         }
     }
@@ -313,13 +315,10 @@ fn generate_request_relay_impl(fields: &Punctuated<Field, Comma>) -> proc_macro2
         }
     });
 
-    let instrumentation = get_default_instrumentation();
     quote! {
-        #instrumentation
-        fn request_relay(&mut self, service_id: &Self::AggregatedServiceId) -> ::overwatch::services::relay::RelayResult<Self::AggregatedServiceId> {
+        fn request_relay(&mut self, service_id: &Self::AggregatedServiceId) -> ::overwatch::services::relay::RelayResult {
             match service_id {
                 #( #cases )*
-                service_id => panic!("Service IDs are statically checked.")
             }
         }
     }
@@ -334,17 +333,15 @@ fn generate_request_status_watcher_impl(
         let aggregated_service_id_type_name = get_aggregated_service_id_type_name();
         quote! {
             &<#type_id as ::overwatch::services::ServiceId<#aggregated_service_id_type_name>>::SERVICE_ID => {
-                ::core::result::Result::Ok(self.#field_identifier.status_watcher())
+                self.#field_identifier.status_watcher()
             }
         }
     });
 
     quote! {
-        #[::tracing::instrument(skip(self), err)]
-        fn request_status_watcher(&self, service_id: &Self::AggregatedServiceId) -> ::overwatch::services::status::ServiceStatusResult<Self::AggregatedServiceId> {
+        fn request_status_watcher(&self, service_id: &Self::AggregatedServiceId) -> ::overwatch::services::status::StatusWatcher {
             match service_id {
                 #( #cases )*
-                service_id => panic!("Service IDs are statically checked.")
             }
         }
     }
@@ -367,17 +364,13 @@ fn generate_update_settings_impl(fields: &Punctuated<Field, Comma>) -> proc_macr
         }
     });
 
-    let instrumentation = get_default_instrumentation_without_settings();
     quote! {
-        #instrumentation
-        fn update_settings(&mut self, settings: Self::Settings) -> ::core::result::Result<(), ::overwatch::overwatch::Error<Self::AggregatedServiceId>> {
+        fn update_settings(&mut self, settings: Self::Settings) {
             let Self::Settings {
                 #( #fields_settings ),*
             } = settings;
 
             #( #update_settings_call )*
-
-            ::core::result::Result::Ok(())
         }
     }
 }

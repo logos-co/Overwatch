@@ -1,7 +1,6 @@
 use std::{
     any::Any,
     fmt::Debug,
-    marker::PhantomData,
     pin::Pin,
     task::{Context, Poll},
 };
@@ -13,20 +12,11 @@ use tokio_util::sync::PollSender;
 use tracing::error;
 
 #[derive(Error, Debug)]
-pub enum RelayError<AggregatedServiceId> {
-    #[error("error requesting relay to {to} service")]
-    InvalidRequest { to: AggregatedServiceId },
+pub enum RelayError {
     #[error("couldn't relay message")]
     Send,
     #[error("relay is already connected")]
     AlreadyConnected,
-    #[error("service {service_id} is not available")]
-    Unavailable { service_id: AggregatedServiceId },
-    #[error("invalid message with type id [{type_id}] for service {service_id}")]
-    InvalidMessage {
-        type_id: String,
-        service_id: &'static str,
-    },
     #[error("receiver failed due to {0:?}")]
     Receiver(Box<dyn Debug + Send + Sync>),
 }
@@ -38,7 +28,7 @@ pub type AnyMessage = Box<dyn Any + Send + 'static>;
 pub struct NoMessage;
 
 /// Result type when creating a relay connection.
-pub type RelayResult<AggregatedServiceId> = Result<AnyMessage, RelayError<AggregatedServiceId>>;
+pub type RelayResult = Result<AnyMessage, RelayError>;
 
 /// Channel receiver of a relay connection.
 #[derive(Debug)]
@@ -48,18 +38,16 @@ pub struct InboundRelay<Message> {
 }
 
 /// Channel sender of a relay connection.
-pub struct OutboundRelay<Message, AggregatedServiceId> {
+pub struct OutboundRelay<Message> {
     sender: Sender<Message>,
     _stats: (), // placeholder
-    _phantom: PhantomData<AggregatedServiceId>,
 }
 
-impl<Message, AggregatedServiceId> Clone for OutboundRelay<Message, AggregatedServiceId> {
+impl<Message> Clone for OutboundRelay<Message> {
     fn clone(&self) -> Self {
         Self {
             sender: self.sender.clone(),
             _stats: (),
-            _phantom: PhantomData,
         }
     }
 }
@@ -67,23 +55,14 @@ impl<Message, AggregatedServiceId> Clone for OutboundRelay<Message, AggregatedSe
 /// Relay channel builder.
 // TODO: make buffer_size const?
 #[must_use]
-pub fn relay<Message, AggregatedServiceId>(
-    buffer_size: usize,
-) -> (
-    InboundRelay<Message>,
-    OutboundRelay<Message, AggregatedServiceId>,
-) {
+pub fn relay<Message>(buffer_size: usize) -> (InboundRelay<Message>, OutboundRelay<Message>) {
     let (sender, receiver) = channel(buffer_size);
     (
         InboundRelay {
             receiver,
             _stats: (),
         },
-        OutboundRelay {
-            sender,
-            _stats: (),
-            _phantom: PhantomData,
-        },
+        OutboundRelay { sender, _stats: () },
     )
 }
 
@@ -94,20 +73,16 @@ impl<Message> InboundRelay<Message> {
     }
 }
 
-impl<Message, AggregatedServiceId> OutboundRelay<Message, AggregatedServiceId>
+impl<Message> OutboundRelay<Message>
 where
     Message: Send,
-    AggregatedServiceId: Sync,
 {
     /// Send a message to the relay connection
     ///
     /// # Errors
     ///
     /// If the message cannot be sent to the specified service.
-    pub async fn send(
-        &self,
-        message: Message,
-    ) -> Result<(), (RelayError<AggregatedServiceId>, Message)> {
+    pub async fn send(&self, message: Message) -> Result<(), (RelayError, Message)> {
         self.sender
             .send(message)
             .await
@@ -126,17 +101,14 @@ where
     /// # Errors
     ///
     /// If the message cannot be sent to the specified service.
-    pub fn blocking_send(
-        &self,
-        message: Message,
-    ) -> Result<(), (RelayError<AggregatedServiceId>, Message)> {
+    pub fn blocking_send(&self, message: Message) -> Result<(), (RelayError, Message)> {
         self.sender
             .blocking_send(message)
             .map_err(|e| (RelayError::Send, e.0))
     }
 }
 
-impl<Message, AggregatedServiceId> OutboundRelay<Message, AggregatedServiceId>
+impl<Message> OutboundRelay<Message>
 where
     Message: Send,
 {
