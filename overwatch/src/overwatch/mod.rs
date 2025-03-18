@@ -97,10 +97,6 @@ pub trait Services: Sized {
     fn start_all(&mut self) -> Result<ServicesLifeCycleHandle<Self::AggregatedServiceId>, Error>;
 
     /// Stop a service attached to the trait implementer.
-    ///
-    /// # Errors
-    ///
-    /// The generated [`Error`].
     fn stop(&mut self, service_id: &Self::AggregatedServiceId);
 
     /// Request a communication relay for a service.
@@ -111,16 +107,9 @@ pub trait Services: Sized {
     fn request_relay(&mut self, service_id: &Self::AggregatedServiceId) -> RelayResult;
 
     /// Request a status watcher for a service.
-    ///
-    /// # Errors
-    ///
-    /// The generated [`Error`].
     fn request_status_watcher(&self, service_id: &Self::AggregatedServiceId) -> StatusWatcher;
 
     /// Update service settings.
-    /// # Errors
-    ///
-    /// The generated [`Error`].
     fn update_settings(&mut self, settings: Self::Settings);
 }
 
