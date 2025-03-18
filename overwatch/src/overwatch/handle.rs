@@ -62,13 +62,10 @@ impl OverwatchHandle {
         let message = receiver
             .await
             .map_err(|e| RelayError::Receiver(Box::new(e)))??;
-        message
-            .downcast::<OutboundRelay<Service::Message>>()
-            .map(|r| *r)
-            .map_err(|m| RelayError::InvalidMessage {
-                type_id: format!("{:?}", (*m).type_id()),
-                service_id: Service::SERVICE_ID,
-            })
+        let Ok(downcasted_message) = message.downcast::<OutboundRelay<Service::Message>>() else {
+            unreachable!("Statically should always be of the correct type");
+        };
+        Ok(*downcasted_message)
     }
 
     /// Request a [`StatusWatcher`] for a service
