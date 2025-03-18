@@ -9,10 +9,11 @@ use overwatch::{
 use crate::{
     messages::{PingMessage, PongMessage},
     service_ping::PingService,
+    AggregatedServiceId,
 };
 
 pub struct PongService {
-    service_state_handle: OpaqueServiceStateHandle<Self>,
+    service_state_handle: OpaqueServiceStateHandle<Self, AggregatedServiceId>,
 }
 
 impl ServiceData for PongService {
@@ -24,9 +25,9 @@ impl ServiceData for PongService {
 }
 
 #[async_trait::async_trait]
-impl ServiceCore for PongService {
+impl ServiceCore<AggregatedServiceId> for PongService {
     fn init(
-        service_state_handle: OpaqueServiceStateHandle<Self>,
+        service_state_handle: OpaqueServiceStateHandle<Self, AggregatedServiceId>,
         _initial_state: Self::State,
     ) -> Result<Self, DynError> {
         Ok(Self {
@@ -43,6 +44,7 @@ impl ServiceCore for PongService {
         let ping_outbound_relay = service_state_handle
             .overwatch_handle
             .relay::<PingService>()
+            .connect()
             .await?;
 
         while let Some(message) = inbound_relay.recv().await {

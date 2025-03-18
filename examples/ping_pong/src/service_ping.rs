@@ -12,10 +12,11 @@ use crate::{
     service_pong::PongService,
     settings::PingSettings,
     states::PingState,
+    AggregatedServiceId,
 };
 
 pub struct PingService {
-    service_state_handle: OpaqueServiceStateHandle<Self>,
+    service_state_handle: OpaqueServiceStateHandle<Self, AggregatedServiceId>,
     initial_state: <Self as ServiceData>::State,
 }
 
@@ -28,9 +29,9 @@ impl ServiceData for PingService {
 }
 
 #[async_trait::async_trait]
-impl ServiceCore for PingService {
+impl ServiceCore<AggregatedServiceId> for PingService {
     fn init(
-        service_state_handle: OpaqueServiceStateHandle<Self>,
+        service_state_handle: OpaqueServiceStateHandle<Self, AggregatedServiceId>,
         initial_state: Self::State,
     ) -> Result<Self, DynError> {
         Ok(Self {
@@ -49,6 +50,7 @@ impl ServiceCore for PingService {
         let pong_outbound_relay = service_state_handle
             .overwatch_handle
             .relay::<PongService>()
+            .connect()
             .await?;
 
         let Self::State { mut pong_count } = initial_state;
