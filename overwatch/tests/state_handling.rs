@@ -2,25 +2,28 @@ use std::{convert::Infallible, time::Duration};
 
 use async_trait::async_trait;
 use overwatch::{
+    derive_services,
     overwatch::OverwatchRunner,
     services::{
+        relay::RelayMessage,
         state::{ServiceState, StateOperator},
         ServiceCore, ServiceData, ServiceId,
     },
-    OpaqueServiceHandle, OpaqueServiceStateHandle,
+    OpaqueServiceStateHandle,
 };
-use overwatch_derive::Services;
 use tokio::{
     io::{self, AsyncWriteExt},
     time::sleep,
 };
 
 pub struct UpdateStateService {
-    state: OpaqueServiceStateHandle<Self>,
+    state: OpaqueServiceStateHandle<Self, AggregatedServiceId>,
 }
 
 #[derive(Clone, Debug)]
 pub struct UpdateStateServiceMessage;
+
+impl RelayMessage for UpdateStateServiceMessage {}
 
 #[derive(Debug)]
 pub struct UnitError;
@@ -85,9 +88,9 @@ impl ServiceData for UpdateStateService {
 }
 
 #[async_trait]
-impl ServiceCore for UpdateStateService {
+impl ServiceCore<AggregatedServiceId> for UpdateStateService {
     fn init(
-        state: OpaqueServiceStateHandle<Self>,
+        state: OpaqueServiceStateHandle<Self, AggregatedServiceId>,
         _initial_state: Self::State,
     ) -> Result<Self, overwatch::DynError> {
         Ok(Self { state })
@@ -95,7 +98,7 @@ impl ServiceCore for UpdateStateService {
 
     async fn run(mut self) -> Result<(), overwatch::DynError> {
         let Self {
-            state: OpaqueServiceStateHandle::<Self> { state_updater, .. },
+            state: OpaqueServiceStateHandle::<Self, AggregatedServiceId> { state_updater, .. },
         } = self;
         for value in 0..10 {
             state_updater.update(CounterState { value });
@@ -105,9 +108,9 @@ impl ServiceCore for UpdateStateService {
     }
 }
 
-#[derive(Services)]
+#[derive_services]
 struct TestApp {
-    update_state_service: OpaqueServiceHandle<UpdateStateService>,
+    update_state_service: UpdateStateService,
 }
 
 #[test]

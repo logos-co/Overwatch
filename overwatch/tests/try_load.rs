@@ -1,16 +1,17 @@
 use std::{thread, time::Duration};
 
+// Crates
 use async_trait::async_trait;
 use overwatch::{
+    derive_services,
     overwatch::OverwatchRunner,
     services::{
         relay::NoMessage,
         state::{ServiceState, StateOperator},
         ServiceCore, ServiceData, ServiceId,
     },
-    DynError, OpaqueServiceHandle, OpaqueServiceStateHandle,
+    DynError, OpaqueServiceStateHandle,
 };
-use overwatch_derive::Services;
 use tokio::sync::{broadcast, broadcast::error::SendError};
 
 #[derive(Clone)]
@@ -57,7 +58,7 @@ struct TryLoadSettings {
 }
 
 struct TryLoad {
-    service_state_handle: OpaqueServiceStateHandle<Self>,
+    service_state_handle: OpaqueServiceStateHandle<Self, AggregatedServiceId>,
 }
 
 impl ServiceData for TryLoad {
@@ -69,9 +70,9 @@ impl ServiceData for TryLoad {
 }
 
 #[async_trait]
-impl ServiceCore for TryLoad {
+impl ServiceCore<AggregatedServiceId> for TryLoad {
     fn init(
-        service_state: OpaqueServiceStateHandle<Self>,
+        service_state: OpaqueServiceStateHandle<Self, AggregatedServiceId>,
         _initial_state: Self::State,
     ) -> Result<Self, DynError> {
         Ok(Self {
@@ -90,9 +91,9 @@ impl ServiceCore for TryLoad {
     }
 }
 
-#[derive(Services)]
+#[derive_services]
 struct TryLoadApp {
-    try_load: OpaqueServiceHandle<TryLoad>,
+    try_load: TryLoad,
 }
 
 #[test]

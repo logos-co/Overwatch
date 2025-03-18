@@ -1,6 +1,7 @@
 use std::time::Duration;
 
 use overwatch::{
+    derive_services,
     overwatch::{
         commands::{OverwatchCommand, ServiceLifeCycleCommand},
         OverwatchRunner,
@@ -11,14 +12,13 @@ use overwatch::{
         state::{NoOperator, NoState},
         ServiceCore, ServiceData, ServiceId,
     },
-    DynError, OpaqueServiceHandle, OpaqueServiceStateHandle,
+    DynError, OpaqueServiceStateHandle,
 };
-use overwatch_derive::Services;
 use tokio::time::sleep;
 use tokio_stream::StreamExt;
 
 pub struct CancellableService {
-    service_state: OpaqueServiceStateHandle<Self>,
+    service_state: OpaqueServiceStateHandle<Self, AggregatedServiceId>,
 }
 
 impl ServiceData for CancellableService {
@@ -30,9 +30,9 @@ impl ServiceData for CancellableService {
 }
 
 #[async_trait::async_trait]
-impl ServiceCore for CancellableService {
+impl ServiceCore<AggregatedServiceId> for CancellableService {
     fn init(
-        service_state: OpaqueServiceStateHandle<Self>,
+        service_state: OpaqueServiceStateHandle<Self, AggregatedServiceId>,
         _initial_state: Self::State,
     ) -> Result<Self, DynError> {
         Ok(Self { service_state })
@@ -67,9 +67,9 @@ impl ServiceCore for CancellableService {
     }
 }
 
-#[derive(Services)]
+#[derive_services]
 struct CancelableServices {
-    cancelable: OpaqueServiceHandle<CancellableService>,
+    cancelable: CancellableService,
 }
 
 #[test]
@@ -80,7 +80,7 @@ fn run_overwatch_then_shutdown_service_and_kill() {
     let (sender, mut receiver) = tokio::sync::broadcast::channel(1);
     overwatch.spawn(async move {
         sleep(Duration::from_millis(500)).await;
-        let _ = handle
+        handle
             .send(OverwatchCommand::ServiceLifeCycle(
                 ServiceLifeCycleCommand {
                     service_id: <CancellableService as ServiceData>::SERVICE_ID,
