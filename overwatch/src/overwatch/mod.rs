@@ -2,7 +2,7 @@ pub mod commands;
 pub mod handle;
 pub mod life_cycle;
 
-use std::{any::Any, fmt::Debug, future::Future};
+use std::{any::Any, fmt::Debug, future::Future, marker::PhantomData};
 
 use thiserror::Error;
 use tokio::{
@@ -69,6 +69,8 @@ pub trait Services: Sized {
     /// services settings.
     type Settings;
 
+    type AggregatedServiceId;
+
     /// Spawn a new instance of the [`Services`] object.
     ///
     /// It returns a `(ServiceId, Runtime)` where Runtime is the [`Runtime`]
@@ -81,7 +83,7 @@ pub trait Services: Sized {
     /// The implementer's creation error.
     fn new(
         settings: Self::Settings,
-        overwatch_handle: OverwatchHandle,
+        overwatch_handle: OverwatchHandle<Self::AggregatedServiceId>,
     ) -> Result<Self, super::DynError>;
 
     /// Start a service attached to the trait implementer.
@@ -93,7 +95,7 @@ pub trait Services: Sized {
 
     // TODO: this probably will be removed once the services lifecycle is
     // implemented
-    /// Start all services attached to the trait implementer.
+    /// Start all services attaches to the trait implementer.
     ///
     /// # Errors
     ///
@@ -136,11 +138,15 @@ pub trait Services: Sized {
 /// be able to stop it.
 ///
 /// That is, it's responsible for [`Overwatch`]'s application lifecycle.
-pub struct OverwatchRunner<Services> {
+pub struct GenericOverwatchRunner<Services, ServiceId> {
     services: Services,
     finish_signal_sender: oneshot::Sender<()>,
     commands_receiver: Receiver<OverwatchCommand>,
+    _phantom: PhantomData<ServiceId>,
 }
+
+pub type OverwatchRunner<ServicesImpl> =
+    GenericOverwatchRunner<ServicesImpl, <ServicesImpl as Services>::AggregatedServiceId>;
 
 /// Overwatch thread identifier.
 ///
@@ -150,6 +156,7 @@ pub const OVERWATCH_THREAD_NAME: &str = "Overwatch";
 impl<ServicesImpl> OverwatchRunner<ServicesImpl>
 where
     ServicesImpl: Services + Send + 'static,
+    ServicesImpl::AggregatedServiceId: Clone + Send + Sync,
 {
     /// Start the Overwatch runner process.
     ///
@@ -164,7 +171,7 @@ where
     pub fn run(
         settings: ServicesImpl::Settings,
         runtime: Option<Runtime>,
-    ) -> Result<Overwatch, super::DynError> {
+    ) -> Result<Overwatch<ServicesImpl::AggregatedServiceId>, super::DynError> {
         let runtime = runtime.unwrap_or_else(default_multithread_runtime);
 
         let (finish_signal_sender, finish_runner_signal) = oneshot::channel();
@@ -175,6 +182,7 @@ where
             services,
             finish_signal_sender,
             commands_receiver,
+            _phantom: PhantomData,
         };
 
         runtime.spawn(async move { runner.run_().await });
@@ -293,17 +301,17 @@ where
 
 /// Main Overwatch entity.
 /// It manages the [`Runtime`] and [`OverwatchHandle`].
-pub struct Overwatch {
+pub struct Overwatch<AggregateServiceId> {
     runtime: Runtime,
-    handle: OverwatchHandle,
+    handle: OverwatchHandle<AggregateServiceId>,
     finish_runner_signal: oneshot::Receiver<FinishOverwatchSignal>,
 }
 
-impl Overwatch {
+impl<AggregateServiceId> Overwatch<AggregateServiceId> {
     /// Get the [`OverwatchHandle`]
     ///
     /// It's cloneable, so it can be done on demand
-    pub const fn handle(&self) -> &OverwatchHandle {
+    pub const fn handle(&self) -> &OverwatchHandle<AggregateServiceId> {
         &self.handle
     }
 
@@ -360,10 +368,11 @@ mod test {
 
     impl Services for EmptyServices {
         type Settings = ();
+        type AggregatedServiceId = ();
 
         fn new(
             _settings: Self::Settings,
-            _overwatch_handle: OverwatchHandle,
+            _overwatch_handle: OverwatchHandle<()>,
         ) -> Result<Self, Box<dyn std::error::Error + Send + Sync + 'static>> {
             Ok(Self)
         }

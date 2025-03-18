@@ -1,4 +1,4 @@
-use std::fmt::Debug;
+use std::{fmt::Debug, marker::PhantomData};
 
 use tokio::{
     runtime::Handle,
@@ -28,17 +28,19 @@ use crate::{
 /// It handles communications to the main
 /// [`OverwatchRunner`](crate::overwatch::OverwatchRunner).
 #[derive(Clone, Debug)]
-pub struct OverwatchHandle {
+pub struct OverwatchHandle<AggregatedServiceId> {
     runtime_handle: Handle,
     sender: Sender<OverwatchCommand>,
+    _pantom: PhantomData<AggregatedServiceId>,
 }
 
-impl OverwatchHandle {
+impl<AggregatedServiceId> OverwatchHandle<AggregatedServiceId> {
     #[must_use]
     pub const fn new(runtime_handle: Handle, sender: Sender<OverwatchCommand>) -> Self {
         Self {
             runtime_handle,
             sender,
+            _pantom: PhantomData,
         }
     }
 

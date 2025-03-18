@@ -20,13 +20,13 @@ use crate::{
 // and when it is not. That way we could expose a better API depending on what
 // is happening and it would get rid of the probably unnecessary Option and
 // cloning.
-pub struct ServiceHandle<Message, Settings, State> {
+pub struct ServiceHandle<Message, Settings, State, AggregateServiceId> {
     /// Message channel relay
     ///
     /// It contains the channel if the service is running, otherwise it'll be
     /// [`None`]
     outbound_relay: Option<OutboundRelay<Message>>,
-    overwatch_handle: OverwatchHandle,
+    overwatch_handle: OverwatchHandle<AggregateServiceId>,
     settings: SettingsUpdater<Settings>,
     status: StatusHandle,
     initial_state: State,
@@ -36,11 +36,11 @@ pub struct ServiceHandle<Message, Settings, State> {
 /// Core resources for a `Service`.
 ///
 /// Contains everything required to start a new [`ServiceRunner`].
-pub struct ServiceStateHandle<Message, Settings, State> {
+pub struct ServiceStateHandle<Message, Settings, State, AggregateServiceId> {
     /// Message channel relay to receive messages from other services
     pub inbound_relay: InboundRelay<Message>,
     pub status_handle: StatusHandle,
-    pub overwatch_handle: OverwatchHandle,
+    pub overwatch_handle: OverwatchHandle<AggregateServiceId>,
     pub settings_reader: SettingsNotifier<Settings>,
     pub state_updater: StateUpdater<State>,
     pub lifecycle_handle: LifecycleHandle,
@@ -49,17 +49,19 @@ pub struct ServiceStateHandle<Message, Settings, State> {
 /// Executor for a `Service`.
 ///
 /// Contains all the necessary information to run a `Service`.
-pub struct ServiceRunner<Message, Settings, State, StateOperator> {
-    service_state: ServiceStateHandle<Message, Settings, State>,
+pub struct ServiceRunner<Message, Settings, State, StateOperator, AggregateServiceId> {
+    service_state: ServiceStateHandle<Message, Settings, State, AggregateServiceId>,
     state_handle: StateHandle<State, StateOperator>,
     lifecycle_handle: LifecycleHandle,
     initial_state: State,
 }
 
-impl<Message, Settings, State> ServiceHandle<Message, Settings, State>
+impl<Message, Settings, State, AggregateServiceId>
+    ServiceHandle<Message, Settings, State, AggregateServiceId>
 where
     Settings: Clone,
     State: ServiceState<Settings = Settings> + Clone,
+    AggregateServiceId: Clone + Send + Sync,
 {
     /// Crate a new service handle.
     ///
@@ -68,7 +70,7 @@ where
     /// If the service state cannot be loaded from the provided settings.
     pub fn new<StateOp>(
         settings: Settings,
-        overwatch_handle: OverwatchHandle,
+        overwatch_handle: OverwatchHandle<AggregateServiceId>,
         relay_buffer_size: usize,
     ) -> Result<Self, State::Error>
     where
@@ -102,7 +104,7 @@ where
     /// Get the service's [`OverwatchHandle`].
     ///
     /// It's easily cloneable and can be done on demand.
-    pub const fn overwatch_handle(&self) -> &OverwatchHandle {
+    pub const fn overwatch_handle(&self) -> &OverwatchHandle<AggregateServiceId> {
         &self.overwatch_handle
     }
 
@@ -124,7 +126,9 @@ where
     }
 
     /// Build a runner for this service
-    pub fn service_runner<StateOp>(&mut self) -> ServiceRunner<Message, Settings, State, StateOp>
+    pub fn service_runner<StateOp>(
+        &mut self,
+    ) -> ServiceRunner<Message, Settings, State, StateOp, AggregateServiceId>
     where
         StateOp: StateOperator<State = State>,
     {
@@ -159,10 +163,12 @@ where
     }
 }
 
-impl<Message, Settings, State, StateOp> ServiceRunner<Message, Settings, State, StateOp>
+impl<Message, Settings, State, StateOp, AggregateServiceId>
+    ServiceRunner<Message, Settings, State, StateOp, AggregateServiceId>
 where
     State: Clone + Send + Sync + 'static,
     StateOp: StateOperator<State = State> + Send + 'static,
+    AggregateServiceId: Clone + Send + Sync,
 {
     /// Spawn the service main loop and handle its lifecycle.
     ///
@@ -176,7 +182,8 @@ where
     /// If the service cannot be initialized properly with the retrieved state.
     pub fn run<Service>(self) -> Result<(ServiceId, LifecycleHandle), crate::DynError>
     where
-        Service: ServiceCore<Settings = Settings, State = State, Message = Message> + 'static,
+        Service: ServiceCore<AggregateServiceId, Settings = Settings, State = State, Message = Message>
+            + 'static,
     {
         let Self {
             service_state,
