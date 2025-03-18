@@ -44,7 +44,6 @@ impl ServiceCore<AggregatedServiceId> for PongService {
         let ping_outbound_relay = service_state_handle
             .overwatch_handle
             .relay::<PingService>()
-            .connect()
             .await?;
 
         while let Some(message) = inbound_relay.recv().await {

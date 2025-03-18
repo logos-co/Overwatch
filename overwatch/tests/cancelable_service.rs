@@ -80,7 +80,7 @@ fn run_overwatch_then_shutdown_service_and_kill() {
     let (sender, mut receiver) = tokio::sync::broadcast::channel(1);
     overwatch.spawn(async move {
         sleep(Duration::from_millis(500)).await;
-        handle
+        let _ = handle
             .send(OverwatchCommand::ServiceLifeCycle(
                 ServiceLifeCycleCommand {
                     service_id: <CancellableService as ServiceData>::SERVICE_ID,

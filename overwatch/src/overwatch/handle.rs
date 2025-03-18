@@ -21,6 +21,7 @@ use crate::{
         status::StatusWatcher,
         ServiceData,
     },
+    utils::traits::AsRuntimeId,
 };
 
 /// Handler object over the main [`crate::overwatch::Overwatch`] runner.
@@ -31,7 +32,7 @@ use crate::{
 pub struct OverwatchHandle<AggregatedServiceId> {
     runtime_handle: Handle,
     sender: Sender<OverwatchCommand>,
-    _pantom: PhantomData<AggregatedServiceId>,
+    _phantom: PhantomData<AggregatedServiceId>,
 }
 
 impl<AggregatedServiceId> OverwatchHandle<AggregatedServiceId> {
@@ -40,14 +41,24 @@ impl<AggregatedServiceId> OverwatchHandle<AggregatedServiceId> {
         Self {
             runtime_handle,
             sender,
-            _pantom: PhantomData,
+            _phantom: PhantomData,
         }
     }
 
+    #[must_use]
+    pub const fn runtime(&self) -> &Handle {
+        &self.runtime_handle
+    }
+}
+
+impl<AggregatedServiceId> OverwatchHandle<AggregatedServiceId>
+where
+    AggregatedServiceId: Sync,
+{
     /// Request a relay with a service
     pub async fn relay<Service>(&self) -> Result<OutboundRelay<Service::Message>, RelayError>
     where
-        Service: ServiceData,
+        Service: ServiceData + AsRuntimeId<AggregatedServiceId> + Sync,
         Service::Message: 'static,
     {
         info!("Requesting relay with {}", Service::SERVICE_ID);
@@ -142,10 +153,5 @@ impl<AggregatedServiceId> OverwatchHandle<AggregatedServiceId> {
             ))))
             .await
             .map_err(|e| error!(error=?e, "Error updating settings"));
-    }
-
-    #[must_use]
-    pub const fn runtime(&self) -> &Handle {
-        &self.runtime_handle
     }
 }

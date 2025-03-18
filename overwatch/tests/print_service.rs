@@ -6,7 +6,6 @@ use overwatch::{
     derive_services,
     overwatch::OverwatchRunner,
     services::{
-        relay::RelayMessage,
         state::{NoOperator, NoState},
         ServiceCore, ServiceData, ServiceId,
     },
@@ -20,8 +19,6 @@ pub struct PrintService {
 
 #[derive(Clone, Debug)]
 pub struct PrintServiceMessage(String);
-
-impl RelayMessage for PrintServiceMessage {}
 
 impl ServiceData for PrintService {
     const SERVICE_ID: ServiceId = "FooService";
@@ -97,11 +94,10 @@ fn derive_print_service() {
     let settings: TestAppServiceSettings = TestAppServiceSettings { print_service: () };
     let overwatch = OverwatchRunner::<TestApp>::run(settings, None).unwrap();
     let handle = overwatch.handle().clone();
-    let print_service_relay = handle.relay::<PrintService>();
 
     overwatch.spawn(async move {
-        let print_service_relay = print_service_relay
-            .connect()
+        let print_service_relay = handle
+            .relay::<PrintService>()
             .await
             .expect("A connection to the print service is established");
 
@@ -118,6 +114,7 @@ fn derive_print_service() {
             .expect("stop message to be sent");
     });
 
+    let handle = overwatch.handle().clone();
     overwatch.spawn(async move {
         sleep(Duration::from_secs(1)).await;
         handle.shutdown().await;
