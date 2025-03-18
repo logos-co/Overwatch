@@ -270,7 +270,7 @@ fn generate_start_all_impl(fields: &Punctuated<Field, Comma>) -> proc_macro2::To
     let instrumentation = get_default_instrumentation();
     quote! {
         #instrumentation
-        fn start_all(&mut self) -> ::core::result::Result<::overwatch::overwatch::ServicesLifeCycleHandle, ::overwatch::overwatch::Error> {
+        fn start_all(&mut self) -> ::core::result::Result<::overwatch::overwatch::ServicesLifeCycleHandle<Self::AggregatedServiceId>, ::overwatch::overwatch::Error<Self::AggregatedServiceId>> {
             ::core::result::Result::Ok([#( #call_start ),*].try_into()?)
         }
     }
@@ -281,7 +281,7 @@ fn generate_start_impl(fields: &Punctuated<Field, Comma>) -> proc_macro2::TokenS
         let field_identifier = field.ident.as_ref().expect("A struct attribute identifier");
         let type_id = utils::extract_type_from(&field.ty);
         quote! {
-            <#type_id as ::overwatch::services::ServiceData>::SERVICE_ID => {
+            &<#type_id as ::overwatch::utils::traits::RuntimeId>::runtime_id() => {
                 self.#field_identifier.service_runner::<<#type_id as ::overwatch::services::ServiceData>::StateOperator>().run::<#type_id>()?;
                 ::core::result::Result::Ok(())
             }
@@ -291,10 +291,10 @@ fn generate_start_impl(fields: &Punctuated<Field, Comma>) -> proc_macro2::TokenS
     let instrumentation = get_default_instrumentation();
     quote! {
         #instrumentation
-        fn start(&mut self, service_id: ::overwatch::services::ServiceId) -> ::core::result::Result<(), ::overwatch::overwatch::Error> {
+        fn start(&mut self, service_id: &Self::AggregatedServiceId) -> ::core::result::Result<(), ::overwatch::overwatch::Error<Self::AggregatedServiceId>> {
             match service_id {
                 #( #cases ),*
-                service_id => ::core::result::Result::Err(::overwatch::overwatch::Error::Unavailable { service_id })
+                service_id => panic!("Service IDs are statically checked.")
             }
         }
     }
@@ -306,17 +306,17 @@ fn generate_stop_impl(fields: &Punctuated<Field, Comma>) -> proc_macro2::TokenSt
         let type_id = utils::extract_type_from(&field.ty);
         // TODO: actually stop them here once service lifecycle is implemented
         quote! {
-            <#type_id as ::overwatch::services::ServiceData>::SERVICE_ID => { unimplemented!() }
+            &<#type_id as ::overwatch::utils::traits::RuntimeId>::runtime_id() => { unimplemented!() }
         }
     });
 
     let instrumentation = get_default_instrumentation();
     quote! {
         #instrumentation
-        fn stop(&mut self, service_id: ::overwatch::services::ServiceId) -> ::core::result::Result<(), ::overwatch::overwatch::Error> {
+        fn stop(&mut self, service_id: &Self::AggregatedServiceId) -> ::core::result::Result<(), ::overwatch::overwatch::Error<Self::AggregatedServiceId>> {
             match service_id {
                 #( #cases ),*
-                service_id => ::core::result::Result::Err(::overwatch::overwatch::Error::Unavailable { service_id })
+                service_id => panic!("Service IDs are statically checked.")
             }
         }
     }
@@ -327,7 +327,7 @@ fn generate_request_relay_impl(fields: &Punctuated<Field, Comma>) -> proc_macro2
         let field_identifier = field.ident.as_ref().expect("A struct attribute identifier");
         let type_id = utils::extract_type_from(&field.ty);
         quote! {
-            <#type_id as ::overwatch::services::ServiceData>::SERVICE_ID => {
+            &<#type_id as ::overwatch::utils::traits::RuntimeId>::runtime_id() => {
                 ::core::result::Result::Ok(::std::boxed::Box::new(
                     self.#field_identifier
                         .relay_with()
@@ -340,10 +340,10 @@ fn generate_request_relay_impl(fields: &Punctuated<Field, Comma>) -> proc_macro2
     let instrumentation = get_default_instrumentation();
     quote! {
         #instrumentation
-        fn request_relay(&mut self, service_id: ::overwatch::services::ServiceId) -> ::overwatch::services::relay::RelayResult {
+        fn request_relay(&mut self, service_id: &Self::AggregatedServiceId) -> ::overwatch::services::relay::RelayResult<Self::AggregatedServiceId> {
             match service_id {
                 #( #cases )*
-                service_id => ::core::result::Result::Err(::overwatch::services::relay::RelayError::Unavailable { service_id })
+                service_id => panic!("Service IDs are statically checked.")
             }
         }
     }
@@ -356,7 +356,7 @@ fn generate_request_status_watcher_impl(
         let field_identifier = field.ident.as_ref().expect("A struct attribute identifier");
         let type_id = utils::extract_type_from(&field.ty);
         quote! {
-            <#type_id as ::overwatch::services::ServiceData>::SERVICE_ID => {
+            &<#type_id as ::overwatch::utils::traits::RuntimeId>::runtime_id() => {
                 ::core::result::Result::Ok(self.#field_identifier.status_watcher())
             }
         }
@@ -364,11 +364,11 @@ fn generate_request_status_watcher_impl(
 
     quote! {
         #[::tracing::instrument(skip(self), err)]
-        fn request_status_watcher(&self, service_id: ::overwatch::services::ServiceId) -> ::overwatch::services::status::ServiceStatusResult {
+        fn request_status_watcher(&self, service_id: &Self::AggregatedServiceId) -> ::overwatch::services::status::ServiceStatusResult<Self::AggregatedServiceId> {
             {
                 match service_id {
                     #( #cases )*
-                    service_id => ::core::result::Result::Err(::overwatch::services::status::ServiceStatusError::Unavailable { service_id })
+                    service_id => panic!("Service IDs are statically checked.")
                 }
             }
         }
@@ -395,7 +395,7 @@ fn generate_update_settings_impl(fields: &Punctuated<Field, Comma>) -> proc_macr
     let instrumentation = get_default_instrumentation_without_settings();
     quote! {
         #instrumentation
-        fn update_settings(&mut self, settings: Self::Settings) -> ::core::result::Result<(), ::overwatch::overwatch::Error> {
+        fn update_settings(&mut self, settings: Self::Settings) -> ::core::result::Result<(), ::overwatch::overwatch::Error<Self::AggregatedServiceId>> {
             let Self::Settings {
                 #( #fields_settings ),*
             } = settings;
@@ -409,12 +409,15 @@ fn generate_update_settings_impl(fields: &Punctuated<Field, Comma>) -> proc_macr
 
 fn generate_aggregate_service_types(fields: &Punctuated<Field, Comma>) -> proc_macro2::TokenStream {
     let aggregated_service_id = generate_aggregate_service_id(fields);
-    let as_ref_impls = generate_as_ref_impls(fields);
+    let runtime_id_trait_impls = generate_runtime_id_trait_impls();
+    let runtime_id_impls = generate_runtime_id_impls(fields);
 
     quote! {
         #aggregated_service_id
 
-        #as_ref_impls
+        #runtime_id_trait_impls
+
+        #runtime_id_impls
     }
 }
 
@@ -446,7 +449,18 @@ fn generate_aggregate_service_id(fields: &Punctuated<Field, Comma>) -> proc_macr
     }
 }
 
-fn generate_as_ref_impls(fields: &Punctuated<Field, Comma>) -> proc_macro2::TokenStream {
+fn generate_runtime_id_trait_impls() -> proc_macro2::TokenStream {
+    let aggregated_service_id_type_name = get_aggregated_service_id_type_name();
+    quote! {
+        impl ::core::fmt::Display for #aggregated_service_id_type_name {
+            fn fmt(&self, f: &mut ::core::fmt::Formatter<'_>) -> ::core::fmt::Result {
+                <Self as ::core::fmt::Debug>::fmt(self, f)
+            }
+        }
+    }
+}
+
+fn generate_runtime_id_impls(fields: &Punctuated<Field, Comma>) -> proc_macro2::TokenStream {
     let impl_blocks: Vec<_> = fields.iter().filter_map(|field| {
         let field_type = &field.ty;
         let capitalized_service_name = format_ident!(

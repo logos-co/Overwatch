@@ -2,7 +2,13 @@ pub mod commands;
 pub mod handle;
 pub mod life_cycle;
 
-use std::{any::Any, fmt::Debug, future::Future, hash::Hash, marker::PhantomData};
+use std::{
+    any::Any,
+    fmt::{Debug, Display},
+    future::Future,
+    hash::Hash,
+    marker::PhantomData,
+};
 
 use thiserror::Error;
 use tokio::{
@@ -171,7 +177,7 @@ pub const OVERWATCH_THREAD_NAME: &str = "Overwatch";
 impl<ServicesImpl> OverwatchRunner<ServicesImpl>
 where
     ServicesImpl: Services + Send + 'static,
-    ServicesImpl::AggregatedServiceId: Clone + Debug + Eq + Hash + Sync + Send,
+    ServicesImpl::AggregatedServiceId: Clone + Debug + Display + Eq + Hash + Sync + Send,
 {
     /// Start the Overwatch runner process.
     ///
@@ -367,7 +373,7 @@ impl<AggregateServiceId> Overwatch<AggregateServiceId> {
 
 #[cfg(test)]
 mod test {
-    use std::time::Duration;
+    use std::{fmt::Display, time::Duration};
 
     use tokio::time::sleep;
 
@@ -383,44 +389,61 @@ mod test {
 
     struct EmptyServices;
 
+    #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
+    struct EmptyServiceId;
+
+    impl Display for EmptyServiceId {
+        fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+            f.write_str("()")
+        }
+    }
+
     impl Services for EmptyServices {
         type Settings = ();
-        type AggregatedServiceId = ();
+        type AggregatedServiceId = EmptyServiceId;
 
         fn new(
             _settings: Self::Settings,
-            _overwatch_handle: OverwatchHandle<()>,
+            _overwatch_handle: OverwatchHandle<EmptyServiceId>,
         ) -> Result<Self, Box<dyn std::error::Error + Send + Sync + 'static>> {
             Ok(Self)
         }
 
-        fn start(&mut self, service_id: &()) -> Result<(), Error<()>> {
+        fn start(&mut self, service_id: &EmptyServiceId) -> Result<(), Error<EmptyServiceId>> {
             Err(Error::Unavailable {
                 service_id: *service_id,
             })
         }
 
-        fn start_all(&mut self) -> Result<ServicesLifeCycleHandle<()>, Error<()>> {
+        fn start_all(
+            &mut self,
+        ) -> Result<ServicesLifeCycleHandle<EmptyServiceId>, Error<EmptyServiceId>> {
             Ok(ServicesLifeCycleHandle::empty())
         }
 
-        fn stop(&mut self, service_id: &()) -> Result<(), Error<()>> {
+        fn stop(&mut self, service_id: &EmptyServiceId) -> Result<(), Error<EmptyServiceId>> {
             Err(Error::Unavailable {
                 service_id: *service_id,
             })
         }
 
-        fn request_relay(&mut self, service_id: &()) -> RelayResult<()> {
+        fn request_relay(&mut self, service_id: &EmptyServiceId) -> RelayResult<EmptyServiceId> {
             Err(RelayError::InvalidRequest { to: *service_id })
         }
 
-        fn request_status_watcher(&self, service_id: &()) -> ServiceStatusResult<()> {
+        fn request_status_watcher(
+            &self,
+            service_id: &EmptyServiceId,
+        ) -> ServiceStatusResult<EmptyServiceId> {
             Err(ServiceStatusError::Unavailable {
                 service_id: *service_id,
             })
         }
 
-        fn update_settings(&mut self, _settings: Self::Settings) -> Result<(), Error<()>> {
+        fn update_settings(
+            &mut self,
+            _settings: Self::Settings,
+        ) -> Result<(), Error<EmptyServiceId>> {
             Ok(())
         }
     }
