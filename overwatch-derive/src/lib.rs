@@ -399,14 +399,14 @@ fn generate_update_settings_impl(fields: &Punctuated<Field, Comma>) -> proc_macr
 fn generate_runtime_service_types(fields: &Punctuated<Field, Comma>) -> proc_macro2::TokenStream {
     let runtime_service_id = generate_runtime_service_id(fields);
     let service_id_trait_impls = generate_service_id_trait_impls();
-    let convert_from_impl = generate_convert_from_impl(fields);
+    let to_service_impl = generate_to_service_impl(fields);
 
     quote! {
         #runtime_service_id
 
         #service_id_trait_impls
 
-        #convert_from_impl
+        #to_service_impl
     }
 }
 
@@ -449,7 +449,7 @@ fn generate_service_id_trait_impls() -> proc_macro2::TokenStream {
     }
 }
 
-fn generate_convert_from_impl(fields: &Punctuated<Field, Comma>) -> proc_macro2::TokenStream {
+fn generate_to_service_impl(fields: &Punctuated<Field, Comma>) -> proc_macro2::TokenStream {
     let impl_blocks: Vec<_> = fields.iter().filter_map(|field| {
         let field_type = &field.ty;
         let capitalized_service_name = format_ident!(
@@ -497,15 +497,15 @@ fn generate_convert_from_impl(fields: &Punctuated<Field, Comma>) -> proc_macro2:
                         .collect();
 
                     Some(quote! {
-                        impl<#(#generic_params),*> ::overwatch::services::ConvertFrom<#inner_ident<#(#generic_params),*>> for #runtime_service_id_type_name {
-                            const TO: Self =  #runtime_service_id_type_name::#capitalized_service_name;
+                        impl<#(#generic_params),*> ::overwatch::services::ToService<#inner_ident<#(#generic_params),*>> for #runtime_service_id_type_name {
+                            const SERVICE: Self =  #runtime_service_id_type_name::#capitalized_service_name;
                         }
                     })
                 },
                 // No generics case
                 _ => Some(quote! {
-                    impl ::overwatch::services::ConvertFrom<#inner_ident> for #runtime_service_id_type_name {
-                        const TO: Self =  #runtime_service_id_type_name::#capitalized_service_name;
+                    impl ::overwatch::services::ToService<#inner_ident> for #runtime_service_id_type_name {
+                        const SERVICE: Self =  #runtime_service_id_type_name::#capitalized_service_name;
                     }
                 }),
         }
