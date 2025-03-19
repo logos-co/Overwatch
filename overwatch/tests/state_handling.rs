@@ -6,7 +6,7 @@ use overwatch::{
     overwatch::OverwatchRunner,
     services::{
         state::{ServiceState, StateOperator},
-        ServiceCore, ServiceData, ServiceId,
+        ServiceCore, ServiceData,
     },
     OpaqueServiceStateHandle,
 };
@@ -16,7 +16,7 @@ use tokio::{
 };
 
 pub struct UpdateStateService {
-    state: OpaqueServiceStateHandle<Self, AggregatedServiceId>,
+    state: OpaqueServiceStateHandle<Self, RuntimeServiceId>,
 }
 
 #[derive(Clone, Debug)]
@@ -77,7 +77,6 @@ impl StateOperator for CounterStateOperator {
 }
 
 impl ServiceData for UpdateStateService {
-    const SERVICE_ID: ServiceId = "FooService";
     type Settings = ();
     type State = CounterState;
     type StateOperator = CounterStateOperator;
@@ -85,9 +84,9 @@ impl ServiceData for UpdateStateService {
 }
 
 #[async_trait]
-impl ServiceCore<AggregatedServiceId> for UpdateStateService {
+impl ServiceCore<RuntimeServiceId> for UpdateStateService {
     fn init(
-        state: OpaqueServiceStateHandle<Self, AggregatedServiceId>,
+        state: OpaqueServiceStateHandle<Self, RuntimeServiceId>,
         _initial_state: Self::State,
     ) -> Result<Self, overwatch::DynError> {
         Ok(Self { state })
@@ -95,7 +94,7 @@ impl ServiceCore<AggregatedServiceId> for UpdateStateService {
 
     async fn run(mut self) -> Result<(), overwatch::DynError> {
         let Self {
-            state: OpaqueServiceStateHandle::<Self, AggregatedServiceId> { state_updater, .. },
+            state: OpaqueServiceStateHandle::<Self, RuntimeServiceId> { state_updater, .. },
         } = self;
         for value in 0..10 {
             state_updater.update(CounterState { value });

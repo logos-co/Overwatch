@@ -7,21 +7,20 @@ use overwatch::{
     overwatch::OverwatchRunner,
     services::{
         state::{NoOperator, NoState},
-        ServiceCore, ServiceData, ServiceId,
+        ServiceCore, ServiceData,
     },
     OpaqueServiceStateHandle,
 };
 use tokio::time::sleep;
 
 pub struct PrintService {
-    state: OpaqueServiceStateHandle<Self, AggregatedServiceId>,
+    state: OpaqueServiceStateHandle<Self, RuntimeServiceId>,
 }
 
 #[derive(Clone, Debug)]
 pub struct PrintServiceMessage(String);
 
 impl ServiceData for PrintService {
-    const SERVICE_ID: ServiceId = "FooService";
     type Settings = ();
     type State = NoState<Self::Settings>;
     type StateOperator = NoOperator<Self::State>;
@@ -29,9 +28,9 @@ impl ServiceData for PrintService {
 }
 
 #[async_trait]
-impl ServiceCore<AggregatedServiceId> for PrintService {
+impl ServiceCore<RuntimeServiceId> for PrintService {
     fn init(
-        state: OpaqueServiceStateHandle<Self, AggregatedServiceId>,
+        state: OpaqueServiceStateHandle<Self, RuntimeServiceId>,
         _initial_state: Self::State,
     ) -> Result<Self, overwatch::DynError> {
         Ok(Self { state })
@@ -42,7 +41,7 @@ impl ServiceCore<AggregatedServiceId> for PrintService {
 
         let Self {
             state:
-                OpaqueServiceStateHandle::<Self, AggregatedServiceId> {
+                OpaqueServiceStateHandle::<Self, RuntimeServiceId> {
                     mut inbound_relay, ..
                 },
         } = self;

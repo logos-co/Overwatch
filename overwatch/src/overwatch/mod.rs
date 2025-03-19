@@ -2,7 +2,7 @@ pub mod commands;
 pub mod handle;
 pub mod life_cycle;
 
-use std::{any::Any, fmt::Debug, future::Future, marker::PhantomData};
+use std::{any::Any, fmt::Debug, future::Future};
 
 use thiserror::Error;
 use tokio::{
@@ -14,7 +14,6 @@ use tokio::{
 use tracing::instrument;
 use tracing::{error, info};
 
-pub use crate::overwatch::life_cycle::ServicesLifeCycleHandle;
 use crate::{
     overwatch::{
         commands::{
@@ -22,27 +21,17 @@ use crate::{
             SettingsCommand, StatusCommand,
         },
         handle::OverwatchHandle,
+        life_cycle::ServicesLifeCycleHandle as ServicesLifeCycleHandleTrait,
     },
-    services::{
-        life_cycle::LifecycleMessage, relay::RelayResult, status::ServiceStatusResult, ServiceId,
-    },
+    services::{life_cycle::LifecycleMessage, relay::RelayResult, status::StatusWatcher},
     utils::runtime::default_multithread_runtime,
 };
 
 /// Overwatch base error type.
 #[derive(Error, Debug)]
 pub enum Error {
-    #[error("Service {service_id} is unavailable")]
-    Unavailable { service_id: ServiceId },
-
     #[error(transparent)]
     Any(super::DynError),
-}
-
-impl Error {
-    pub fn any<T: std::error::Error + Send + Sync + 'static>(err: T) -> Self {
-        Self::Any(Box::new(err))
-    }
 }
 
 impl From<super::DynError> for Error {
@@ -69,7 +58,9 @@ pub trait Services: Sized {
     /// services settings.
     type Settings;
 
-    type AggregatedServiceId;
+    type RuntimeServiceId;
+
+    type ServicesLifeCycleHandle;
 
     /// Spawn a new instance of the [`Services`] object.
     ///
@@ -83,7 +74,7 @@ pub trait Services: Sized {
     /// The implementer's creation error.
     fn new(
         settings: Self::Settings,
-        overwatch_handle: OverwatchHandle<Self::AggregatedServiceId>,
+        overwatch_handle: OverwatchHandle<Self::RuntimeServiceId>,
     ) -> Result<Self, super::DynError>;
 
     /// Start a service attached to the trait implementer.
@@ -91,7 +82,7 @@ pub trait Services: Sized {
     /// # Errors
     ///
     /// The generated [`Error`].
-    fn start(&mut self, service_id: ServiceId) -> Result<(), Error>;
+    fn start(&mut self, service_id: &Self::RuntimeServiceId) -> Result<(), Error>;
 
     // TODO: this probably will be removed once the services lifecycle is
     // implemented
@@ -100,34 +91,23 @@ pub trait Services: Sized {
     /// # Errors
     ///
     /// The generated [`Error`].
-    fn start_all(&mut self) -> Result<ServicesLifeCycleHandle, Error>;
+    fn start_all(&mut self) -> Result<Self::ServicesLifeCycleHandle, Error>;
 
     /// Stop a service attached to the trait implementer.
-    ///
-    /// # Errors
-    ///
-    /// The generated [`Error`].
-    fn stop(&mut self, service_id: ServiceId) -> Result<(), Error>;
+    fn stop(&mut self, service_id: &Self::RuntimeServiceId);
 
     /// Request a communication relay for a service.
     ///
     /// # Errors
     ///
     /// The generated [`Error`].
-    fn request_relay(&mut self, service_id: ServiceId) -> RelayResult;
+    fn request_relay(&mut self, service_id: &Self::RuntimeServiceId) -> RelayResult;
 
     /// Request a status watcher for a service.
-    ///
-    /// # Errors
-    ///
-    /// The generated [`Error`].
-    fn request_status_watcher(&self, service_id: ServiceId) -> ServiceStatusResult;
+    fn request_status_watcher(&self, service_id: &Self::RuntimeServiceId) -> StatusWatcher;
 
     /// Update service settings.
-    /// # Errors
-    ///
-    /// The generated [`Error`].
-    fn update_settings(&mut self, settings: Self::Settings) -> Result<(), Error>;
+    fn update_settings(&mut self, settings: Self::Settings);
 }
 
 /// Handle a running [`Overwatch`].
@@ -141,12 +121,11 @@ pub trait Services: Sized {
 pub struct GenericOverwatchRunner<Services, ServiceId> {
     services: Services,
     finish_signal_sender: oneshot::Sender<()>,
-    commands_receiver: Receiver<OverwatchCommand>,
-    _phantom: PhantomData<ServiceId>,
+    commands_receiver: Receiver<OverwatchCommand<ServiceId>>,
 }
 
 pub type OverwatchRunner<ServicesImpl> =
-    GenericOverwatchRunner<ServicesImpl, <ServicesImpl as Services>::AggregatedServiceId>;
+    GenericOverwatchRunner<ServicesImpl, <ServicesImpl as Services>::RuntimeServiceId>;
 
 /// Overwatch thread identifier.
 ///
@@ -156,7 +135,12 @@ pub const OVERWATCH_THREAD_NAME: &str = "Overwatch";
 impl<ServicesImpl> OverwatchRunner<ServicesImpl>
 where
     ServicesImpl: Services + Send + 'static,
-    ServicesImpl::AggregatedServiceId: Clone + Send + Sync,
+    ServicesImpl::RuntimeServiceId: Clone + Debug + Send,
+    ServicesImpl::ServicesLifeCycleHandle:
+        ServicesLifeCycleHandleTrait<ServicesImpl::RuntimeServiceId> + Send,
+    <ServicesImpl::ServicesLifeCycleHandle as ServicesLifeCycleHandleTrait<
+        ServicesImpl::RuntimeServiceId,
+    >>::Error: tracing::Value,
 {
     /// Start the Overwatch runner process.
     ///
@@ -171,7 +155,7 @@ where
     pub fn run(
         settings: ServicesImpl::Settings,
         runtime: Option<Runtime>,
-    ) -> Result<Overwatch<ServicesImpl::AggregatedServiceId>, super::DynError> {
+    ) -> Result<Overwatch<ServicesImpl::RuntimeServiceId>, super::DynError> {
         let runtime = runtime.unwrap_or_else(default_multithread_runtime);
 
         let (finish_signal_sender, finish_runner_signal) = oneshot::channel();
@@ -182,7 +166,6 @@ where
             services,
             finish_signal_sender,
             commands_receiver,
-            _phantom: PhantomData,
         };
 
         runtime.spawn(async move { runner.run_().await });
@@ -220,7 +203,7 @@ where
                         service_id,
                         msg: LifecycleMessage::Shutdown(channel),
                     } => {
-                        if let Err(e) = lifecycle_handlers.shutdown(service_id, channel) {
+                        if let Err(e) = lifecycle_handlers.shutdown(&service_id, channel) {
                             error!(e);
                         }
                     }
@@ -228,7 +211,7 @@ where
                         service_id,
                         msg: LifecycleMessage::Kill,
                     } => {
-                        if let Err(e) = lifecycle_handlers.kill(service_id) {
+                        if let Err(e) = lifecycle_handlers.kill(&service_id) {
                             error!(e);
                         }
                     }
@@ -255,27 +238,26 @@ where
             .expect("Overwatch run finish signal to be sent properly");
     }
 
-    fn handle_relay(services: &mut ServicesImpl, command: RelayCommand) {
+    fn handle_relay(
+        services: &mut ServicesImpl,
+        command: RelayCommand<ServicesImpl::RuntimeServiceId>,
+    ) {
         let RelayCommand {
             service_id,
             reply_channel,
         } = command;
         // Send the requested reply channel result to the requesting service
-        if let Err(Err(e)) = reply_channel.reply(services.request_relay(service_id)) {
-            info!(error=?e, "Error requesting relay for service {service_id}");
+        if let Err(Err(e)) = reply_channel.reply(services.request_relay(&service_id)) {
+            info!(error=?e, "Error requesting relay for service {service_id:#?}");
         }
     }
 
     fn handle_settings_update(services: &mut ServicesImpl, command: SettingsCommand) {
         let SettingsCommand(settings) = command;
-        if let Ok(settings) = settings.downcast::<ServicesImpl::Settings>() {
-            if let Err(e) = services.update_settings(*settings) {
-                // TODO: add proper logging
-                error!("{e}");
-            }
-        } else {
+        let Ok(settings) = settings.downcast::<ServicesImpl::Settings>() else {
             unreachable!("Statically should always be of the correct type");
-        }
+        };
+        services.update_settings(*settings);
     }
 
     fn handle_status(
@@ -283,35 +265,28 @@ where
         StatusCommand {
             service_id,
             reply_channel,
-        }: StatusCommand,
+        }: StatusCommand<ServicesImpl::RuntimeServiceId>,
     ) {
-        let watcher_result = services.request_status_watcher(service_id);
-        match watcher_result {
-            Ok(watcher) => {
-                if reply_channel.reply(watcher).is_err() {
-                    error!("Error reporting back status watcher for service: {service_id}");
-                }
-            }
-            Err(e) => {
-                error!("{e}");
-            }
+        let watcher = services.request_status_watcher(&service_id);
+        if reply_channel.reply(watcher).is_err() {
+            error!("Error reporting back status watcher for service: {service_id:#?}");
         }
     }
 }
 
 /// Main Overwatch entity.
 /// It manages the [`Runtime`] and [`OverwatchHandle`].
-pub struct Overwatch<AggregateServiceId> {
+pub struct Overwatch<RuntimeServiceId> {
     runtime: Runtime,
-    handle: OverwatchHandle<AggregateServiceId>,
+    handle: OverwatchHandle<RuntimeServiceId>,
     finish_runner_signal: oneshot::Receiver<FinishOverwatchSignal>,
 }
 
-impl<AggregateServiceId> Overwatch<AggregateServiceId> {
+impl<RuntimeServiceId> Overwatch<RuntimeServiceId> {
     /// Get the [`OverwatchHandle`]
     ///
     /// It's cloneable, so it can be done on demand
-    pub const fn handle(&self) -> &OverwatchHandle<AggregateServiceId> {
+    pub const fn handle(&self) -> &OverwatchHandle<RuntimeServiceId> {
         &self.handle
     }
 
@@ -351,24 +326,44 @@ impl<AggregateServiceId> Overwatch<AggregateServiceId> {
 mod test {
     use std::time::Duration;
 
-    use tokio::time::sleep;
+    use tokio::{sync::broadcast::Sender, time::sleep};
 
     use crate::{
         overwatch::{
-            handle::OverwatchHandle, Error, OverwatchRunner, Services, ServicesLifeCycleHandle,
+            handle::OverwatchHandle, life_cycle::ServicesLifeCycleHandle, Error, OverwatchRunner,
+            Services,
         },
-        services::{
-            relay::{RelayError, RelayResult},
-            status::{ServiceStatusError, ServiceStatusResult},
-            ServiceId,
-        },
+        services::{life_cycle::FinishedSignal, relay::RelayResult, status::StatusWatcher},
     };
 
     struct EmptyServices;
 
+    struct EmptyLifeCycleHandle;
+
+    impl ServicesLifeCycleHandle<()> for EmptyLifeCycleHandle {
+        type Error = &'static str;
+
+        fn kill(&self, _service: &()) -> Result<(), Self::Error> {
+            Ok(())
+        }
+
+        fn kill_all(&self) -> Result<(), Self::Error> {
+            Ok(())
+        }
+
+        fn shutdown(
+            &self,
+            _service: &(),
+            _sender: Sender<FinishedSignal>,
+        ) -> Result<(), Self::Error> {
+            Ok(())
+        }
+    }
+
     impl Services for EmptyServices {
         type Settings = ();
-        type AggregatedServiceId = ();
+        type RuntimeServiceId = ();
+        type ServicesLifeCycleHandle = EmptyLifeCycleHandle;
 
         fn new(
             _settings: Self::Settings,
@@ -377,29 +372,25 @@ mod test {
             Ok(Self)
         }
 
-        fn start(&mut self, service_id: ServiceId) -> Result<(), Error> {
-            Err(Error::Unavailable { service_id })
-        }
-
-        fn start_all(&mut self) -> Result<ServicesLifeCycleHandle, Error> {
-            Ok(ServicesLifeCycleHandle::empty())
-        }
-
-        fn stop(&mut self, service_id: ServiceId) -> Result<(), Error> {
-            Err(Error::Unavailable { service_id })
-        }
-
-        fn request_relay(&mut self, service_id: ServiceId) -> RelayResult {
-            Err(RelayError::InvalidRequest { to: service_id })
-        }
-
-        fn request_status_watcher(&self, service_id: ServiceId) -> ServiceStatusResult {
-            Err(ServiceStatusError::Unavailable { service_id })
-        }
-
-        fn update_settings(&mut self, _settings: Self::Settings) -> Result<(), Error> {
+        fn start(&mut self, _service_id: &()) -> Result<(), Error> {
             Ok(())
         }
+
+        fn start_all(&mut self) -> Result<EmptyLifeCycleHandle, Error> {
+            Ok(EmptyLifeCycleHandle)
+        }
+
+        fn stop(&mut self, _service_id: &()) {}
+
+        fn request_relay(&mut self, _service_id: &()) -> RelayResult {
+            Ok(Box::new(()))
+        }
+
+        fn request_status_watcher(&self, _service_id: &()) -> StatusWatcher {
+            unimplemented!("Not necessary for these tests.")
+        }
+
+        fn update_settings(&mut self, _settings: Self::Settings) {}
     }
 
     #[test]

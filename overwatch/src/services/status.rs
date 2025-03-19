@@ -1,17 +1,6 @@
 use std::{default::Default, sync::Arc, time::Duration};
 
-use thiserror::Error;
 use tokio::sync::watch;
-
-use crate::services::ServiceId;
-
-#[derive(Error, Debug)]
-pub enum ServiceStatusError {
-    #[error("service {service_id} is not available")]
-    Unavailable { service_id: ServiceId },
-}
-
-pub type ServiceStatusResult = Result<StatusWatcher, ServiceStatusError>;
 
 #[derive(Copy, Clone, Eq, PartialEq, Debug)]
 pub enum ServiceStatus {
