@@ -3,7 +3,7 @@ use proc_macro_error2::{abort_call_site, proc_macro_error};
 use quote::{format_ident, quote};
 use syn::{
     parse, parse_macro_input, parse_str, punctuated::Punctuated, token::Comma, Data, DeriveInput,
-    Field, Fields, GenericArgument, Generics, ItemStruct, PathArguments, Type,
+    Field, Fields, GenericArgument, Generics, Ident, ItemStruct, PathArguments, Type,
 };
 
 mod utils;
@@ -162,6 +162,11 @@ fn get_runtime_service_id_type_name() -> Type {
     parse_str(RUNTIME_SERVICE_ID_TYPE_NAME)
         .expect("Runtime service ID type is a valid type token stream.")
 }
+const RUNTIME_LIFECYCLE_HANDLERS_TYPE_NAME: &str = "RuntimeLifeCycleHandlers";
+fn get_runtime_lifecycle_handlers_type_name() -> Type {
+    parse_str(RUNTIME_LIFECYCLE_HANDLERS_TYPE_NAME)
+        .expect("Runtime lifecycle handlers type is a valid type token stream.")
+}
 
 fn generate_services_impl(
     services_identifier: &proc_macro2::Ident,
@@ -180,10 +185,12 @@ fn generate_services_impl(
     let (impl_generics, ty_generics, where_clause) = generics.split_for_impl();
 
     let runtime_service_id_type_name = get_runtime_service_id_type_name();
+    let runtime_lifecycle_handlers_type_name = get_runtime_lifecycle_handlers_type_name();
     quote! {
         impl #impl_generics ::overwatch::overwatch::Services for #services_identifier #ty_generics #where_clause {
             type Settings = #services_settings_identifier #ty_generics;
             type RuntimeServiceId = #runtime_service_id_type_name;
+            type ServicesLifeCycleHandle = #runtime_lifecycle_handlers_type_name;
 
             #impl_new
 
@@ -246,15 +253,17 @@ fn generate_start_all_impl(fields: &Punctuated<Field, Comma>) -> proc_macro2::To
         let field_identifier = field.ident.as_ref().expect("A struct attribute identifier");
         let type_id = utils::extract_type_from(&field.ty);
         quote! {
-            self.#field_identifier.service_runner::<<#type_id as ::overwatch::services::ServiceData>::StateOperator>().run::<#type_id>()?
+            #field_identifier: self.#field_identifier.service_runner::<<#type_id as ::overwatch::services::ServiceData>::StateOperator>().run::<#type_id>()?
         }
     });
 
     let instrumentation = get_default_instrumentation_for_result();
     quote! {
         #instrumentation
-        fn start_all(&mut self) -> ::core::result::Result<::overwatch::overwatch::ServicesLifeCycleHandle<Self::RuntimeServiceId>, ::overwatch::overwatch::Error> {
-            ::core::result::Result::Ok([#( #call_start ),*].try_into()?)
+        fn start_all(&mut self) -> ::core::result::Result<Self::ServicesLifeCycleHandle, ::overwatch::overwatch::Error> {
+            ::core::result::Result::Ok(Self::ServicesLifeCycleHandle {
+                #( #call_start ),*
+            })
         }
     }
 }
@@ -418,7 +427,7 @@ fn generate_runtime_service_id(fields: &Punctuated<Field, Comma>) -> proc_macro2
     });
     let runtime_service_id_type_name = get_runtime_service_id_type_name();
     let expanded = quote! {
-        #[derive(::core::fmt::Debug, ::core::clone::Clone, ::core::marker::Copy, ::core::cmp::PartialEq, ::core::cmp::Eq, ::core::hash::Hash)]
+        #[derive(::core::fmt::Debug, ::core::clone::Clone, ::core::marker::Copy, ::core::cmp::PartialEq, ::core::cmp::Eq, ::overwatch::LifecycleHandlers)]
         pub enum #runtime_service_id_type_name {
             #(#enum_variants),*
         }
@@ -505,4 +514,109 @@ fn generate_service_id_impls(fields: &Punctuated<Field, Comma>) -> proc_macro2::
     quote! {
         #(#impl_blocks)*
     }
+}
+
+/// Docs WIP.
+///
+/// # Panics
+///
+/// If the derive macro is not used on the created service ID enum.
+#[proc_macro_derive(LifecycleHandlers)]
+pub fn generate_lifecyle_handlers(input: TokenStream) -> TokenStream {
+    let input = parse_macro_input!(input as DeriveInput);
+
+    let enum_name = input.ident;
+    assert!(enum_name == RUNTIME_SERVICE_ID_TYPE_NAME, "LifecycleHandlers` can only be implemented on the runtime service ID type generated within this macro.");
+
+    let Data::Enum(data_enum) = input.data else {
+        panic!("`LifecycleHandlers` can only be used on enums.");
+    };
+
+    let variants_names = data_enum.variants.iter().map(|variant| &variant.ident);
+    let variants_as_field_names = variants_names.clone().map(|variant_name| {
+        Ident::new(
+            &utils::enum_variant_name_to_field_name(&variant_name.to_string()),
+            variant_name.span(),
+        )
+    });
+    let struct_fields = variants_as_field_names.clone().map(|field_name| {
+        quote! { #field_name: ::overwatch::services::life_cycle::LifecycleHandle }
+    });
+
+    let match_arms_shutdown = variants_names.clone().zip(variants_as_field_names.clone()).map(|(variant_name, field_name)| {
+        quote! { &#enum_name::#variant_name => self.#field_name.send(::overwatch::services::life_cycle::LifecycleMessage::Shutdown(sender)) }
+    });
+
+    let match_arms_kill = variants_names.clone().zip(variants_as_field_names.clone()).map(|(variant_name, field_name)| {
+        quote! { &#enum_name::#variant_name => self.#field_name.send(::overwatch::services::life_cycle::LifecycleMessage::Kill) }
+    });
+
+    let kill_all_body = variants_as_field_names.map(|field_name| {
+        quote! { self.#field_name.send(::overwatch::services::life_cycle::LifecycleMessage::Kill)?; }
+    });
+
+    let runtime_service_id_type_name = get_runtime_service_id_type_name();
+    let runtime_lifecycle_handlers_type_name = get_runtime_lifecycle_handlers_type_name();
+    let expanded = quote! {
+        pub struct #runtime_lifecycle_handlers_type_name {
+            #(#struct_fields,)*
+        }
+
+        impl ::overwatch::overwatch::life_cycle::ServicesLifeCycleHandle<#runtime_service_id_type_name> for #runtime_lifecycle_handlers_type_name {
+            type Error = ::overwatch::DynError;
+
+            /// Send a `Shutdown` message to the specified service.
+            ///
+            /// # Arguments
+            ///
+            /// `service` - The [`ServiceId`] of the target service
+            /// `sender` - The sender side of a broadcast channel. It's expected that
+            /// once the receiver finishes processing the message, a signal will be
+            /// sent back.
+            ///
+            /// # Errors
+            ///
+            /// The error returned when trying to send the shutdown command to the
+            /// specified service.
+            fn shutdown(
+                &self,
+                service: &#runtime_service_id_type_name,
+                sender: ::tokio::sync::broadcast::Sender<::overwatch::services::life_cycle::FinishedSignal>,
+            ) -> Result<(), Self::Error> {
+                match service {
+                    #(#match_arms_shutdown,)*
+                }
+            }
+
+            /// Send a [`LifecycleMessage::Kill`] message to the specified service
+            /// ([`ServiceId`]) [`crate::overwatch::OverwatchRunner`].
+            /// # Arguments
+            ///
+            /// `service` - The [`ServiceId`] of the target service
+            ///
+            /// # Errors
+            ///
+            /// The error returned when trying to send the kill command to the specified
+            /// service.
+            fn kill(&self, service: &#runtime_service_id_type_name) -> Result<(), Self::Error> {
+                match service {
+                    #(#match_arms_kill,)*
+                }
+            }
+
+            /// Send a [`LifecycleMessage::Kill`] message to all services registered in
+            /// this handle.
+            ///
+            /// # Errors
+            ///
+            /// The error returned when trying to send the kill command to any of the
+            /// running services.
+            fn kill_all(&self) -> Result<(), Self::Error> {
+                #(#kill_all_body)*
+                Ok(())
+            }
+        }
+    };
+
+    TokenStream::from(expanded)
 }

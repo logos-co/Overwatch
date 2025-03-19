@@ -45,3 +45,7 @@ pub fn extract_type_from(ty: &Type) -> Type {
 pub fn field_name_to_type_name(name: &str) -> String {
     name.to_case(Case::Pascal)
 }
+
+pub fn enum_variant_name_to_field_name(name: &str) -> String {
+    name.to_case(Case::Snake)
+}
