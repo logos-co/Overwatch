@@ -30,6 +30,9 @@ pub trait ServiceId<T>: ServiceData {
     const SERVICE_ID: T;
 }
 
+// This impl is to let services know each other they implement `ServiceId`
+// without knowing what the runtime will be, simply based on the
+// `RuntimeServiceId`.
 impl<RuntimeServiceId, Service> ServiceId<RuntimeServiceId> for Service
 where
     RuntimeServiceId: ConvertFrom<Service>,
