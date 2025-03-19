@@ -19,7 +19,6 @@ use tokio::{
 use tracing::instrument;
 use tracing::{error, info};
 
-pub use crate::overwatch::life_cycle::ServicesLifeCycleHandle;
 use crate::{
     overwatch::{
         commands::{
@@ -65,6 +64,8 @@ pub trait Services: Sized {
 
     type RuntimeServiceId;
 
+    type ServicesLifeCycleHandle;
+
     /// Spawn a new instance of the [`Services`] object.
     ///
     /// It returns a `(ServiceId, Runtime)` where Runtime is the [`Runtime`]
@@ -94,7 +95,7 @@ pub trait Services: Sized {
     /// # Errors
     ///
     /// The generated [`Error`].
-    fn start_all(&mut self) -> Result<ServicesLifeCycleHandle<Self::RuntimeServiceId>, Error>;
+    fn start_all(&mut self) -> Result<Self::ServicesLifeCycleHandle, Error>;
 
     /// Stop a service attached to the trait implementer.
     fn stop(&mut self, service_id: &Self::RuntimeServiceId);
