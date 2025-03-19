@@ -545,12 +545,15 @@ pub fn generate_lifecyle_handlers(input: TokenStream) -> TokenStream {
         quote! { self.#field_name.send(::overwatch::services::life_cycle::LifecycleMessage::Kill)?; }
     });
 
+    let runtime_service_id_type_name = get_runtime_service_id_type_name();
     let expanded = quote! {
         pub struct RuntimeLifeCycleHandlers {
             #(#struct_fields,)*
         }
 
-        impl RuntimeLifeCycleHandlers {
+        impl ::overwatch::overwatch::life_cycle::ServicesLifeCycleHandle<#runtime_service_id_type_name> for RuntimeLifeCycleHandlers {
+            type Error = ::overwatch::DynError;
+
             /// Send a `Shutdown` message to the specified service.
             ///
             /// # Arguments
@@ -564,11 +567,11 @@ pub fn generate_lifecyle_handlers(input: TokenStream) -> TokenStream {
             ///
             /// The error returned when trying to send the shutdown command to the
             /// specified service.
-            pub fn shutdown(
+            fn shutdown(
                 &self,
-                service: &#enum_name,
+                service: &#runtime_service_id_type_name,
                 sender: ::tokio::sync::broadcast::Sender<::overwatch::services::life_cycle::FinishedSignal>,
-            ) -> Result<(), ::overwatch::DynError> {
+            ) -> Result<(), Self::Error> {
                 match service {
                     #(#match_arms_shutdown,)*
                 }
@@ -584,7 +587,7 @@ pub fn generate_lifecyle_handlers(input: TokenStream) -> TokenStream {
             ///
             /// The error returned when trying to send the kill command to the specified
             /// service.
-            pub fn kill(&self, service: &#enum_name) -> Result<(), ::overwatch::DynError> {
+            fn kill(&self, service: &#runtime_service_id_type_name) -> Result<(), Self::Error> {
                 match service {
                     #(#match_arms_kill,)*
                 }
@@ -597,7 +600,7 @@ pub fn generate_lifecyle_handlers(input: TokenStream) -> TokenStream {
             ///
             /// The error returned when trying to send the kill command to any of the
             /// running services.
-            pub fn kill_all(&self) -> Result<(), ::overwatch::DynError> {
+            fn kill_all(&self) -> Result<(), Self::Error> {
                 #(#kill_all_body)*
                 Ok(())
             }

@@ -26,6 +26,7 @@ use crate::{
             SettingsCommand, StatusCommand,
         },
         handle::OverwatchHandle,
+        life_cycle::ServicesLifeCycleHandle as ServicesLifeCycleHandleTrait,
     },
     services::{life_cycle::LifecycleMessage, relay::RelayResult, status::StatusWatcher},
     utils::runtime::default_multithread_runtime,
@@ -140,6 +141,11 @@ impl<ServicesImpl> OverwatchRunner<ServicesImpl>
 where
     ServicesImpl: Services + Send + 'static,
     ServicesImpl::RuntimeServiceId: Clone + Debug + Display + Eq + Hash + Sync + Send,
+    ServicesImpl::ServicesLifeCycleHandle:
+        ServicesLifeCycleHandleTrait<ServicesImpl::RuntimeServiceId> + Send,
+    <ServicesImpl::ServicesLifeCycleHandle as ServicesLifeCycleHandleTrait<
+        ServicesImpl::RuntimeServiceId,
+    >>::Error: tracing::Value,
 {
     /// Start the Overwatch runner process.
     ///
@@ -328,9 +334,7 @@ mod test {
     use tokio::time::sleep;
 
     use crate::{
-        overwatch::{
-            handle::OverwatchHandle, Error, OverwatchRunner, Services, ServicesLifeCycleHandle,
-        },
+        overwatch::{handle::OverwatchHandle, Error, OverwatchRunner, Services},
         services::{relay::RelayResult, status::StatusWatcher},
     };
 
@@ -348,6 +352,7 @@ mod test {
     impl Services for EmptyServices {
         type Settings = ();
         type RuntimeServiceId = EmptyServiceId;
+        type ServicesLifeCycleHandle = ();
 
         fn new(
             _settings: Self::Settings,
@@ -360,8 +365,8 @@ mod test {
             Ok(())
         }
 
-        fn start_all(&mut self) -> Result<ServicesLifeCycleHandle<EmptyServiceId>, Error> {
-            Ok(ServicesLifeCycleHandle::empty())
+        fn start_all(&mut self) -> Result<(), Error> {
+            Ok(())
         }
 
         fn stop(&mut self, _service_id: &EmptyServiceId) {}
