@@ -7,7 +7,7 @@ pub mod status;
 
 use async_trait::async_trait;
 use handle::ServiceStateHandle;
-use state::ServiceState;
+use state::{ServiceState, StateOperator};
 
 // TODO: Make this type unique for each service?
 /// Services identification type.
@@ -23,9 +23,9 @@ pub trait ServiceData {
     /// Service settings object
     type Settings;
     /// Service state object
-    type State;
+    type State: ServiceState<Settings = Self::Settings>;
     /// State operator
-    type StateOperator;
+    type StateOperator: StateOperator<StateInput = Self::State, Settings = Self::Settings>;
     /// Service messages that the service itself understands and can react to
     type Message;
 }
