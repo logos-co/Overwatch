@@ -1,4 +1,7 @@
-use std::{fmt::Debug, marker::PhantomData};
+use std::{
+    fmt::{Debug, Display},
+    marker::PhantomData,
+};
 
 use tokio::{
     runtime::Handle,
@@ -55,7 +58,7 @@ impl<RuntimeServiceId> OverwatchHandle<RuntimeServiceId> {
 
 impl<RuntimeServiceId> OverwatchHandle<RuntimeServiceId>
 where
-    RuntimeServiceId: Debug + Sync,
+    RuntimeServiceId: Debug + Sync + Display,
 {
     /// Request a relay with a service
     pub async fn relay<Service>(&self) -> Result<OutboundRelay<Service::Message>, RelayError>
@@ -63,7 +66,7 @@ where
         Service: RuntimeServiceIdTrait<RuntimeServiceId>,
         Service::Message: 'static,
     {
-        info!("Requesting relay with {}", Service::SERVICE_NAME);
+        info!("Requesting relay with {}", Service::SERVICE_ID);
         let (sender, receiver) = tokio::sync::oneshot::channel();
 
         let Ok(()) = self
@@ -92,7 +95,7 @@ where
     where
         Service: RuntimeServiceIdTrait<RuntimeServiceId>,
     {
-        info!("Requesting status watcher for {}", Service::SERVICE_NAME);
+        info!("Requesting status watcher for {}", Service::SERVICE_ID);
         let (sender, receiver) = tokio::sync::oneshot::channel();
         let Ok(()) = self
             .send(OverwatchCommand::Status(StatusCommand {
@@ -106,7 +109,7 @@ where
         receiver.await.unwrap_or_else(|_| {
             panic!(
                 "Service {} watcher should always be available",
-                Service::SERVICE_NAME
+                Service::SERVICE_ID
             )
         })
     }

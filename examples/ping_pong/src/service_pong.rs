@@ -17,7 +17,6 @@ pub struct PongService {
 }
 
 impl ServiceData for PongService {
-    const SERVICE_NAME: &'static str = "pong";
     type Settings = ();
     type State = NoState<Self::Settings>;
     type StateOperator = NoOperator<Self::State, Self::Settings>;

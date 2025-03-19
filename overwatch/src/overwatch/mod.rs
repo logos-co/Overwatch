@@ -340,10 +340,10 @@ mod test {
 
     struct EmptyLifeCycleHandle;
 
-    impl ServicesLifeCycleHandle<()> for EmptyLifeCycleHandle {
+    impl ServicesLifeCycleHandle<String> for EmptyLifeCycleHandle {
         type Error = &'static str;
 
-        fn kill(&self, _service: &()) -> Result<(), Self::Error> {
+        fn kill(&self, _service: &String) -> Result<(), Self::Error> {
             Ok(())
         }
 
@@ -353,7 +353,7 @@ mod test {
 
         fn shutdown(
             &self,
-            _service: &(),
+            _service: &String,
             _sender: Sender<FinishedSignal>,
         ) -> Result<(), Self::Error> {
             Ok(())
@@ -362,17 +362,17 @@ mod test {
 
     impl Services for EmptyServices {
         type Settings = ();
-        type RuntimeServiceId = ();
+        type RuntimeServiceId = String;
         type ServicesLifeCycleHandle = EmptyLifeCycleHandle;
 
         fn new(
             _settings: Self::Settings,
-            _overwatch_handle: OverwatchHandle<()>,
+            _overwatch_handle: OverwatchHandle<String>,
         ) -> Result<Self, Box<dyn std::error::Error + Send + Sync + 'static>> {
             Ok(Self)
         }
 
-        fn start(&mut self, _service_id: &()) -> Result<(), Error> {
+        fn start(&mut self, _service_id: &String) -> Result<(), Error> {
             Ok(())
         }
 
@@ -380,13 +380,13 @@ mod test {
             Ok(EmptyLifeCycleHandle)
         }
 
-        fn stop(&mut self, _service_id: &()) {}
+        fn stop(&mut self, _service_id: &String) {}
 
-        fn request_relay(&mut self, _service_id: &()) -> RelayResult {
+        fn request_relay(&mut self, _service_id: &String) -> RelayResult {
             Ok(Box::new(()))
         }
 
-        fn request_status_watcher(&self, _service_id: &()) -> StatusWatcher {
+        fn request_status_watcher(&self, _service_id: &String) -> StatusWatcher {
             unimplemented!("Not necessary for these tests.")
         }
 

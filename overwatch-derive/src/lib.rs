@@ -123,14 +123,11 @@ fn impl_services_for_struct(
     generics: &Generics,
     fields: &Punctuated<Field, Comma>,
 ) -> proc_macro2::TokenStream {
-    let unique_ids_check = generate_assert_unique_identifiers(identifier, generics, fields);
     let runtime_service_type = generate_runtime_service_types(fields);
     let settings = generate_services_settings(identifier, generics, fields);
     let services_impl = generate_services_impl(identifier, generics, fields);
 
     quote! {
-        #unique_ids_check
-
         #runtime_service_type
 
         #settings
@@ -169,30 +166,6 @@ const RUNTIME_LIFECYCLE_HANDLERS_TYPE_NAME: &str = "RuntimeLifeCycleHandlers";
 fn get_runtime_lifecycle_handlers_type_name() -> Type {
     parse_str(RUNTIME_LIFECYCLE_HANDLERS_TYPE_NAME)
         .expect("Runtime lifecycle handlers type is a valid type token stream.")
-}
-
-fn generate_assert_unique_identifiers(
-    services_identifier: &proc_macro2::Ident,
-    generics: &Generics,
-    fields: &Punctuated<Field, Comma>,
-) -> proc_macro2::TokenStream {
-    let services_ids = fields.iter().map(|field| {
-        let _type = utils::extract_type_from(&field.ty);
-        quote! {
-            <#_type as ::overwatch::services::ServiceData>::SERVICE_NAME
-        }
-    });
-    let services_ids_check = format_ident!(
-        "__{}__CONST_CHECK_UNIQUE_SERVICES_IDS",
-        services_identifier.to_string().to_uppercase()
-    );
-    let (impl_generics, ty_generics, where_clause) = generics.split_for_impl();
-
-    quote! {
-        impl #impl_generics #services_identifier #ty_generics #where_clause {
-            const #services_ids_check: () = assert!(::overwatch::utils::const_checks::unique_ids(&[#( #services_ids ),*]));
-        }
-    }
 }
 
 fn generate_services_impl(
@@ -425,10 +398,13 @@ fn generate_update_settings_impl(fields: &Punctuated<Field, Comma>) -> proc_macr
 
 fn generate_runtime_service_types(fields: &Punctuated<Field, Comma>) -> proc_macro2::TokenStream {
     let runtime_service_id = generate_runtime_service_id(fields);
+    let service_id_trait_impls = generate_service_id_trait_impls();
     let convert_from_impl = generate_convert_from_impl(fields);
 
     quote! {
         #runtime_service_id
+
+        #service_id_trait_impls
 
         #convert_from_impl
     }
@@ -459,6 +435,17 @@ fn generate_runtime_service_id(fields: &Punctuated<Field, Comma>) -> proc_macro2
 
     quote! {
         #expanded
+    }
+}
+
+fn generate_service_id_trait_impls() -> proc_macro2::TokenStream {
+    let runtime_service_id_type_name = get_runtime_service_id_type_name();
+    quote! {
+        impl ::core::fmt::Display for #runtime_service_id_type_name {
+            fn fmt(&self, f: &mut ::core::fmt::Formatter<'_>) -> ::core::fmt::Result {
+                <Self as ::core::fmt::Debug>::fmt(self, f)
+            }
+        }
     }
 }
 
