@@ -9,7 +9,7 @@ use crate::{
         settings::{SettingsNotifier, SettingsUpdater},
         state::{StateHandle, StateOperator, StateUpdater},
         status::{StatusHandle, StatusWatcher},
-        ServiceCore, ServiceId, ServiceState,
+        ServiceCore, ServiceId as RuntimeServiceIdTrait, ServiceState,
     },
 };
 
@@ -20,13 +20,13 @@ use crate::{
 // and when it is not. That way we could expose a better API depending on what
 // is happening and it would get rid of the probably unnecessary Option and
 // cloning.
-pub struct ServiceHandle<Message, Settings, State, AggregateServiceId> {
+pub struct ServiceHandle<Message, Settings, State, RuntimeServiceId> {
     /// Message channel relay
     ///
     /// It contains the channel if the service is running, otherwise it'll be
     /// [`None`]
     outbound_relay: Option<OutboundRelay<Message>>,
-    overwatch_handle: OverwatchHandle<AggregateServiceId>,
+    overwatch_handle: OverwatchHandle<RuntimeServiceId>,
     settings: SettingsUpdater<Settings>,
     status: StatusHandle,
     initial_state: State,
@@ -36,11 +36,11 @@ pub struct ServiceHandle<Message, Settings, State, AggregateServiceId> {
 /// Core resources for a `Service`.
 ///
 /// Contains everything required to start a new [`ServiceRunner`].
-pub struct ServiceStateHandle<Message, Settings, State, AggregateServiceId> {
+pub struct ServiceStateHandle<Message, Settings, State, RuntimeServiceId> {
     /// Message channel relay to receive messages from other services
     pub inbound_relay: InboundRelay<Message>,
     pub status_handle: StatusHandle,
-    pub overwatch_handle: OverwatchHandle<AggregateServiceId>,
+    pub overwatch_handle: OverwatchHandle<RuntimeServiceId>,
     pub settings_reader: SettingsNotifier<Settings>,
     pub state_updater: StateUpdater<State>,
     pub lifecycle_handle: LifecycleHandle,
@@ -49,19 +49,19 @@ pub struct ServiceStateHandle<Message, Settings, State, AggregateServiceId> {
 /// Executor for a `Service`.
 ///
 /// Contains all the necessary information to run a `Service`.
-pub struct ServiceRunner<Message, Settings, State, StateOperator, AggregateServiceId> {
-    service_state: ServiceStateHandle<Message, Settings, State, AggregateServiceId>,
+pub struct ServiceRunner<Message, Settings, State, StateOperator, RuntimeServiceId> {
+    service_state: ServiceStateHandle<Message, Settings, State, RuntimeServiceId>,
     state_handle: StateHandle<State, StateOperator>,
     lifecycle_handle: LifecycleHandle,
     initial_state: State,
 }
 
-impl<Message, Settings, State, AggregateServiceId>
-    ServiceHandle<Message, Settings, State, AggregateServiceId>
+impl<Message, Settings, State, RuntimeServiceId>
+    ServiceHandle<Message, Settings, State, RuntimeServiceId>
 where
     Settings: Clone,
     State: ServiceState<Settings = Settings> + Clone,
-    AggregateServiceId: Clone,
+    RuntimeServiceId: Clone,
 {
     /// Crate a new service handle.
     ///
@@ -70,7 +70,7 @@ where
     /// If the service state cannot be loaded from the provided settings.
     pub fn new<StateOp>(
         settings: Settings,
-        overwatch_handle: OverwatchHandle<AggregateServiceId>,
+        overwatch_handle: OverwatchHandle<RuntimeServiceId>,
         relay_buffer_size: usize,
     ) -> Result<Self, State::Error>
     where
@@ -104,7 +104,7 @@ where
     /// Get the service's [`OverwatchHandle`].
     ///
     /// It's easily cloneable and can be done on demand.
-    pub const fn overwatch_handle(&self) -> &OverwatchHandle<AggregateServiceId> {
+    pub const fn overwatch_handle(&self) -> &OverwatchHandle<RuntimeServiceId> {
         &self.overwatch_handle
     }
 
@@ -128,7 +128,7 @@ where
     /// Build a runner for this service
     pub fn service_runner<StateOp>(
         &mut self,
-    ) -> ServiceRunner<Message, Settings, State, StateOp, AggregateServiceId>
+    ) -> ServiceRunner<Message, Settings, State, StateOp, RuntimeServiceId>
     where
         StateOp: StateOperator<Settings = Settings>,
     {
@@ -163,8 +163,8 @@ where
     }
 }
 
-impl<Message, Settings, State, StateOp, AggregateServiceId>
-    ServiceRunner<Message, Settings, State, StateOp, AggregateServiceId>
+impl<Message, Settings, State, StateOp, RuntimeServiceId>
+    ServiceRunner<Message, Settings, State, StateOp, RuntimeServiceId>
 where
     State: Clone + Send + Sync + 'static,
     StateOp: StateOperator<StateInput = State> + Send + 'static,
@@ -179,10 +179,10 @@ where
     /// # Errors
     ///
     /// If the service cannot be initialized properly with the retrieved state.
-    pub fn run<Service>(self) -> Result<(AggregateServiceId, LifecycleHandle), crate::DynError>
+    pub fn run<Service>(self) -> Result<(RuntimeServiceId, LifecycleHandle), crate::DynError>
     where
-        Service: ServiceCore<AggregateServiceId, Settings = Settings, State = State, Message = Message>
-            + ServiceId<AggregateServiceId>
+        Service: ServiceCore<RuntimeServiceId, Settings = Settings, State = State, Message = Message>
+            + RuntimeServiceIdTrait<RuntimeServiceId>
             + 'static,
     {
         let Self {

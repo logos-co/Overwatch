@@ -13,7 +13,7 @@ use overwatch::{
 use tokio::time::sleep;
 
 pub struct SettingsService {
-    state: OpaqueServiceStateHandle<Self, AggregatedServiceId>,
+    state: OpaqueServiceStateHandle<Self, RuntimeServiceId>,
 }
 
 type SettingsServiceSettings = String;
@@ -29,9 +29,9 @@ impl ServiceData for SettingsService {
 }
 
 #[async_trait]
-impl ServiceCore<AggregatedServiceId> for SettingsService {
+impl ServiceCore<RuntimeServiceId> for SettingsService {
     fn init(
-        state: OpaqueServiceStateHandle<Self, AggregatedServiceId>,
+        state: OpaqueServiceStateHandle<Self, RuntimeServiceId>,
         _initial_state: Self::State,
     ) -> Result<Self, overwatch::DynError> {
         Ok(Self { state })
@@ -40,7 +40,7 @@ impl ServiceCore<AggregatedServiceId> for SettingsService {
     async fn run(mut self) -> Result<(), overwatch::DynError> {
         let Self {
             state:
-                OpaqueServiceStateHandle::<Self, AggregatedServiceId> {
+                OpaqueServiceStateHandle::<Self, RuntimeServiceId> {
                     settings_reader, ..
                 },
         } = self;

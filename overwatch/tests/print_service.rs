@@ -14,7 +14,7 @@ use overwatch::{
 use tokio::time::sleep;
 
 pub struct PrintService {
-    state: OpaqueServiceStateHandle<Self, AggregatedServiceId>,
+    state: OpaqueServiceStateHandle<Self, RuntimeServiceId>,
 }
 
 #[derive(Clone, Debug)]
@@ -28,9 +28,9 @@ impl ServiceData for PrintService {
 }
 
 #[async_trait]
-impl ServiceCore<AggregatedServiceId> for PrintService {
+impl ServiceCore<RuntimeServiceId> for PrintService {
     fn init(
-        state: OpaqueServiceStateHandle<Self, AggregatedServiceId>,
+        state: OpaqueServiceStateHandle<Self, RuntimeServiceId>,
         _initial_state: Self::State,
     ) -> Result<Self, overwatch::DynError> {
         Ok(Self { state })
@@ -41,7 +41,7 @@ impl ServiceCore<AggregatedServiceId> for PrintService {
 
         let Self {
             state:
-                OpaqueServiceStateHandle::<Self, AggregatedServiceId> {
+                OpaqueServiceStateHandle::<Self, RuntimeServiceId> {
                     mut inbound_relay, ..
                 },
         } = self;

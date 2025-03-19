@@ -12,15 +12,15 @@ use overwatch::{
 };
 
 pub struct AwaitService1 {
-    service_state: OpaqueServiceStateHandle<Self, AggregatedServiceId>,
+    service_state: OpaqueServiceStateHandle<Self, RuntimeServiceId>,
 }
 
 pub struct AwaitService2 {
-    service_state: OpaqueServiceStateHandle<Self, AggregatedServiceId>,
+    service_state: OpaqueServiceStateHandle<Self, RuntimeServiceId>,
 }
 
 pub struct AwaitService3 {
-    service_state: OpaqueServiceStateHandle<Self, AggregatedServiceId>,
+    service_state: OpaqueServiceStateHandle<Self, RuntimeServiceId>,
 }
 
 impl ServiceData for AwaitService1 {
@@ -45,9 +45,9 @@ impl ServiceData for AwaitService3 {
 }
 
 #[async_trait::async_trait]
-impl ServiceCore<AggregatedServiceId> for AwaitService1 {
+impl ServiceCore<RuntimeServiceId> for AwaitService1 {
     fn init(
-        service_state: OpaqueServiceStateHandle<Self, AggregatedServiceId>,
+        service_state: OpaqueServiceStateHandle<Self, RuntimeServiceId>,
         _initial_state: Self::State,
     ) -> Result<Self, DynError> {
         Ok(Self { service_state })
@@ -69,9 +69,9 @@ impl ServiceCore<AggregatedServiceId> for AwaitService1 {
 }
 
 #[async_trait::async_trait]
-impl ServiceCore<AggregatedServiceId> for AwaitService2 {
+impl ServiceCore<RuntimeServiceId> for AwaitService2 {
     fn init(
-        service_state: OpaqueServiceStateHandle<Self, AggregatedServiceId>,
+        service_state: OpaqueServiceStateHandle<Self, RuntimeServiceId>,
         _initial_state: Self::State,
     ) -> Result<Self, DynError> {
         Ok(Self { service_state })
@@ -109,9 +109,9 @@ impl ServiceCore<AggregatedServiceId> for AwaitService2 {
 }
 
 #[async_trait::async_trait]
-impl ServiceCore<AggregatedServiceId> for AwaitService3 {
+impl ServiceCore<RuntimeServiceId> for AwaitService3 {
     fn init(
-        service_state: OpaqueServiceStateHandle<Self, AggregatedServiceId>,
+        service_state: OpaqueServiceStateHandle<Self, RuntimeServiceId>,
         _initial_state: Self::State,
     ) -> Result<Self, DynError> {
         Ok(Self { service_state })

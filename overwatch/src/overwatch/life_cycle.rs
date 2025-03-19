@@ -11,11 +11,11 @@ use crate::{
 
 /// Grouper handle for the [`LifecycleHandle`] of each spawned service.
 #[derive(Clone)]
-pub struct ServicesLifeCycleHandle<AggregatedServiceId> {
-    handlers: HashMap<AggregatedServiceId, LifecycleHandle>,
+pub struct ServicesLifeCycleHandle<RuntimeServiceId> {
+    handlers: HashMap<RuntimeServiceId, LifecycleHandle>,
 }
 
-impl<AggregatedServiceId> ServicesLifeCycleHandle<AggregatedServiceId> {
+impl<RuntimeServiceId> ServicesLifeCycleHandle<RuntimeServiceId> {
     #[must_use]
     pub fn empty() -> Self {
         Self {
@@ -24,14 +24,14 @@ impl<AggregatedServiceId> ServicesLifeCycleHandle<AggregatedServiceId> {
     }
 
     /// Get all [`ServiceId`]s registered in this handle
-    pub fn services_ids(&self) -> impl Iterator<Item = &AggregatedServiceId> {
+    pub fn services_ids(&self) -> impl Iterator<Item = &RuntimeServiceId> {
         self.handlers.keys()
     }
 }
 
-impl<AggregatedServiceId> ServicesLifeCycleHandle<AggregatedServiceId>
+impl<RuntimeServiceId> ServicesLifeCycleHandle<RuntimeServiceId>
 where
-    AggregatedServiceId: Eq + Hash,
+    RuntimeServiceId: Eq + Hash,
 {
     /// Send a `Shutdown` message to the specified service.
     ///
@@ -51,7 +51,7 @@ where
     /// If the specified service handler is not available.
     pub fn shutdown(
         &self,
-        service: &AggregatedServiceId,
+        service: &RuntimeServiceId,
         sender: Sender<FinishedSignal>,
     ) -> Result<(), DynError> {
         self.handlers
@@ -74,7 +74,7 @@ where
     ///
     /// # Panics
     /// If the specified service handler is not available.
-    pub fn kill(&self, service: &AggregatedServiceId) -> Result<(), DynError> {
+    pub fn kill(&self, service: &RuntimeServiceId) -> Result<(), DynError> {
         self.handlers
             .get(service)
             .expect("Map populated from macro, so service always exists.")
@@ -96,15 +96,15 @@ where
     }
 }
 
-impl<const N: usize, AggregatedServiceId> TryFrom<[(AggregatedServiceId, LifecycleHandle); N]>
-    for ServicesLifeCycleHandle<AggregatedServiceId>
+impl<const N: usize, RuntimeServiceId> TryFrom<[(RuntimeServiceId, LifecycleHandle); N]>
+    for ServicesLifeCycleHandle<RuntimeServiceId>
 where
-    AggregatedServiceId: Eq + Hash + Display,
+    RuntimeServiceId: Eq + Hash + Display,
 {
     // TODO: On errors refactor extract into a concrete error type with `thiserror`
     type Error = Box<dyn Error + Send + Sync>;
 
-    fn try_from(value: [(AggregatedServiceId, LifecycleHandle); N]) -> Result<Self, Self::Error> {
+    fn try_from(value: [(RuntimeServiceId, LifecycleHandle); N]) -> Result<Self, Self::Error> {
         let mut handlers = HashMap::new();
         for (service_id, handle) in value {
             if handlers.contains_key(&service_id) {

@@ -22,8 +22,8 @@ impl<Message> ReplyChannel<Message> {
 
 /// Command for requesting communications with another service.
 #[derive(Debug)]
-pub struct RelayCommand<AggregatedServiceId> {
-    pub(crate) service_id: AggregatedServiceId,
+pub struct RelayCommand<RuntimeServiceId> {
+    pub(crate) service_id: RuntimeServiceId,
     pub(crate) reply_channel: ReplyChannel<RelayResult>,
 }
 
@@ -31,16 +31,16 @@ pub struct RelayCommand<AggregatedServiceId> {
 /// [`ServiceStatus`](crate::services::status::ServiceStatus) updates
 /// from another service.
 #[derive(Debug)]
-pub struct StatusCommand<AggregatedServiceId> {
-    pub(crate) service_id: AggregatedServiceId,
+pub struct StatusCommand<RuntimeServiceId> {
+    pub(crate) service_id: RuntimeServiceId,
     pub(crate) reply_channel: ReplyChannel<StatusWatcher>,
 }
 
 /// Command for managing [`ServiceCore`](crate::services::ServiceCore)
 /// lifecycle.
 #[derive(Debug)]
-pub struct ServiceLifeCycleCommand<AggregatedServiceId> {
-    pub service_id: AggregatedServiceId,
+pub struct ServiceLifeCycleCommand<RuntimeServiceId> {
+    pub service_id: RuntimeServiceId,
     pub msg: LifecycleMessage,
 }
 
@@ -57,10 +57,10 @@ pub struct SettingsCommand(pub(crate) AnySettings);
 
 /// [`Overwatch`](crate::overwatch::Overwatch) tasks related commands.
 #[derive(Debug)]
-pub enum OverwatchCommand<AggregatedServiceId> {
-    Relay(RelayCommand<AggregatedServiceId>),
-    Status(StatusCommand<AggregatedServiceId>),
-    ServiceLifeCycle(ServiceLifeCycleCommand<AggregatedServiceId>),
+pub enum OverwatchCommand<RuntimeServiceId> {
+    Relay(RelayCommand<RuntimeServiceId>),
+    Status(StatusCommand<RuntimeServiceId>),
+    ServiceLifeCycle(ServiceLifeCycleCommand<RuntimeServiceId>),
     OverwatchLifeCycle(OverwatchLifeCycleCommand),
     Settings(SettingsCommand),
 }

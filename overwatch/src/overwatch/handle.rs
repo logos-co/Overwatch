@@ -22,7 +22,7 @@ use crate::{
     services::{
         relay::{OutboundRelay, RelayError},
         status::StatusWatcher,
-        ServiceId,
+        ServiceId as RuntimeServiceIdTrait,
     },
 };
 
@@ -31,17 +31,17 @@ use crate::{
 /// It handles communications to the main
 /// [`OverwatchRunner`](crate::overwatch::OverwatchRunner).
 #[derive(Clone, Debug)]
-pub struct OverwatchHandle<AggregatedServiceId> {
+pub struct OverwatchHandle<RuntimeServiceId> {
     runtime_handle: Handle,
-    sender: Sender<OverwatchCommand<AggregatedServiceId>>,
-    _phantom: PhantomData<AggregatedServiceId>,
+    sender: Sender<OverwatchCommand<RuntimeServiceId>>,
+    _phantom: PhantomData<RuntimeServiceId>,
 }
 
-impl<AggregatedServiceId> OverwatchHandle<AggregatedServiceId> {
+impl<RuntimeServiceId> OverwatchHandle<RuntimeServiceId> {
     #[must_use]
     pub const fn new(
         runtime_handle: Handle,
-        sender: Sender<OverwatchCommand<AggregatedServiceId>>,
+        sender: Sender<OverwatchCommand<RuntimeServiceId>>,
     ) -> Self {
         Self {
             runtime_handle,
@@ -56,14 +56,14 @@ impl<AggregatedServiceId> OverwatchHandle<AggregatedServiceId> {
     }
 }
 
-impl<AggregatedServiceId> OverwatchHandle<AggregatedServiceId>
+impl<RuntimeServiceId> OverwatchHandle<RuntimeServiceId>
 where
-    AggregatedServiceId: Display + Debug + Sync,
+    RuntimeServiceId: Display + Debug + Sync,
 {
     /// Request a relay with a service
     pub async fn relay<Service>(&self) -> Result<OutboundRelay<Service::Message>, RelayError>
     where
-        Service: ServiceId<AggregatedServiceId>,
+        Service: RuntimeServiceIdTrait<RuntimeServiceId>,
         Service::Message: 'static,
     {
         info!("Requesting relay with {}", Service::SERVICE_ID);
@@ -93,7 +93,7 @@ where
     /// If the service watcher is not available.
     pub async fn status_watcher<Service>(&self) -> StatusWatcher
     where
-        Service: ServiceId<AggregatedServiceId>,
+        Service: RuntimeServiceIdTrait<RuntimeServiceId>,
     {
         info!("Requesting status watcher for {}", Service::SERVICE_ID);
         let (sender, receiver) = tokio::sync::oneshot::channel();
@@ -115,9 +115,9 @@ where
     }
 }
 
-impl<AggregatedServiceId> OverwatchHandle<AggregatedServiceId>
+impl<RuntimeServiceId> OverwatchHandle<RuntimeServiceId>
 where
-    AggregatedServiceId: Debug + Sync,
+    RuntimeServiceId: Debug + Sync,
 {
     /// Send a shutdown signal to the
     /// [`OverwatchRunner`](crate::overwatch::OverwatchRunner)
@@ -156,8 +156,8 @@ where
     )]
     pub async fn send(
         &self,
-        command: OverwatchCommand<AggregatedServiceId>,
-    ) -> Result<(), SendError<OverwatchCommand<AggregatedServiceId>>> {
+        command: OverwatchCommand<RuntimeServiceId>,
+    ) -> Result<(), SendError<OverwatchCommand<RuntimeServiceId>>> {
         self.sender.send(command).await.map_err(|e| {
             error!(error=?e, "Error sending overwatch command");
             e

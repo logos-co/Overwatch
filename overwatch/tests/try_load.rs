@@ -58,7 +58,7 @@ struct TryLoadSettings {
 }
 
 struct TryLoad {
-    service_state_handle: OpaqueServiceStateHandle<Self, AggregatedServiceId>,
+    service_state_handle: OpaqueServiceStateHandle<Self, RuntimeServiceId>,
 }
 
 impl ServiceData for TryLoad {
@@ -69,9 +69,9 @@ impl ServiceData for TryLoad {
 }
 
 #[async_trait]
-impl ServiceCore<AggregatedServiceId> for TryLoad {
+impl ServiceCore<RuntimeServiceId> for TryLoad {
     fn init(
-        service_state: OpaqueServiceStateHandle<Self, AggregatedServiceId>,
+        service_state: OpaqueServiceStateHandle<Self, RuntimeServiceId>,
         _initial_state: Self::State,
     ) -> Result<Self, DynError> {
         Ok(Self {

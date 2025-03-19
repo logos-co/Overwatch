@@ -30,7 +30,7 @@ pub trait ServiceId<T>: ServiceData {
 
 /// Main trait for Services initialization and main loop hook.
 #[async_trait]
-pub trait ServiceCore<AggregatedServiceId>: Sized + ServiceData {
+pub trait ServiceCore<RuntimeServiceId>: Sized + ServiceData {
     /// Initialize the service with the given handle and initial state.
     ///
     /// # Errors
@@ -41,7 +41,7 @@ pub trait ServiceCore<AggregatedServiceId>: Sized + ServiceData {
             Self::Message,
             Self::Settings,
             Self::State,
-            AggregatedServiceId,
+            RuntimeServiceId,
         >,
         initial_state: Self::State,
     ) -> Result<Self, super::DynError>;

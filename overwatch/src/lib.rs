@@ -7,17 +7,17 @@ pub mod services;
 pub mod utils;
 
 pub type DynError = Box<dyn std::error::Error + Send + Sync + 'static>;
-pub type OpaqueServiceHandle<S, AggregateServiceId> = services::handle::ServiceHandle<
+pub type OpaqueServiceHandle<S, RuntimeServiceId> = services::handle::ServiceHandle<
     <S as ServiceData>::Message,
     <S as ServiceData>::Settings,
     <S as ServiceData>::State,
-    AggregateServiceId,
+    RuntimeServiceId,
 >;
-pub type OpaqueServiceStateHandle<S, AggregateServiceId> = services::handle::ServiceStateHandle<
+pub type OpaqueServiceStateHandle<S, RuntimeServiceId> = services::handle::ServiceStateHandle<
     <S as ServiceData>::Message,
     <S as ServiceData>::Settings,
     <S as ServiceData>::State,
-    AggregateServiceId,
+    RuntimeServiceId,
 >;
 
 #[cfg(feature = "derive")]

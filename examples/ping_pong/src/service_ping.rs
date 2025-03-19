@@ -12,11 +12,11 @@ use crate::{
     service_pong::PongService,
     settings::PingSettings,
     states::PingState,
-    AggregatedServiceId,
+    RuntimeServiceId,
 };
 
 pub struct PingService {
-    service_state_handle: OpaqueServiceStateHandle<Self, AggregatedServiceId>,
+    service_state_handle: OpaqueServiceStateHandle<Self, RuntimeServiceId>,
     initial_state: <Self as ServiceData>::State,
 }
 
@@ -28,9 +28,9 @@ impl ServiceData for PingService {
 }
 
 #[async_trait::async_trait]
-impl ServiceCore<AggregatedServiceId> for PingService {
+impl ServiceCore<RuntimeServiceId> for PingService {
     fn init(
-        service_state_handle: OpaqueServiceStateHandle<Self, AggregatedServiceId>,
+        service_state_handle: OpaqueServiceStateHandle<Self, RuntimeServiceId>,
         initial_state: Self::State,
     ) -> Result<Self, DynError> {
         Ok(Self {

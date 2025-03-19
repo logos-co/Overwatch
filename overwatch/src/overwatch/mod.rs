@@ -63,7 +63,7 @@ pub trait Services: Sized {
     /// services settings.
     type Settings;
 
-    type AggregatedServiceId;
+    type RuntimeServiceId;
 
     /// Spawn a new instance of the [`Services`] object.
     ///
@@ -77,7 +77,7 @@ pub trait Services: Sized {
     /// The implementer's creation error.
     fn new(
         settings: Self::Settings,
-        overwatch_handle: OverwatchHandle<Self::AggregatedServiceId>,
+        overwatch_handle: OverwatchHandle<Self::RuntimeServiceId>,
     ) -> Result<Self, super::DynError>;
 
     /// Start a service attached to the trait implementer.
@@ -85,7 +85,7 @@ pub trait Services: Sized {
     /// # Errors
     ///
     /// The generated [`Error`].
-    fn start(&mut self, service_id: &Self::AggregatedServiceId) -> Result<(), Error>;
+    fn start(&mut self, service_id: &Self::RuntimeServiceId) -> Result<(), Error>;
 
     // TODO: this probably will be removed once the services lifecycle is
     // implemented
@@ -94,20 +94,20 @@ pub trait Services: Sized {
     /// # Errors
     ///
     /// The generated [`Error`].
-    fn start_all(&mut self) -> Result<ServicesLifeCycleHandle<Self::AggregatedServiceId>, Error>;
+    fn start_all(&mut self) -> Result<ServicesLifeCycleHandle<Self::RuntimeServiceId>, Error>;
 
     /// Stop a service attached to the trait implementer.
-    fn stop(&mut self, service_id: &Self::AggregatedServiceId);
+    fn stop(&mut self, service_id: &Self::RuntimeServiceId);
 
     /// Request a communication relay for a service.
     ///
     /// # Errors
     ///
     /// The generated [`Error`].
-    fn request_relay(&mut self, service_id: &Self::AggregatedServiceId) -> RelayResult;
+    fn request_relay(&mut self, service_id: &Self::RuntimeServiceId) -> RelayResult;
 
     /// Request a status watcher for a service.
-    fn request_status_watcher(&self, service_id: &Self::AggregatedServiceId) -> StatusWatcher;
+    fn request_status_watcher(&self, service_id: &Self::RuntimeServiceId) -> StatusWatcher;
 
     /// Update service settings.
     fn update_settings(&mut self, settings: Self::Settings);
@@ -128,7 +128,7 @@ pub struct GenericOverwatchRunner<Services, ServiceId> {
 }
 
 pub type OverwatchRunner<ServicesImpl> =
-    GenericOverwatchRunner<ServicesImpl, <ServicesImpl as Services>::AggregatedServiceId>;
+    GenericOverwatchRunner<ServicesImpl, <ServicesImpl as Services>::RuntimeServiceId>;
 
 /// Overwatch thread identifier.
 ///
@@ -138,7 +138,7 @@ pub const OVERWATCH_THREAD_NAME: &str = "Overwatch";
 impl<ServicesImpl> OverwatchRunner<ServicesImpl>
 where
     ServicesImpl: Services + Send + 'static,
-    ServicesImpl::AggregatedServiceId: Clone + Debug + Display + Eq + Hash + Sync + Send,
+    ServicesImpl::RuntimeServiceId: Clone + Debug + Display + Eq + Hash + Sync + Send,
 {
     /// Start the Overwatch runner process.
     ///
@@ -153,7 +153,7 @@ where
     pub fn run(
         settings: ServicesImpl::Settings,
         runtime: Option<Runtime>,
-    ) -> Result<Overwatch<ServicesImpl::AggregatedServiceId>, super::DynError> {
+    ) -> Result<Overwatch<ServicesImpl::RuntimeServiceId>, super::DynError> {
         let runtime = runtime.unwrap_or_else(default_multithread_runtime);
 
         let (finish_signal_sender, finish_runner_signal) = oneshot::channel();
@@ -238,7 +238,7 @@ where
 
     fn handle_relay(
         services: &mut ServicesImpl,
-        command: RelayCommand<ServicesImpl::AggregatedServiceId>,
+        command: RelayCommand<ServicesImpl::RuntimeServiceId>,
     ) {
         let RelayCommand {
             service_id,
@@ -263,7 +263,7 @@ where
         StatusCommand {
             service_id,
             reply_channel,
-        }: StatusCommand<ServicesImpl::AggregatedServiceId>,
+        }: StatusCommand<ServicesImpl::RuntimeServiceId>,
     ) {
         let watcher = services.request_status_watcher(&service_id);
         if reply_channel.reply(watcher).is_err() {
@@ -274,17 +274,17 @@ where
 
 /// Main Overwatch entity.
 /// It manages the [`Runtime`] and [`OverwatchHandle`].
-pub struct Overwatch<AggregateServiceId> {
+pub struct Overwatch<RuntimeServiceId> {
     runtime: Runtime,
-    handle: OverwatchHandle<AggregateServiceId>,
+    handle: OverwatchHandle<RuntimeServiceId>,
     finish_runner_signal: oneshot::Receiver<FinishOverwatchSignal>,
 }
 
-impl<AggregateServiceId> Overwatch<AggregateServiceId> {
+impl<RuntimeServiceId> Overwatch<RuntimeServiceId> {
     /// Get the [`OverwatchHandle`]
     ///
     /// It's cloneable, so it can be done on demand
-    pub const fn handle(&self) -> &OverwatchHandle<AggregateServiceId> {
+    pub const fn handle(&self) -> &OverwatchHandle<RuntimeServiceId> {
         &self.handle
     }
 
@@ -346,7 +346,7 @@ mod test {
 
     impl Services for EmptyServices {
         type Settings = ();
-        type AggregatedServiceId = EmptyServiceId;
+        type RuntimeServiceId = EmptyServiceId;
 
         fn new(
             _settings: Self::Settings,
