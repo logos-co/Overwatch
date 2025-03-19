@@ -33,7 +33,6 @@ struct TryLoadOperator;
 #[async_trait]
 impl StateOperator for TryLoadOperator {
     type State = TryLoadState;
-    type Settings = TryLoadSettings;
     type LoadError = SendError<String>;
 
     fn try_load(
@@ -45,7 +44,7 @@ impl StateOperator for TryLoadOperator {
         Ok(Some(Self::State {}))
     }
 
-    fn from_settings(_settings: <Self::State as ServiceState>::Settings) -> Self {
+    fn from_settings(_settings: &<Self::State as ServiceState>::Settings) -> Self {
         Self {}
     }
 

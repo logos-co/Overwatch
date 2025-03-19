@@ -44,13 +44,7 @@ pub trait StateOperator {
     ///
     /// Needs to match [`ServiceData::State`](crate::ServiceData::State)'s
     /// [`ServiceState::State`].
-    type State;
-
-    /// The settings to configure the operator.
-    ///
-    /// Needs to match [`ServiceData::Settings`](crate::ServiceData::Settings)'s
-    /// [`ServiceState::Settings`].
-    type Settings;
+    type State: ServiceState;
 
     /// Errors that can occur during state loading.
     type LoadError;
@@ -68,11 +62,13 @@ pub trait StateOperator {
     /// # Errors
     ///
     /// The implementer's [`LoadError`].
-    fn try_load(settings: &Self::Settings) -> Result<Option<Self::State>, Self::LoadError>;
+    fn try_load(
+        settings: &<Self::State as ServiceState>::Settings,
+    ) -> Result<Option<Self::State>, Self::LoadError>;
 
     /// Operator initialization method. Can be implemented over some subset of
     /// settings.
-    fn from_settings(settings: Self::Settings) -> Self;
+    fn from_settings(settings: &<Self::State as ServiceState>::Settings) -> Self;
 
     /// Asynchronously perform an operation for a given state snapshot.
     async fn run(&mut self, state: Self::State);
@@ -80,7 +76,7 @@ pub trait StateOperator {
 
 /// Operator that doesn't perform any operation upon state update.
 #[derive(Copy)]
-pub struct NoOperator<StateInput, Settings>(PhantomData<(*const StateInput, *const Settings)>);
+pub struct NoOperator<StateInput>(PhantomData<*const StateInput>);
 
 /// `NoOperator` does not actually hold anything and is thus Sync.
 ///
@@ -88,27 +84,28 @@ pub struct NoOperator<StateInput, Settings>(PhantomData<(*const StateInput, *con
 /// indeed hold an instance of [`StateOperator::State`].    
 ///
 /// [Ownership and the drop check](https://doc.rust-lang.org/std/marker/struct.PhantomData.html#ownership-and-the-drop-check)
-unsafe impl<StateInput, Settings> Send for NoOperator<StateInput, Settings> {}
+unsafe impl<StateInput> Send for NoOperator<StateInput> {}
 
 // Clone is implemented manually because auto deriving introduces an unnecessary
 // Clone bound on T.
-impl<StateInput, Settings> Clone for NoOperator<StateInput, Settings> {
+impl<StateInput> Clone for NoOperator<StateInput> {
     fn clone(&self) -> Self {
         Self(PhantomData)
     }
 }
 
 #[async_trait]
-impl<StateInput, Settings> StateOperator for NoOperator<StateInput, Settings> {
+impl<StateInput: ServiceState> StateOperator for NoOperator<StateInput> {
     type State = StateInput;
-    type Settings = Settings;
     type LoadError = Infallible;
 
-    fn try_load(_settings: &Self::Settings) -> Result<Option<Self::State>, Self::LoadError> {
+    fn try_load(
+        _settings: &<Self::State as ServiceState>::Settings,
+    ) -> Result<Option<Self::State>, Self::LoadError> {
         Ok(None)
     }
 
-    fn from_settings(_settings: Self::Settings) -> Self {
+    fn from_settings(_settings: &<Self::State as ServiceState>::Settings) -> Self {
         Self(PhantomData)
     }
 
@@ -286,7 +283,6 @@ mod test {
     #[async_trait]
     impl StateOperator for PanicOnGreaterThanTen {
         type State = UsizeCounter;
-        type Settings = ();
         type LoadError = Infallible;
 
         fn try_load(
@@ -295,7 +291,7 @@ mod test {
             Ok(None)
         }
 
-        fn from_settings(_settings: <Self::State as ServiceState>::Settings) -> Self {
+        fn from_settings(_settings: &<Self::State as ServiceState>::Settings) -> Self {
             Self
         }
 
@@ -318,7 +314,7 @@ mod test {
             StateUpdater<UsizeCounter>,
         ) = StateHandle::new(
             UsizeCounter::from_settings(&()).unwrap(),
-            PanicOnGreaterThanTen::from_settings(()),
+            PanicOnGreaterThanTen::from_settings(&()),
         );
         tokio::task::spawn(async move {
             sleep(Duration::from_millis(50)).await;
