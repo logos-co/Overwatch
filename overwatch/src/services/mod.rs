@@ -12,6 +12,8 @@ use state::ServiceState;
 /// The core data a service needs to handle.
 /// Holds the necessary information of a service.
 pub trait ServiceData {
+    /// Service identification tag for tracing purposes
+    const SERVICE_NAME: &'static str;
     /// Service relay buffer size
     const SERVICE_RELAY_BUFFER_SIZE: usize = 16;
     /// Service settings object
