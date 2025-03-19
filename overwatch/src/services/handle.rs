@@ -72,7 +72,7 @@ where
         relay_buffer_size: usize,
     ) -> Result<Self, State::Error>
     where
-        StateOp: StateOperator<Settings = Settings, StateInput = State>,
+        StateOp: StateOperator<Settings = Settings, State = State>,
     {
         let initial_state = if let Ok(Some(loaded_state)) = StateOp::try_load(&settings) {
             info!("Loaded state from Operator");
@@ -162,7 +162,7 @@ where
 impl<Message, Settings, State, StateOp> ServiceRunner<Message, Settings, State, StateOp>
 where
     State: Clone + Send + Sync + 'static,
-    StateOp: StateOperator<StateInput = State> + Send + 'static,
+    StateOp: StateOperator<State = State> + Send + 'static,
 {
     /// Spawn the service main loop and handle its lifecycle.
     ///

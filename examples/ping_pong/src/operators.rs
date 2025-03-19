@@ -11,11 +11,11 @@ pub struct StateSaveOperator {
 
 #[async_trait::async_trait]
 impl StateOperator for StateSaveOperator {
-    type StateInput = PingState;
+    type State = PingState;
     type Settings = PingSettings;
     type LoadError = std::io::Error;
 
-    fn try_load(settings: &Self::Settings) -> Result<Option<Self::StateInput>, Self::LoadError> {
+    fn try_load(settings: &Self::Settings) -> Result<Option<Self::State>, Self::LoadError> {
         let state_string = std::fs::read_to_string(&settings.state_save_path)?;
         serde_json::from_str(&state_string)
             .map_err(|error| std::io::Error::new(std::io::ErrorKind::InvalidData, error))
@@ -27,7 +27,7 @@ impl StateOperator for StateSaveOperator {
         }
     }
 
-    async fn run(&mut self, state: Self::StateInput) {
+    async fn run(&mut self, state: Self::State) {
         let json_state = serde_json::to_string(&state).expect("Failed to serialize state");
         std::fs::write(&self.save_path, json_state).unwrap();
     }

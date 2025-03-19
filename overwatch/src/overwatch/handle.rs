@@ -118,6 +118,10 @@ impl OverwatchHandle {
 
     /// Send an overwatch command to the
     /// [`OverwatchRunner`](crate::overwatch::OverwatchRunner)
+    ///
+    /// # Errors
+    ///
+    /// If an error occurs while trying to send the command.
     #[cfg_attr(
         feature = "instrumentation",
         instrument(name = "overwatch-command-send", skip(self))
