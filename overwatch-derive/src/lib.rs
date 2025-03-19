@@ -527,30 +527,30 @@ pub fn generate_lifecyle_handlers(input: TokenStream) -> TokenStream {
     let enum_name = input.ident;
 
     let Data::Enum(data_enum) = input.data else {
-        panic!("`LifecycleHandlers` can only be used on enums");
+        panic!("`LifecycleHandlers` can only be used on enums.");
     };
+    assert!(enum_name == RUNTIME_SERVICE_ID_TYPE_NAME, "LifecycleHandlers` can only be implemented on the runtime service ID type generated within this macro.");
 
-    let fields: Vec<Ident> = data_enum.variants.iter().map(|v| v.ident.clone()).collect();
-    let struct_fields = fields.iter().map(|name| {
-        let field_name = Ident::new(
-            &utils::enum_variant_name_to_field_name(&name.to_string()),
-            name.span(),
-        );
+    let variants_names = data_enum.variants.iter().map(|variant| &variant.ident);
+    let variants_as_field_names = variants_names.clone().map(|variant_name| {
+        Ident::new(
+            &utils::enum_variant_name_to_field_name(&variant_name.to_string()),
+            variant_name.span(),
+        )
+    });
+    let struct_fields = variants_as_field_names.clone().map(|field_name| {
         quote! { #field_name: ::overwatch::services::life_cycle::LifecycleHandle }
     });
 
-    let match_arms_shutdown = fields.iter().map(|name| {
-        let field_name = Ident::new(&utils::enum_variant_name_to_field_name(&name.to_string()), name.span());
-        quote! { &#enum_name::#name => self.#field_name.send(::overwatch::services::life_cycle::LifecycleMessage::Shutdown(sender)) }
+    let match_arms_shutdown = variants_names.clone().zip(variants_as_field_names.clone()).map(|(variant_name, field_name)| {
+        quote! { &#enum_name::#variant_name => self.#field_name.send(::overwatch::services::life_cycle::LifecycleMessage::Shutdown(sender)) }
     });
 
-    let match_arms_kill = fields.iter().map(|name| {
-        let field_name = Ident::new(&utils::enum_variant_name_to_field_name(&name.to_string()), name.span());
-        quote! { &#enum_name::#name => self.#field_name.send(::overwatch::services::life_cycle::LifecycleMessage::Kill) }
+    let match_arms_kill = variants_names.clone().zip(variants_as_field_names.clone()).map(|(variant_name, field_name)| {
+        quote! { &#enum_name::#variant_name => self.#field_name.send(::overwatch::services::life_cycle::LifecycleMessage::Kill) }
     });
 
-    let kill_all_body = fields.iter().map(|name| {
-        let field_name = Ident::new(&utils::enum_variant_name_to_field_name(&name.to_string()), name.span());
+    let kill_all_body = variants_as_field_names.map(|field_name| {
         quote! { self.#field_name.send(::overwatch::services::life_cycle::LifecycleMessage::Kill)?; }
     });
 
