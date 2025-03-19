@@ -6,9 +6,8 @@ use overwatch::{
     derive_services,
     overwatch::OverwatchRunner,
     services::{
-        relay::NoMessage,
         state::{ServiceState, StateOperator},
-        ServiceCore, ServiceData, ServiceId,
+        ServiceCore, ServiceData,
     },
     DynError, OpaqueServiceStateHandle,
 };
@@ -59,21 +58,20 @@ struct TryLoadSettings {
 }
 
 struct TryLoad {
-    service_state_handle: OpaqueServiceStateHandle<Self, AggregatedServiceId>,
+    service_state_handle: OpaqueServiceStateHandle<Self, RuntimeServiceId>,
 }
 
 impl ServiceData for TryLoad {
-    const SERVICE_ID: ServiceId = "try_load";
     type Settings = TryLoadSettings;
     type State = TryLoadState;
     type StateOperator = TryLoadOperator;
-    type Message = NoMessage;
+    type Message = ();
 }
 
 #[async_trait]
-impl ServiceCore<AggregatedServiceId> for TryLoad {
+impl ServiceCore<RuntimeServiceId> for TryLoad {
     fn init(
-        service_state: OpaqueServiceStateHandle<Self, AggregatedServiceId>,
+        service_state: OpaqueServiceStateHandle<Self, RuntimeServiceId>,
         _initial_state: Self::State,
     ) -> Result<Self, DynError> {
         Ok(Self {

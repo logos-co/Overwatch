@@ -1,7 +1,7 @@
 use overwatch::{
     services::{
         state::{NoOperator, NoState},
-        ServiceCore, ServiceData, ServiceId,
+        ServiceCore, ServiceData,
     },
     DynError, OpaqueServiceStateHandle,
 };
@@ -9,15 +9,14 @@ use overwatch::{
 use crate::{
     messages::{PingMessage, PongMessage},
     service_ping::PingService,
-    AggregatedServiceId,
+    RuntimeServiceId,
 };
 
 pub struct PongService {
-    service_state_handle: OpaqueServiceStateHandle<Self, AggregatedServiceId>,
+    service_state_handle: OpaqueServiceStateHandle<Self, RuntimeServiceId>,
 }
 
 impl ServiceData for PongService {
-    const SERVICE_ID: ServiceId = "pong";
     type Settings = ();
     type State = NoState<Self::Settings>;
     type StateOperator = NoOperator<Self::State, Self::Settings>;
@@ -25,9 +24,9 @@ impl ServiceData for PongService {
 }
 
 #[async_trait::async_trait]
-impl ServiceCore<AggregatedServiceId> for PongService {
+impl ServiceCore<RuntimeServiceId> for PongService {
     fn init(
-        service_state_handle: OpaqueServiceStateHandle<Self, AggregatedServiceId>,
+        service_state_handle: OpaqueServiceStateHandle<Self, RuntimeServiceId>,
         _initial_state: Self::State,
     ) -> Result<Self, DynError> {
         Ok(Self {

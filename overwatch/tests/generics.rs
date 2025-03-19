@@ -8,20 +8,19 @@ use overwatch::{
     services::{
         handle::ServiceStateHandle,
         state::{NoOperator, NoState},
-        ServiceCore, ServiceData, ServiceId,
+        ServiceCore, ServiceData,
     },
 };
 use tokio::time::sleep;
 
 pub struct GenericService {
-    state: ServiceStateHandle<GenericServiceMessage, (), NoState<()>, AggregatedServiceId>,
+    state: ServiceStateHandle<GenericServiceMessage, (), NoState<()>, RuntimeServiceId>,
 }
 
 #[derive(Clone, Debug)]
 pub struct GenericServiceMessage(String);
 
 impl ServiceData for GenericService {
-    const SERVICE_ID: ServiceId = "FooService";
     type Settings = ();
     type State = NoState<Self::Settings>;
     type StateOperator = NoOperator<Self::State, Self::Settings>;
@@ -29,9 +28,9 @@ impl ServiceData for GenericService {
 }
 
 #[async_trait]
-impl ServiceCore<AggregatedServiceId> for GenericService {
+impl ServiceCore<RuntimeServiceId> for GenericService {
     fn init(
-        state: ServiceStateHandle<Self::Message, Self::Settings, Self::State, AggregatedServiceId>,
+        state: ServiceStateHandle<Self::Message, Self::Settings, Self::State, RuntimeServiceId>,
         _initial_state: Self::State,
     ) -> Result<Self, overwatch::DynError> {
         Ok(Self { state })

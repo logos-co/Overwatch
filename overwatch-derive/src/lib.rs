@@ -3,7 +3,7 @@ use proc_macro_error2::{abort_call_site, proc_macro_error};
 use quote::{format_ident, quote};
 use syn::{
     parse, parse_macro_input, parse_str, punctuated::Punctuated, token::Comma, Data, DeriveInput,
-    Field, Fields, GenericArgument, Generics, ItemStruct, PathArguments, Type,
+    Field, Fields, GenericArgument, Generics, Ident, ItemStruct, PathArguments, Type,
 };
 
 mod utils;
@@ -28,9 +28,9 @@ pub fn derive_services(_attr: TokenStream, item: TokenStream) -> TokenStream {
         let field_name = &field.ident;
         let field_type = &field.ty;
 
-        let aggregated_service_id_type_name = get_aggregated_service_id_type_name();
+        let runtime_service_id_type_name = get_runtime_service_id_type_name();
         let new_field_type = quote! {
-            ::overwatch::OpaqueServiceHandle<#field_type, #aggregated_service_id_type_name>
+            ::overwatch::OpaqueServiceHandle<#field_type, #runtime_service_id_type_name>
         };
 
         quote! {
@@ -52,6 +52,16 @@ pub fn derive_services(_attr: TokenStream, item: TokenStream) -> TokenStream {
 fn get_default_instrumentation() -> proc_macro2::TokenStream {
     #[cfg(feature = "instrumentation")]
     quote! {
+        #[tracing::instrument(skip(self))]
+    }
+
+    #[cfg(not(feature = "instrumentation"))]
+    quote! {}
+}
+
+fn get_default_instrumentation_for_result() -> proc_macro2::TokenStream {
+    #[cfg(feature = "instrumentation")]
+    quote! {
         #[tracing::instrument(skip(self), err)]
     }
 
@@ -62,7 +72,7 @@ fn get_default_instrumentation() -> proc_macro2::TokenStream {
 fn get_default_instrumentation_without_settings() -> proc_macro2::TokenStream {
     #[cfg(feature = "instrumentation")]
     quote! {
-        #[tracing::instrument(skip(self, settings), err)]
+        #[tracing::instrument(skip(self, settings))]
     }
 
     #[cfg(not(feature = "instrumentation"))]
@@ -113,15 +123,12 @@ fn impl_services_for_struct(
     generics: &Generics,
     fields: &Punctuated<Field, Comma>,
 ) -> proc_macro2::TokenStream {
-    let unique_ids_check = generate_assert_unique_identifiers(identifier, generics, fields);
-    let aggregated_service_type = generate_aggregate_service_types(fields);
+    let runtime_service_type = generate_runtime_service_types(fields);
     let settings = generate_services_settings(identifier, generics, fields);
     let services_impl = generate_services_impl(identifier, generics, fields);
 
     quote! {
-        #unique_ids_check
-
-        #aggregated_service_type
+        #runtime_service_type
 
         #settings
 
@@ -150,34 +157,15 @@ fn generate_services_settings(
     }
 }
 
-fn generate_assert_unique_identifiers(
-    services_identifier: &proc_macro2::Ident,
-    generics: &Generics,
-    fields: &Punctuated<Field, Comma>,
-) -> proc_macro2::TokenStream {
-    let services_ids = fields.iter().map(|field| {
-        let _type = utils::extract_type_from(&field.ty);
-        quote! {
-            <#_type as ::overwatch::services::ServiceData>::SERVICE_ID
-        }
-    });
-    let services_ids_check = format_ident!(
-        "__{}__CONST_CHECK_UNIQUE_SERVICES_IDS",
-        services_identifier.to_string().to_uppercase()
-    );
-    let (impl_generics, ty_generics, where_clause) = generics.split_for_impl();
-
-    quote! {
-        impl #impl_generics #services_identifier #ty_generics #where_clause {
-            const #services_ids_check: () = assert!(::overwatch::utils::const_checks::unique_ids(&[#( #services_ids ),*]));
-        }
-    }
+const RUNTIME_SERVICE_ID_TYPE_NAME: &str = "RuntimeServiceId";
+fn get_runtime_service_id_type_name() -> Type {
+    parse_str(RUNTIME_SERVICE_ID_TYPE_NAME)
+        .expect("Runtime service ID type is a valid type token stream.")
 }
-
-const AGGREGATED_SERVICE_ID_TYPE_NAME: &str = "AggregatedServiceId";
-fn get_aggregated_service_id_type_name() -> Type {
-    parse_str(AGGREGATED_SERVICE_ID_TYPE_NAME)
-        .expect("Aggregated service ID type is a valid type token stream.")
+const RUNTIME_LIFECYCLE_HANDLERS_TYPE_NAME: &str = "RuntimeLifeCycleHandlers";
+fn get_runtime_lifecycle_handlers_type_name() -> Type {
+    parse_str(RUNTIME_LIFECYCLE_HANDLERS_TYPE_NAME)
+        .expect("Runtime lifecycle handlers type is a valid type token stream.")
 }
 
 fn generate_services_impl(
@@ -196,11 +184,13 @@ fn generate_services_impl(
 
     let (impl_generics, ty_generics, where_clause) = generics.split_for_impl();
 
-    let aggregated_service_id_type_name = get_aggregated_service_id_type_name();
+    let runtime_service_id_type_name = get_runtime_service_id_type_name();
+    let runtime_lifecycle_handlers_type_name = get_runtime_lifecycle_handlers_type_name();
     quote! {
         impl #impl_generics ::overwatch::overwatch::Services for #services_identifier #ty_generics #where_clause {
             type Settings = #services_settings_identifier #ty_generics;
-            type AggregatedServiceId = #aggregated_service_id_type_name;
+            type RuntimeServiceId = #runtime_service_id_type_name;
+            type ServicesLifeCycleHandle = #runtime_lifecycle_handlers_type_name;
 
             #impl_new
 
@@ -235,7 +225,7 @@ fn generate_new_impl(fields: &Punctuated<Field, Comma>) -> proc_macro2::TokenStr
         quote! {
             #field_identifier: {
                 let manager =
-                    ::overwatch::OpaqueServiceHandle::<#service_type, Self::AggregatedServiceId>::new::<<#service_type as ::overwatch::services::ServiceData>::StateOperator>(
+                    ::overwatch::OpaqueServiceHandle::<#service_type, Self::RuntimeServiceId>::new::<<#service_type as ::overwatch::services::ServiceData>::StateOperator>(
                         #settings_field_identifier, overwatch_handle.clone(), <#service_type as ::overwatch::services::ServiceData>::SERVICE_RELAY_BUFFER_SIZE
                 )?;
                 manager
@@ -244,7 +234,7 @@ fn generate_new_impl(fields: &Punctuated<Field, Comma>) -> proc_macro2::TokenStr
     });
 
     quote! {
-        fn new(settings: Self::Settings, overwatch_handle: ::overwatch::overwatch::handle::OverwatchHandle<Self::AggregatedServiceId>) -> ::core::result::Result<Self, ::overwatch::DynError> {
+        fn new(settings: Self::Settings, overwatch_handle: ::overwatch::overwatch::handle::OverwatchHandle<Self::RuntimeServiceId>) -> ::core::result::Result<Self, ::overwatch::DynError> {
             let Self::Settings {
                 #( #fields_settings ),*
             } = settings;
@@ -263,15 +253,17 @@ fn generate_start_all_impl(fields: &Punctuated<Field, Comma>) -> proc_macro2::To
         let field_identifier = field.ident.as_ref().expect("A struct attribute identifier");
         let type_id = utils::extract_type_from(&field.ty);
         quote! {
-            self.#field_identifier.service_runner::<<#type_id as ::overwatch::services::ServiceData>::StateOperator>().run::<#type_id>()?
+            #field_identifier: self.#field_identifier.service_runner::<<#type_id as ::overwatch::services::ServiceData>::StateOperator>().run::<#type_id>()?
         }
     });
 
-    let instrumentation = get_default_instrumentation();
+    let instrumentation = get_default_instrumentation_for_result();
     quote! {
         #instrumentation
-        fn start_all(&mut self) -> ::core::result::Result<::overwatch::overwatch::ServicesLifeCycleHandle, ::overwatch::overwatch::Error> {
-            ::core::result::Result::Ok([#( #call_start ),*].try_into()?)
+        fn start_all(&mut self) -> ::core::result::Result<Self::ServicesLifeCycleHandle, ::overwatch::overwatch::Error> {
+            ::core::result::Result::Ok(Self::ServicesLifeCycleHandle {
+                #( #call_start ),*
+            })
         }
     }
 }
@@ -280,21 +272,21 @@ fn generate_start_impl(fields: &Punctuated<Field, Comma>) -> proc_macro2::TokenS
     let cases = fields.iter().map(|field| {
         let field_identifier = field.ident.as_ref().expect("A struct attribute identifier");
         let type_id = utils::extract_type_from(&field.ty);
+        let runtime_service_id_type_name = get_runtime_service_id_type_name();
         quote! {
-            <#type_id as ::overwatch::services::ServiceData>::SERVICE_ID => {
+            &<#type_id as ::overwatch::services::ServiceId<#runtime_service_id_type_name>>::SERVICE_ID => {
                 self.#field_identifier.service_runner::<<#type_id as ::overwatch::services::ServiceData>::StateOperator>().run::<#type_id>()?;
                 ::core::result::Result::Ok(())
             }
         }
     });
 
-    let instrumentation = get_default_instrumentation();
+    let instrumentation = get_default_instrumentation_for_result();
     quote! {
         #instrumentation
-        fn start(&mut self, service_id: ::overwatch::services::ServiceId) -> ::core::result::Result<(), ::overwatch::overwatch::Error> {
+        fn start(&mut self, service_id: &Self::RuntimeServiceId) -> ::core::result::Result<(), ::overwatch::overwatch::Error> {
             match service_id {
                 #( #cases ),*
-                service_id => ::core::result::Result::Err(::overwatch::overwatch::Error::Unavailable { service_id })
             }
         }
     }
@@ -304,19 +296,19 @@ fn generate_stop_impl(fields: &Punctuated<Field, Comma>) -> proc_macro2::TokenSt
     let cases = fields.iter().map(|field| {
         let _field_identifier = field.ident.as_ref().expect("A struct attribute identifier");
         let type_id = utils::extract_type_from(&field.ty);
+        let runtime_service_id_type_name = get_runtime_service_id_type_name();
         // TODO: actually stop them here once service lifecycle is implemented
         quote! {
-            <#type_id as ::overwatch::services::ServiceData>::SERVICE_ID => { unimplemented!() }
+            &<#type_id as ::overwatch::services::ServiceId<#runtime_service_id_type_name>>::SERVICE_ID => { unimplemented!() }
         }
     });
 
     let instrumentation = get_default_instrumentation();
     quote! {
         #instrumentation
-        fn stop(&mut self, service_id: ::overwatch::services::ServiceId) -> ::core::result::Result<(), ::overwatch::overwatch::Error> {
+        fn stop(&mut self, service_id: &Self::RuntimeServiceId) {
             match service_id {
                 #( #cases ),*
-                service_id => ::core::result::Result::Err(::overwatch::overwatch::Error::Unavailable { service_id })
             }
         }
     }
@@ -326,8 +318,9 @@ fn generate_request_relay_impl(fields: &Punctuated<Field, Comma>) -> proc_macro2
     let cases = fields.iter().map(|field| {
         let field_identifier = field.ident.as_ref().expect("A struct attribute identifier");
         let type_id = utils::extract_type_from(&field.ty);
+        let runtime_service_id_type_name = get_runtime_service_id_type_name();
         quote! {
-            <#type_id as ::overwatch::services::ServiceData>::SERVICE_ID => {
+            &<#type_id as ::overwatch::services::ServiceId<#runtime_service_id_type_name>>::SERVICE_ID => {
                 ::core::result::Result::Ok(::std::boxed::Box::new(
                     self.#field_identifier
                         .relay_with()
@@ -337,13 +330,12 @@ fn generate_request_relay_impl(fields: &Punctuated<Field, Comma>) -> proc_macro2
         }
     });
 
-    let instrumentation = get_default_instrumentation();
+    let instrumentation = get_default_instrumentation_for_result();
     quote! {
         #instrumentation
-        fn request_relay(&mut self, service_id: ::overwatch::services::ServiceId) -> ::overwatch::services::relay::RelayResult {
+        fn request_relay(&mut self, service_id: &Self::RuntimeServiceId) -> ::overwatch::services::relay::RelayResult {
             match service_id {
                 #( #cases )*
-                service_id => ::core::result::Result::Err(::overwatch::services::relay::RelayError::Unavailable { service_id })
             }
         }
     }
@@ -355,21 +347,20 @@ fn generate_request_status_watcher_impl(
     let cases = fields.iter().map(|field| {
         let field_identifier = field.ident.as_ref().expect("A struct attribute identifier");
         let type_id = utils::extract_type_from(&field.ty);
+        let runtime_service_id_type_name = get_runtime_service_id_type_name();
         quote! {
-            <#type_id as ::overwatch::services::ServiceData>::SERVICE_ID => {
-                ::core::result::Result::Ok(self.#field_identifier.status_watcher())
+            &<#type_id as ::overwatch::services::ServiceId<#runtime_service_id_type_name>>::SERVICE_ID => {
+                self.#field_identifier.status_watcher()
             }
         }
     });
 
+    let instrumentation = get_default_instrumentation();
     quote! {
-        #[::tracing::instrument(skip(self), err)]
-        fn request_status_watcher(&self, service_id: ::overwatch::services::ServiceId) -> ::overwatch::services::status::ServiceStatusResult {
-            {
-                match service_id {
-                    #( #cases )*
-                    service_id => ::core::result::Result::Err(::overwatch::services::status::ServiceStatusError::Unavailable { service_id })
-                }
+        #instrumentation
+        fn request_status_watcher(&self, service_id: &Self::RuntimeServiceId) -> ::overwatch::services::status::StatusWatcher {
+            match service_id {
+                #( #cases )*
             }
         }
     }
@@ -395,30 +386,31 @@ fn generate_update_settings_impl(fields: &Punctuated<Field, Comma>) -> proc_macr
     let instrumentation = get_default_instrumentation_without_settings();
     quote! {
         #instrumentation
-        fn update_settings(&mut self, settings: Self::Settings) -> ::core::result::Result<(), ::overwatch::overwatch::Error> {
+        fn update_settings(&mut self, settings: Self::Settings) {
             let Self::Settings {
                 #( #fields_settings ),*
             } = settings;
 
             #( #update_settings_call )*
-
-            ::core::result::Result::Ok(())
         }
     }
 }
 
-fn generate_aggregate_service_types(fields: &Punctuated<Field, Comma>) -> proc_macro2::TokenStream {
-    let aggregated_service_id = generate_aggregate_service_id(fields);
-    let as_ref_impls = generate_as_ref_impls(fields);
+fn generate_runtime_service_types(fields: &Punctuated<Field, Comma>) -> proc_macro2::TokenStream {
+    let runtime_service_id = generate_runtime_service_id(fields);
+    let service_id_trait_impls = generate_service_id_trait_impls();
+    let service_id_impls = generate_service_id_impls(fields);
 
     quote! {
-        #aggregated_service_id
+        #runtime_service_id
 
-        #as_ref_impls
+        #service_id_trait_impls
+
+        #service_id_impls
     }
 }
 
-fn generate_aggregate_service_id(fields: &Punctuated<Field, Comma>) -> proc_macro2::TokenStream {
+fn generate_runtime_service_id(fields: &Punctuated<Field, Comma>) -> proc_macro2::TokenStream {
     let services_names = fields.iter().clone().map(|field| &field.ident);
     let enum_variants = services_names.map(|service_name| {
         let capitalized_service_name = format_ident!(
@@ -433,10 +425,10 @@ fn generate_aggregate_service_id(fields: &Punctuated<Field, Comma>) -> proc_macr
 
         quote! { #capitalized_service_name }
     });
-    let aggregated_service_id_type_name = get_aggregated_service_id_type_name();
+    let runtime_service_id_type_name = get_runtime_service_id_type_name();
     let expanded = quote! {
-        #[derive(::core::fmt::Debug, ::core::clone::Clone, ::core::marker::Copy, ::core::cmp::PartialEq, ::core::cmp::Eq, ::core::hash::Hash)]
-        pub enum #aggregated_service_id_type_name {
+        #[derive(::core::fmt::Debug, ::core::clone::Clone, ::core::marker::Copy, ::core::cmp::PartialEq, ::core::cmp::Eq, ::overwatch::LifecycleHandlers)]
+        pub enum #runtime_service_id_type_name {
             #(#enum_variants),*
         }
     };
@@ -446,7 +438,18 @@ fn generate_aggregate_service_id(fields: &Punctuated<Field, Comma>) -> proc_macr
     }
 }
 
-fn generate_as_ref_impls(fields: &Punctuated<Field, Comma>) -> proc_macro2::TokenStream {
+fn generate_service_id_trait_impls() -> proc_macro2::TokenStream {
+    let runtime_service_id_type_name = get_runtime_service_id_type_name();
+    quote! {
+        impl ::core::fmt::Display for #runtime_service_id_type_name {
+            fn fmt(&self, f: &mut ::core::fmt::Formatter<'_>) -> ::core::fmt::Result {
+                <Self as ::core::fmt::Debug>::fmt(self, f)
+            }
+        }
+    }
+}
+
+fn generate_service_id_impls(fields: &Punctuated<Field, Comma>) -> proc_macro2::TokenStream {
     let impl_blocks: Vec<_> = fields.iter().filter_map(|field| {
         let field_type = &field.ty;
         let capitalized_service_name = format_ident!(
@@ -479,7 +482,7 @@ fn generate_as_ref_impls(fields: &Punctuated<Field, Comma>) -> proc_macro2::Toke
         };
 
         let inner_ident = &inner_path.path.segments.last().expect("Expected at least one segment in the inner type path").ident;
-        let aggregated_service_id_type_name = get_aggregated_service_id_type_name();
+        let runtime_service_id_type_name = get_runtime_service_id_type_name();
 
         // Extract generics if present, but rename them to T1, T2, etc.
         match inner_path
@@ -494,19 +497,15 @@ fn generate_as_ref_impls(fields: &Punctuated<Field, Comma>) -> proc_macro2::Toke
                         .collect();
 
                     Some(quote! {
-                        impl<#(#generic_params),*> ::overwatch::utils::traits::AsRuntimeId<#aggregated_service_id_type_name> for #inner_ident<#(#generic_params),*> {
-                            fn runtime_id() -> &'static #aggregated_service_id_type_name {
-                                &#aggregated_service_id_type_name::#capitalized_service_name
-                            }
+                        impl<#(#generic_params),*> ::overwatch::utils::traits::ServiceId<#runtime_service_id_type_name> for #inner_ident<#(#generic_params),*> {
+                            const SERVICE_ID: #runtime_service_id_type_name = #runtime_service_id_type_name::#capitalized_service_name;
                         }
                     })
                 },
                 // No generics case
                 _ => Some(quote! {
-                    impl ::overwatch::utils::traits::AsRuntimeId<#aggregated_service_id_type_name> for #inner_ident {
-                        fn runtime_id() -> &'static #aggregated_service_id_type_name {
-                            &#aggregated_service_id_type_name::#capitalized_service_name
-                        }
+                    impl ::overwatch::services::ServiceId<#runtime_service_id_type_name> for #inner_ident {
+                        const SERVICE_ID: #runtime_service_id_type_name = #runtime_service_id_type_name::#capitalized_service_name;
                     }
                 }),
         }
@@ -515,4 +514,109 @@ fn generate_as_ref_impls(fields: &Punctuated<Field, Comma>) -> proc_macro2::Toke
     quote! {
         #(#impl_blocks)*
     }
+}
+
+/// Docs WIP.
+///
+/// # Panics
+///
+/// If the derive macro is not used on the created service ID enum.
+#[proc_macro_derive(LifecycleHandlers)]
+pub fn generate_lifecyle_handlers(input: TokenStream) -> TokenStream {
+    let input = parse_macro_input!(input as DeriveInput);
+
+    let enum_name = input.ident;
+    assert!(enum_name == RUNTIME_SERVICE_ID_TYPE_NAME, "LifecycleHandlers` can only be implemented on the runtime service ID type generated within this macro.");
+
+    let Data::Enum(data_enum) = input.data else {
+        panic!("`LifecycleHandlers` can only be used on enums.");
+    };
+
+    let variants_names = data_enum.variants.iter().map(|variant| &variant.ident);
+    let variants_as_field_names = variants_names.clone().map(|variant_name| {
+        Ident::new(
+            &utils::enum_variant_name_to_field_name(&variant_name.to_string()),
+            variant_name.span(),
+        )
+    });
+    let struct_fields = variants_as_field_names.clone().map(|field_name| {
+        quote! { #field_name: ::overwatch::services::life_cycle::LifecycleHandle }
+    });
+
+    let match_arms_shutdown = variants_names.clone().zip(variants_as_field_names.clone()).map(|(variant_name, field_name)| {
+        quote! { &#enum_name::#variant_name => self.#field_name.send(::overwatch::services::life_cycle::LifecycleMessage::Shutdown(sender)) }
+    });
+
+    let match_arms_kill = variants_names.clone().zip(variants_as_field_names.clone()).map(|(variant_name, field_name)| {
+        quote! { &#enum_name::#variant_name => self.#field_name.send(::overwatch::services::life_cycle::LifecycleMessage::Kill) }
+    });
+
+    let kill_all_body = variants_as_field_names.map(|field_name| {
+        quote! { self.#field_name.send(::overwatch::services::life_cycle::LifecycleMessage::Kill)?; }
+    });
+
+    let runtime_service_id_type_name = get_runtime_service_id_type_name();
+    let runtime_lifecycle_handlers_type_name = get_runtime_lifecycle_handlers_type_name();
+    let expanded = quote! {
+        pub struct #runtime_lifecycle_handlers_type_name {
+            #(#struct_fields,)*
+        }
+
+        impl ::overwatch::overwatch::life_cycle::ServicesLifeCycleHandle<#runtime_service_id_type_name> for #runtime_lifecycle_handlers_type_name {
+            type Error = ::overwatch::DynError;
+
+            /// Send a `Shutdown` message to the specified service.
+            ///
+            /// # Arguments
+            ///
+            /// `service` - The [`ServiceId`] of the target service
+            /// `sender` - The sender side of a broadcast channel. It's expected that
+            /// once the receiver finishes processing the message, a signal will be
+            /// sent back.
+            ///
+            /// # Errors
+            ///
+            /// The error returned when trying to send the shutdown command to the
+            /// specified service.
+            fn shutdown(
+                &self,
+                service: &#runtime_service_id_type_name,
+                sender: ::tokio::sync::broadcast::Sender<::overwatch::services::life_cycle::FinishedSignal>,
+            ) -> Result<(), Self::Error> {
+                match service {
+                    #(#match_arms_shutdown,)*
+                }
+            }
+
+            /// Send a [`LifecycleMessage::Kill`] message to the specified service
+            /// ([`ServiceId`]) [`crate::overwatch::OverwatchRunner`].
+            /// # Arguments
+            ///
+            /// `service` - The [`ServiceId`] of the target service
+            ///
+            /// # Errors
+            ///
+            /// The error returned when trying to send the kill command to the specified
+            /// service.
+            fn kill(&self, service: &#runtime_service_id_type_name) -> Result<(), Self::Error> {
+                match service {
+                    #(#match_arms_kill,)*
+                }
+            }
+
+            /// Send a [`LifecycleMessage::Kill`] message to all services registered in
+            /// this handle.
+            ///
+            /// # Errors
+            ///
+            /// The error returned when trying to send the kill command to any of the
+            /// running services.
+            fn kill_all(&self) -> Result<(), Self::Error> {
+                #(#kill_all_body)*
+                Ok(())
+            }
+        }
+    };
+
+    TokenStream::from(expanded)
 }
