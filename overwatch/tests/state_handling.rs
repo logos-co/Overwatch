@@ -52,21 +52,21 @@ pub struct CounterStateOperator;
 
 #[async_trait]
 impl StateOperator for CounterStateOperator {
-    type StateInput = CounterState;
+    type State = CounterState;
     type Settings = ();
     type LoadError = Infallible;
 
     fn try_load(
-        _settings: &<Self::StateInput as ServiceState>::Settings,
-    ) -> Result<Option<Self::StateInput>, Self::LoadError> {
+        _settings: &<Self::State as ServiceState>::Settings,
+    ) -> Result<Option<Self::State>, Self::LoadError> {
         Ok(None)
     }
 
-    fn from_settings(_settings: <Self::StateInput as ServiceState>::Settings) -> Self {
+    fn from_settings(_settings: <Self::State as ServiceState>::Settings) -> Self {
         Self
     }
 
-    async fn run(&mut self, state: Self::StateInput) {
+    async fn run(&mut self, state: Self::State) {
         let value = state.value;
         let mut stdout = io::stdout();
         stdout
