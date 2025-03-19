@@ -427,7 +427,7 @@ fn generate_runtime_service_id(fields: &Punctuated<Field, Comma>) -> proc_macro2
     });
     let runtime_service_id_type_name = get_runtime_service_id_type_name();
     let expanded = quote! {
-        #[derive(::core::fmt::Debug, ::core::clone::Clone, ::core::marker::Copy, ::core::cmp::PartialEq, ::core::cmp::Eq, ::core::hash::Hash, ::overwatch::LifecycleHandlers)]
+        #[derive(::core::fmt::Debug, ::core::clone::Clone, ::core::marker::Copy, ::core::cmp::PartialEq, ::core::cmp::Eq, ::overwatch::LifecycleHandlers)]
         pub enum #runtime_service_id_type_name {
             #(#enum_variants),*
         }
@@ -524,12 +524,13 @@ fn generate_service_id_impls(fields: &Punctuated<Field, Comma>) -> proc_macro2::
 #[proc_macro_derive(LifecycleHandlers)]
 pub fn generate_lifecyle_handlers(input: TokenStream) -> TokenStream {
     let input = parse_macro_input!(input as DeriveInput);
+
     let enum_name = input.ident;
+    assert!(enum_name == RUNTIME_SERVICE_ID_TYPE_NAME, "LifecycleHandlers` can only be implemented on the runtime service ID type generated within this macro.");
 
     let Data::Enum(data_enum) = input.data else {
         panic!("`LifecycleHandlers` can only be used on enums.");
     };
-    assert!(enum_name == RUNTIME_SERVICE_ID_TYPE_NAME, "LifecycleHandlers` can only be implemented on the runtime service ID type generated within this macro.");
 
     let variants_names = data_enum.variants.iter().map(|variant| &variant.ident);
     let variants_as_field_names = variants_names.clone().map(|variant_name| {
