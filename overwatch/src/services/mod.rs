@@ -30,6 +30,18 @@ pub trait ServiceId<T>: ServiceData {
     const SERVICE_ID: T;
 }
 
+impl<RuntimeServiceId, Service> ServiceId<RuntimeServiceId> for Service
+where
+    RuntimeServiceId: ConvertFrom<Service>,
+    Service: ServiceData,
+{
+    const SERVICE_ID: RuntimeServiceId = RuntimeServiceId::TO;
+}
+
+pub trait ConvertFrom<T> {
+    const TO: Self;
+}
+
 /// Main trait for Services initialization and main loop hook.
 #[async_trait]
 pub trait ServiceCore<RuntimeServiceId>: Sized + ServiceData {
