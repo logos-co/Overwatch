@@ -254,8 +254,8 @@ fn generate_start_all_impl(fields: &Punctuated<Field, Comma>) -> proc_macro2::To
     let instrumentation = get_default_instrumentation_for_result();
     quote! {
         #instrumentation
-        fn start_all(&mut self) -> ::core::result::Result<Self::RuntimeLifeCycleHandlers, ::overwatch::overwatch::Error> {
-            ::core::result::Result::Ok(Self::RuntimeLifeCycleHandlers {
+        fn start_all(&mut self) -> ::core::result::Result<Self::ServicesLifeCycleHandle, ::overwatch::overwatch::Error> {
+            ::core::result::Result::Ok(Self::ServicesLifeCycleHandle {
                 #( #call_start ),*
             })
         }
