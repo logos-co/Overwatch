@@ -21,6 +21,7 @@ pub struct PrintService {
 pub struct PrintServiceMessage(String);
 
 impl ServiceData for PrintService {
+    const SERVICE_NAME: &'static str = "FooService";
     type Settings = ();
     type State = NoState<Self::Settings>;
     type StateOperator = NoOperator<Self::State>;

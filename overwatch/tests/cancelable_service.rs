@@ -21,6 +21,7 @@ pub struct CancellableService {
 }
 
 impl ServiceData for CancellableService {
+    const SERVICE_NAME: &'static str = "cancel-me-please";
     type Settings = ();
     type State = NoState<Self::Settings>;
     type StateOperator = NoOperator<Self::State>;

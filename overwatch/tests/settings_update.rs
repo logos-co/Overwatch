@@ -22,6 +22,7 @@ type SettingsServiceSettings = String;
 pub struct SettingsMsg;
 
 impl ServiceData for SettingsService {
+    const SERVICE_NAME: &'static str = "FooService";
     type Settings = SettingsServiceSettings;
     type State = NoState<Self::Settings>;
     type StateOperator = NoOperator<Self::State>;
