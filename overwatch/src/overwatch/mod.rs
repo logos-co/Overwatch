@@ -331,11 +331,14 @@ impl<RuntimeServiceId> Overwatch<RuntimeServiceId> {
 mod test {
     use std::{fmt::Display, time::Duration};
 
-    use tokio::time::sleep;
+    use tokio::{sync::broadcast::Sender, time::sleep};
 
     use crate::{
-        overwatch::{handle::OverwatchHandle, Error, OverwatchRunner, Services},
-        services::{relay::RelayResult, status::StatusWatcher},
+        overwatch::{
+            handle::OverwatchHandle, life_cycle::ServicesLifeCycleHandle, Error, OverwatchRunner,
+            Services,
+        },
+        services::{life_cycle::FinishedSignal, relay::RelayResult, status::StatusWatcher},
     };
 
     struct EmptyServices;
@@ -349,10 +352,32 @@ mod test {
         }
     }
 
+    struct EmptyLifeCycleHandle;
+
+    impl ServicesLifeCycleHandle<EmptyServiceId> for EmptyLifeCycleHandle {
+        type Error = &'static str;
+
+        fn kill(&self, _service: &EmptyServiceId) -> Result<(), Self::Error> {
+            Ok(())
+        }
+
+        fn kill_all(&self) -> Result<(), Self::Error> {
+            Ok(())
+        }
+
+        fn shutdown(
+            &self,
+            _service: &EmptyServiceId,
+            _sender: Sender<FinishedSignal>,
+        ) -> Result<(), Self::Error> {
+            Ok(())
+        }
+    }
+
     impl Services for EmptyServices {
         type Settings = ();
         type RuntimeServiceId = EmptyServiceId;
-        type ServicesLifeCycleHandle = ();
+        type ServicesLifeCycleHandle = EmptyLifeCycleHandle;
 
         fn new(
             _settings: Self::Settings,
@@ -365,8 +390,8 @@ mod test {
             Ok(())
         }
 
-        fn start_all(&mut self) -> Result<(), Error> {
-            Ok(())
+        fn start_all(&mut self) -> Result<EmptyLifeCycleHandle, Error> {
+            Ok(EmptyLifeCycleHandle)
         }
 
         fn stop(&mut self, _service_id: &EmptyServiceId) {}

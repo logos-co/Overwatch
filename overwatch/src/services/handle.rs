@@ -179,7 +179,7 @@ where
     /// # Errors
     ///
     /// If the service cannot be initialized properly with the retrieved state.
-    pub fn run<Service>(self) -> Result<(RuntimeServiceId, LifecycleHandle), crate::DynError>
+    pub fn run<Service>(self) -> Result<LifecycleHandle, crate::DynError>
     where
         Service: ServiceCore<RuntimeServiceId, Settings = Settings, State = State, Message = Message>
             + RuntimeServiceIdTrait<RuntimeServiceId>
@@ -199,6 +199,6 @@ where
         runtime.spawn(service.run());
         runtime.spawn(state_handle.run());
 
-        Ok((Service::SERVICE_ID, lifecycle_handle))
+        Ok(lifecycle_handle)
     }
 }

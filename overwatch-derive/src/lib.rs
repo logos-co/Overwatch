@@ -526,22 +526,25 @@ pub fn generate_lifecyle_handlers(input: TokenStream) -> TokenStream {
 
     let fields: Vec<Ident> = data_enum.variants.iter().map(|v| v.ident.clone()).collect();
     let struct_fields = fields.iter().map(|name| {
-        let field_name = Ident::new(&name.to_string().to_lowercase(), name.span());
+        let field_name = Ident::new(
+            &utils::enum_variant_name_to_field_name(&name.to_string()),
+            name.span(),
+        );
         quote! { #field_name: ::overwatch::services::life_cycle::LifecycleHandle }
     });
 
     let match_arms_shutdown = fields.iter().map(|name| {
-        let field_name = Ident::new(&name.to_string().to_lowercase(), name.span());
+        let field_name = Ident::new(&utils::enum_variant_name_to_field_name(&name.to_string()), name.span());
         quote! { &#enum_name::#name => self.#field_name.send(::overwatch::services::life_cycle::LifecycleMessage::Shutdown(sender)) }
     });
 
     let match_arms_kill = fields.iter().map(|name| {
-        let field_name = Ident::new(&name.to_string().to_lowercase(), name.span());
+        let field_name = Ident::new(&utils::enum_variant_name_to_field_name(&name.to_string()), name.span());
         quote! { &#enum_name::#name => self.#field_name.send(::overwatch::services::life_cycle::LifecycleMessage::Kill) }
     });
 
     let kill_all_body = fields.iter().map(|name| {
-        let field_name = Ident::new(&name.to_string().to_lowercase(), name.span());
+        let field_name = Ident::new(&utils::enum_variant_name_to_field_name(&name.to_string()), name.span());
         quote! { self.#field_name.send(::overwatch::services::life_cycle::LifecycleMessage::Kill)?; }
     });
 

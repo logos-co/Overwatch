@@ -11,8 +11,8 @@ mod states;
 
 #[derive_services]
 struct PingPong {
-    ping: PingService,
-    pong: PongService,
+    ping_service: PingService,
+    pong_service: PongService,
 }
 
 const PING_STATE_SAVE_PATH: &str = const_format::formatcp!(
@@ -25,8 +25,8 @@ fn main() {
         state_save_path: String::from(PING_STATE_SAVE_PATH),
     };
     let ping_pong_settings = PingPongServiceSettings {
-        ping: ping_settings,
-        pong: (),
+        ping_service: ping_settings,
+        pong_service: (),
     };
     let ping_pong =
         OverwatchRunner::<PingPong>::run(ping_pong_settings, None).expect("OverwatchRunner failed");
