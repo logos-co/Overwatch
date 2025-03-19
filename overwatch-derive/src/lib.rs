@@ -162,6 +162,11 @@ fn get_runtime_service_id_type_name() -> Type {
     parse_str(RUNTIME_SERVICE_ID_TYPE_NAME)
         .expect("Runtime service ID type is a valid type token stream.")
 }
+const RUNTIME_LIFECYCLE_HANDLERS_TYPE_NAME: &str = "RuntimeLifeCycleHandlers";
+fn get_runtime_lifecycle_handlers_type_name() -> Type {
+    parse_str(RUNTIME_LIFECYCLE_HANDLERS_TYPE_NAME)
+        .expect("Runtime lifecycle handlers type is a valid type token stream.")
+}
 
 fn generate_services_impl(
     services_identifier: &proc_macro2::Ident,
@@ -180,11 +185,12 @@ fn generate_services_impl(
     let (impl_generics, ty_generics, where_clause) = generics.split_for_impl();
 
     let runtime_service_id_type_name = get_runtime_service_id_type_name();
+    let runtime_lifecycle_handlers_type_name = get_runtime_lifecycle_handlers_type_name();
     quote! {
         impl #impl_generics ::overwatch::overwatch::Services for #services_identifier #ty_generics #where_clause {
             type Settings = #services_settings_identifier #ty_generics;
             type RuntimeServiceId = #runtime_service_id_type_name;
-            type ServicesLifeCycleHandle = RuntimeLifeCycleHandlers;
+            type ServicesLifeCycleHandle = #runtime_lifecycle_handlers_type_name;
 
             #impl_new
 
@@ -549,12 +555,13 @@ pub fn generate_lifecyle_handlers(input: TokenStream) -> TokenStream {
     });
 
     let runtime_service_id_type_name = get_runtime_service_id_type_name();
+    let runtime_lifecycle_handlers_type_name = get_runtime_lifecycle_handlers_type_name();
     let expanded = quote! {
-        pub struct RuntimeLifeCycleHandlers {
+        pub struct #runtime_lifecycle_handlers_type_name {
             #(#struct_fields,)*
         }
 
-        impl ::overwatch::overwatch::life_cycle::ServicesLifeCycleHandle<#runtime_service_id_type_name> for RuntimeLifeCycleHandlers {
+        impl ::overwatch::overwatch::life_cycle::ServicesLifeCycleHandle<#runtime_service_id_type_name> for #runtime_lifecycle_handlers_type_name {
             type Error = ::overwatch::DynError;
 
             /// Send a `Shutdown` message to the specified service.
