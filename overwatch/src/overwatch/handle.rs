@@ -1,7 +1,4 @@
-use std::{
-    fmt::{Debug, Display},
-    marker::PhantomData,
-};
+use std::fmt::{Debug, Display};
 
 use tokio::{
     runtime::Handle,
@@ -34,7 +31,6 @@ use crate::{
 pub struct OverwatchHandle<RuntimeServiceId> {
     runtime_handle: Handle,
     sender: Sender<OverwatchCommand<RuntimeServiceId>>,
-    _phantom: PhantomData<RuntimeServiceId>,
 }
 
 impl<RuntimeServiceId> OverwatchHandle<RuntimeServiceId> {
@@ -46,7 +42,6 @@ impl<RuntimeServiceId> OverwatchHandle<RuntimeServiceId> {
         Self {
             runtime_handle,
             sender,
-            _phantom: PhantomData,
         }
     }
 
