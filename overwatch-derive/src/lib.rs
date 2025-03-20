@@ -699,8 +699,8 @@ fn generate_runtime_service_types(fields: &Punctuated<Field, Comma>) -> proc_mac
 /// is automatically derived with useful traits including `Debug`, `Clone`,
 /// `Copy`, `PartialEq`, `Eq`, and the custom `LifecycleHandlers` trait.
 ///
-/// The service names from the struct fields are converted to PascalCase for the
-/// enum variants.
+/// The service names from the struct fields are converted to `PascalCase` for
+/// the enum variants.
 ///
 /// # Arguments
 ///

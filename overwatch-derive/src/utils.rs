@@ -76,8 +76,8 @@ pub fn extract_type_from(ty: &Type) -> Type {
     }
 }
 
-/// Converts a field name (typically in snake_case) to a type name in
-/// PascalCase.
+/// Converts a field name (typically in `snake_case`) to a type name in
+/// `PascalCase`.
 ///
 /// # Behavior
 /// - Converts a field name, usually in `snake_case`, to `PascalCase`.
@@ -101,8 +101,8 @@ pub fn field_name_to_type_name(name: &str) -> String {
     name.to_case(Case::Pascal)
 }
 
-/// Converts an enum variant name (typically in PascalCase) to a field name in
-/// snake_case.
+/// Converts an enum variant name (typically in `PascalCase`) to a field name in
+/// `snake_case`.
 ///
 /// # Behavior
 /// - Converts an enum variant name, usually in `PascalCase`, to `snake_case`.
