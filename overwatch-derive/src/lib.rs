@@ -487,7 +487,13 @@ fn generate_to_service_impl(fields: &Punctuated<Field, Comma>) -> proc_macro2::T
         // Extract generics if present, preserving trait bounds
         inner_path.path.segments.last().map_or_else(|| None, |segment| match &segment.arguments {
                     PathArguments::AngleBracketed(generic_args) => {
-                        let generic_params: Vec<_> = generic_args.args.iter().collect();
+                        let generic_params: Vec<_> = generic_args.args.iter().filter(|arg| match arg {
+                            GenericArgument::Type(Type::Path(type_path)) => {
+                                type_path.path.segments.last().is_none_or(|seg| seg.ident != RUNTIME_SERVICE_ID_TYPE_NAME)
+                            }
+                            _ => true,
+                        })
+                        .collect();
 
                         Some(quote! {
                             impl<#(#generic_params),*> ::overwatch::services::ToService<#inner_ident<#(#generic_params),*>> for #runtime_service_id_type_name
