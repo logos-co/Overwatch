@@ -24,7 +24,10 @@ pub trait ServiceData {
     type Message;
 }
 
-// This trait is implemented by the runtime macro.
+// This trait is implemented by the runtime macro and must be required by
+// services to be able to communicate with each other. This trait basically
+// guarantees that services implementing this for the same runtime service ID,
+// are indeed part of the same runtime.
 pub trait AsServiceId<T> {
     const SERVICE_ID: Self;
 }

@@ -395,14 +395,14 @@ fn generate_update_settings_impl(fields: &Punctuated<Field, Comma>) -> proc_macr
 fn generate_runtime_service_types(fields: &Punctuated<Field, Comma>) -> proc_macro2::TokenStream {
     let runtime_service_id = generate_runtime_service_id(fields);
     let service_id_trait_impls = generate_service_id_trait_impls();
-    let to_service_impl = generate_to_service_impl(fields);
+    let as_service_id_impl = generate_as_service_id_impl(fields);
 
     quote! {
         #runtime_service_id
 
         #service_id_trait_impls
 
-        #to_service_impl
+        #as_service_id_impl
     }
 }
 
@@ -445,7 +445,7 @@ fn generate_service_id_trait_impls() -> proc_macro2::TokenStream {
     }
 }
 
-fn generate_to_service_impl(fields: &Punctuated<Field, Comma>) -> proc_macro2::TokenStream {
+fn generate_as_service_id_impl(fields: &Punctuated<Field, Comma>) -> proc_macro2::TokenStream {
     let impl_blocks = fields.iter().filter_map(|field| {
         let field_type = &field.ty;
         let capitalized_service_name = format_ident!(
@@ -484,7 +484,7 @@ fn generate_to_service_impl(fields: &Punctuated<Field, Comma>) -> proc_macro2::T
             || None,
             |segment| match &segment.arguments {
                 PathArguments::AngleBracketed(generic_args) => {
-                    // Step 1: Generate struct generics with `RuntimeServiceId` replaced
+                    // Step 1: Generate struct generics with `RuntimeServiceId` generic replaced by the actual `RuntimeServiceId`.
                     let struct_generics: Vec<_> = generic_args.args.iter()
                         .map(|arg| match arg {
                             GenericArgument::Type(Type::Path(type_path)) => {

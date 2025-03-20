@@ -81,7 +81,7 @@ fn run_overwatch_then_shutdown_service_and_kill() {
         let _ = handle
             .send(OverwatchCommand::ServiceLifeCycle(
                 ServiceLifeCycleCommand {
-                    service_id: <RuntimeServiceId as AsServiceId<CancellableService>>::SERVICE_ID,
+                    service_id: RuntimeServiceId::SERVICE_ID,
                     msg: LifecycleMessage::Shutdown(sender),
                 },
             ))
