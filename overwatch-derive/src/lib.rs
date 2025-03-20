@@ -2,8 +2,8 @@ use proc_macro::TokenStream;
 use proc_macro_error2::{abort_call_site, proc_macro_error};
 use quote::{format_ident, quote};
 use syn::{
-    parse, parse_macro_input, parse_str, punctuated::Punctuated, token::Comma, Data, DeriveInput,
-    Field, Fields, GenericArgument, Generics, Ident, ItemStruct, PathArguments, Type,
+    parse, parse_macro_input, parse_quote, parse_str, punctuated::Punctuated, token::Comma, Data,
+    DeriveInput, Field, Fields, GenericArgument, Generics, Ident, ItemStruct, PathArguments, Type,
 };
 
 mod utils;
@@ -484,32 +484,63 @@ fn generate_to_service_impl(fields: &Punctuated<Field, Comma>) -> proc_macro2::T
         let inner_ident = &inner_path.path.segments.last().expect("Expected at least one segment in the inner type path").ident;
         let runtime_service_id_type_name = get_runtime_service_id_type_name();
 
-        // Extract generics if present, preserving trait bounds
-        inner_path.path.segments.last().map_or_else(|| None, |segment| match &segment.arguments {
-                    PathArguments::AngleBracketed(generic_args) => {
-                        let generic_params: Vec<_> = generic_args.args.iter().filter(|arg| match arg {
+        inner_path.path.segments.last().map_or_else(
+            || None,
+            |segment| match &segment.arguments {
+                PathArguments::AngleBracketed(generic_args) => {
+                    // Step 1: Collect generics while filtering out the service runtime ID for the `impl<>` block
+                    let impl_generics = generic_args.args.iter()
+                        .filter_map(|arg| match arg {
                             GenericArgument::Type(Type::Path(type_path)) => {
-                                type_path.path.segments.last().is_none_or(|seg| seg.ident != RUNTIME_SERVICE_ID_TYPE_NAME)
+                                let last_segment = type_path.path.segments.last().unwrap();
+                                if last_segment.ident == RUNTIME_SERVICE_ID_TYPE_NAME {
+                                    None // Remove from impl<> generics
+                                } else {
+                                    Some(type_path.clone())
+                                }
                             }
-                            _ => true,
-                        })
-                        .collect();
+                            _ => None,
+                        });
 
+                    // Step 2: Generate struct generics with `RuntimeServiceId` replaced
+                    let struct_generics = generic_args.args.iter()
+                        .map(|arg| match arg {
+                            GenericArgument::Type(Type::Path(type_path)) => {
+                                let last_segment = type_path.path.segments.last().unwrap();
+                                if last_segment.ident == RUNTIME_SERVICE_ID_TYPE_NAME {
+                                    parse_quote!(#runtime_service_id_type_name) // Replace in struct usage
+                                } else {
+                                    arg.clone()
+                                }
+                            }
+                            _ => arg.clone(),
+                        }).collect::<Vec<_>>();
+
+                    if struct_generics.is_empty() {
+                        // No generics left, fall back to simple impl
                         Some(quote! {
-                            impl<#(#generic_params),*> ::overwatch::services::ToService<#inner_ident<#(#generic_params),*>> for #runtime_service_id_type_name
-                            where #inner_ident<#(#generic_params),*>: ::overwatch::services::ServiceData
+                            impl ::overwatch::services::ToService<#inner_ident> for #runtime_service_id_type_name {
+                                const SERVICE: Self = #runtime_service_id_type_name::#capitalized_service_name;
+                            }
+                        })
+                    } else {
+                        Some(quote! {
+                            impl<#(#impl_generics),*> ::overwatch::services::ToService<#inner_ident<#(#struct_generics),*>> for #runtime_service_id_type_name
+                            where #inner_ident<#(#struct_generics),*>: ::overwatch::services::ServiceData
                             {
                                 const SERVICE: Self = #runtime_service_id_type_name::#capitalized_service_name;
                             }
                         })
-                    },
-                    // No generics case
-                    _ => Some(quote! {
-                        impl ::overwatch::services::ToService<#inner_ident> for #runtime_service_id_type_name {
-                            const SERVICE: Self = #runtime_service_id_type_name::#capitalized_service_name;
-                        }
-                    }),
-                })
+                    }
+                },
+                // No generics case
+                _ => Some(quote! {
+                    impl ::overwatch::services::ToService<#inner_ident> for #runtime_service_id_type_name {
+                        const SERVICE: Self = #runtime_service_id_type_name::#capitalized_service_name;
+                    }
+                }),
+            }
+        )
     });
 
     quote! {
