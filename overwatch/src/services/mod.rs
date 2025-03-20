@@ -24,25 +24,9 @@ pub trait ServiceData {
     type Message;
 }
 
-// This trait is implemented and required by the runtime macro.
-pub trait ServiceId<T>: ServiceData {
-    const SERVICE_ID: T;
-}
-
-// This trait impl gives services awareness of each other, and guarantees a
-// service that another service is part of the same runtime if that service type
-// can be created from the runtime service ID.
-impl<RuntimeServiceId, Service> ServiceId<RuntimeServiceId> for Service
-where
-    RuntimeServiceId: ToService<Service>,
-    Service: ServiceData,
-{
-    const SERVICE_ID: RuntimeServiceId = RuntimeServiceId::SERVICE;
-}
-
 // This trait is implemented by the runtime macro.
-pub trait ToService<T> {
-    const SERVICE: Self;
+pub trait AsServiceId<T> {
+    const SERVICE_ID: Self;
 }
 
 /// Main trait for Services initialization and main loop hook.

@@ -272,9 +272,8 @@ fn generate_start_impl(fields: &Punctuated<Field, Comma>) -> proc_macro2::TokenS
     let cases = fields.iter().map(|field| {
         let field_identifier = field.ident.as_ref().expect("A struct attribute identifier");
         let type_id = utils::extract_type_from(&field.ty);
-        let runtime_service_id_type_name = get_runtime_service_id_type_name();
         quote! {
-            &<#type_id as ::overwatch::services::ServiceId<#runtime_service_id_type_name>>::SERVICE_ID => {
+            &<Self::RuntimeServiceId as ::overwatch::services::AsServiceId<#type_id>>::SERVICE_ID => {
                 self.#field_identifier.service_runner::<<#type_id as ::overwatch::services::ServiceData>::StateOperator>().run::<#type_id>()?;
                 ::core::result::Result::Ok(())
             }
@@ -296,10 +295,9 @@ fn generate_stop_impl(fields: &Punctuated<Field, Comma>) -> proc_macro2::TokenSt
     let cases = fields.iter().map(|field| {
         let _field_identifier = field.ident.as_ref().expect("A struct attribute identifier");
         let type_id = utils::extract_type_from(&field.ty);
-        let runtime_service_id_type_name = get_runtime_service_id_type_name();
         // TODO: actually stop them here once service lifecycle is implemented
         quote! {
-            &<#type_id as ::overwatch::services::ServiceId<#runtime_service_id_type_name>>::SERVICE_ID => { unimplemented!() }
+            &<Self::RuntimeServiceId as ::overwatch::services::AsServiceId<#type_id>>::SERVICE_ID => { unimplemented!() }
         }
     });
 
@@ -318,9 +316,8 @@ fn generate_request_relay_impl(fields: &Punctuated<Field, Comma>) -> proc_macro2
     let cases = fields.iter().map(|field| {
         let field_identifier = field.ident.as_ref().expect("A struct attribute identifier");
         let type_id = utils::extract_type_from(&field.ty);
-        let runtime_service_id_type_name = get_runtime_service_id_type_name();
         quote! {
-            &<#type_id as ::overwatch::services::ServiceId<#runtime_service_id_type_name>>::SERVICE_ID => {
+            &<Self::RuntimeServiceId as ::overwatch::services::AsServiceId<#type_id>>::SERVICE_ID => {
                 ::core::result::Result::Ok(::std::boxed::Box::new(
                     self.#field_identifier
                         .relay_with()
@@ -347,9 +344,8 @@ fn generate_request_status_watcher_impl(
     let cases = fields.iter().map(|field| {
         let field_identifier = field.ident.as_ref().expect("A struct attribute identifier");
         let type_id = utils::extract_type_from(&field.ty);
-        let runtime_service_id_type_name = get_runtime_service_id_type_name();
         quote! {
-            &<#type_id as ::overwatch::services::ServiceId<#runtime_service_id_type_name>>::SERVICE_ID => {
+            &<Self::RuntimeServiceId as ::overwatch::services::AsServiceId<#type_id>>::SERVICE_ID => {
                 self.#field_identifier.status_watcher()
             }
         }
@@ -504,15 +500,15 @@ fn generate_to_service_impl(fields: &Punctuated<Field, Comma>) -> proc_macro2::T
                         .collect();
 
                     Some(quote! {
-                        impl ::overwatch::services::ToService<#inner_ident<#(#struct_generics),*>> for #runtime_service_id_type_name {
-                            const SERVICE: Self = #runtime_service_id_type_name::#capitalized_service_name;
+                        impl ::overwatch::services::AsServiceId<#inner_ident<#(#struct_generics),*>> for #runtime_service_id_type_name {
+                            const SERVICE_ID: Self = #runtime_service_id_type_name::#capitalized_service_name;
                         }
                     })
                 },
                 // No generics case
                 _ => Some(quote! {
-                    impl ::overwatch::services::ToService<#inner_ident> for #runtime_service_id_type_name {
-                        const SERVICE: Self = #runtime_service_id_type_name::#capitalized_service_name;
+                    impl ::overwatch::services::AsServiceId<#inner_ident> for #runtime_service_id_type_name {
+                        const SERVICE_ID: Self = #runtime_service_id_type_name::#capitalized_service_name;
                     }
                 }),
             }

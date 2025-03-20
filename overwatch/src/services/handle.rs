@@ -9,7 +9,7 @@ use crate::{
         settings::{SettingsNotifier, SettingsUpdater},
         state::{StateHandle, StateOperator, StateUpdater},
         status::{StatusHandle, StatusWatcher},
-        ServiceCore, ServiceId as RuntimeServiceIdTrait, ServiceState,
+        AsServiceId, ServiceCore, ServiceState,
     },
 };
 
@@ -182,8 +182,8 @@ where
     pub fn run<Service>(self) -> Result<LifecycleHandle, crate::DynError>
     where
         Service: ServiceCore<RuntimeServiceId, Settings = Settings, State = State, Message = Message>
-            + RuntimeServiceIdTrait<RuntimeServiceId>
             + 'static,
+        RuntimeServiceId: AsServiceId<Service>,
     {
         let Self {
             service_state,

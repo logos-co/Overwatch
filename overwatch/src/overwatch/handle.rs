@@ -22,7 +22,7 @@ use crate::{
     services::{
         relay::{OutboundRelay, RelayError},
         status::StatusWatcher,
-        ServiceId as RuntimeServiceIdTrait,
+        AsServiceId, ServiceData,
     },
 };
 
@@ -63,15 +63,16 @@ where
     /// Request a relay with a service
     pub async fn relay<Service>(&self) -> Result<OutboundRelay<Service::Message>, RelayError>
     where
-        Service: RuntimeServiceIdTrait<RuntimeServiceId>,
+        Service: ServiceData,
         Service::Message: 'static,
+        RuntimeServiceId: AsServiceId<Service>,
     {
-        info!("Requesting relay with {}", Service::SERVICE_ID);
+        info!("Requesting relay with {}", RuntimeServiceId::SERVICE_ID);
         let (sender, receiver) = tokio::sync::oneshot::channel();
 
         let Ok(()) = self
             .send(OverwatchCommand::Relay(RelayCommand {
-                service_id: Service::SERVICE_ID,
+                service_id: RuntimeServiceId::SERVICE_ID,
                 reply_channel: ReplyChannel::from(sender),
             }))
             .await
@@ -93,13 +94,16 @@ where
     /// If the service watcher is not available.
     pub async fn status_watcher<Service>(&self) -> StatusWatcher
     where
-        Service: RuntimeServiceIdTrait<RuntimeServiceId>,
+        RuntimeServiceId: AsServiceId<Service>,
     {
-        info!("Requesting status watcher for {}", Service::SERVICE_ID);
+        info!(
+            "Requesting status watcher for {}",
+            RuntimeServiceId::SERVICE_ID
+        );
         let (sender, receiver) = tokio::sync::oneshot::channel();
         let Ok(()) = self
             .send(OverwatchCommand::Status(StatusCommand {
-                service_id: Service::SERVICE_ID,
+                service_id: RuntimeServiceId::SERVICE_ID,
                 reply_channel: ReplyChannel::from(sender),
             }))
             .await
@@ -109,7 +113,7 @@ where
         receiver.await.unwrap_or_else(|_| {
             panic!(
                 "Service {} watcher should always be available",
-                Service::SERVICE_ID
+                RuntimeServiceId::SERVICE_ID
             )
         })
     }
