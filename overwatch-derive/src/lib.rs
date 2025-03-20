@@ -2,8 +2,8 @@ use proc_macro::TokenStream;
 use proc_macro_error2::{abort_call_site, proc_macro_error};
 use quote::{format_ident, quote};
 use syn::{
-    parse, parse_macro_input, parse_quote, parse_str, punctuated::Punctuated, token::Comma, Data,
-    DeriveInput, Field, Fields, GenericArgument, Generics, Ident, ItemStruct, PathArguments, Type,
+    parse, parse_macro_input, parse_str, punctuated::Punctuated, token::Comma, Data, DeriveInput,
+    Field, Fields, GenericArgument, Generics, Ident, ItemStruct, PathArguments, Type,
 };
 
 mod utils;
@@ -484,18 +484,10 @@ fn generate_as_service_id_impl(fields: &Punctuated<Field, Comma>) -> proc_macro2
             || None,
             |segment| match &segment.arguments {
                 PathArguments::AngleBracketed(generic_args) => {
-                    // Step 1: Generate struct generics with `RuntimeServiceId` generic replaced by the actual `RuntimeServiceId`.
                     let struct_generics: Vec<_> = generic_args.args.iter()
-                        .map(|arg| match arg {
-                            GenericArgument::Type(Type::Path(type_path)) => {
-                                let last_segment = type_path.path.segments.last().unwrap();
-                                if last_segment.ident ==  RUNTIME_SERVICE_ID_TYPE_NAME {
-                                    parse_quote!(#runtime_service_id_type_name) // Replace in struct usage
-                                } else {
-                                    arg.clone()
-                                }
-                            }
-                            _ => arg.clone(),
+                        .filter_map(|arg| match arg {
+                            GenericArgument::Type(Type::Path(type_path)) => Some(type_path.clone()),
+                            _ => None,
                         })
                         .collect();
 
