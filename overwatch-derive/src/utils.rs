@@ -81,7 +81,6 @@ pub fn extract_type_from(ty: &Type) -> Type {
 ///
 /// # Behavior
 /// - Converts a field name, usually in `snake_case`, to `PascalCase`.
-/// - Preserves uppercase and lowercase characters appropriately.
 ///
 /// # Examples
 /// ```
@@ -106,7 +105,6 @@ pub fn field_name_to_type_name(name: &str) -> String {
 ///
 /// # Behavior
 /// - Converts an enum variant name, usually in `PascalCase`, to `snake_case`.
-/// - Preserves uppercase and lowercase characters appropriately.
 ///
 /// # Examples
 /// ```
