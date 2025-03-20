@@ -2,7 +2,9 @@ use tokio::sync::broadcast::Sender;
 
 use crate::services::life_cycle::FinishedSignal;
 
+/// A trait for handling the lifecycle [`LifecycleHandle`] of spawned services.
 pub trait ServicesLifeCycleHandle<RuntimeServiceId> {
+    /// The error for different operations.
     type Error;
 
     /// Shut down a service.

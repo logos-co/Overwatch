@@ -1,3 +1,30 @@
+//! Procedural macros for generating service-related boilerplate in the
+//! Overwatch framework.
+//!
+//! This crate provides macros to derive service-related traits and
+//! implementations to ensure compile-time validation and structured lifecycle
+//! management for services.
+//!
+//! # Provided Macros
+//!
+//! - `#[derive_services]`: Modifies a struct by changing its fields to
+//!   `OpaqueServiceHandle<T, RuntimeServiceId>` and automatically derives the
+//!   `Services` trait.
+//! - `#[derive(Services)]`: Implements the `Services` trait for a struct,
+//!   generating necessary service lifecycle methods and runtime service ID
+//!   management. **This derive macro is not meant to be used directly**.
+//! - `#[derive(LifecycleHandlers)]`: Generates lifecycle handling methods for
+//!   service shutdown and termination. This macro is also added automatically
+//!   by the `derive_services` macro, hence it should not be used directly by
+//!   downstream dependencies.
+//!
+//! # Features
+//!
+//! - Ensures that all services are registered at compile-time, avoiding runtime
+//!   checks and panics.
+//! - Provides compile-time validation for service settings and runtime service
+//!   identifiers.
+
 use proc_macro::TokenStream;
 use proc_macro_error2::{abort_call_site, proc_macro_error};
 use quote::{format_ident, quote};
@@ -8,6 +35,29 @@ use syn::{
 
 mod utils;
 
+/// Procedural macro to derive service-related implementations for a struct.
+///
+/// This macro modifies a struct by converting its fields from `T` to
+/// `OpaqueServiceHandle<T, RuntimeServiceId>` and deriving the `Services` trait
+/// to manage service lifecycle operations.
+///
+/// # Example
+/// ```rust
+/// #[derive_services]
+/// struct MyServices {
+///     database: DatabaseService,
+///     cache: CacheService,
+/// }
+/// ```
+/// This expands to:
+/// ```rust
+/// struct MyServices {
+///     database: OpaqueServiceHandle<DatabaseService, RuntimeServiceId>,
+///     cache: OpaqueServiceHandle<CacheService, RuntimeServiceId>,
+/// }
+///
+/// impl Services for MyServices { /* service lifecycle methods */ }
+/// ```
 #[expect(
     clippy::missing_panics_doc,
     reason = "We will add docs to this macro later on."
@@ -49,6 +99,12 @@ pub fn derive_services(_attr: TokenStream, item: TokenStream) -> TokenStream {
     modified_struct.into()
 }
 
+/// Returns default instrumentation settings if the `instrumentation` feature is
+/// enabled.
+///
+/// The output of this function is to be used in places that want to add tracing
+/// capabilities to non `Result` types. For `Result` types, use
+/// [`get_default_instrumentation_for_result`] instead.
 fn get_default_instrumentation() -> proc_macro2::TokenStream {
     #[cfg(feature = "instrumentation")]
     quote! {
@@ -59,6 +115,12 @@ fn get_default_instrumentation() -> proc_macro2::TokenStream {
     quote! {}
 }
 
+/// Returns instrumentation settings that track errors if `instrumentation` is
+/// enabled.
+///
+/// The output of this function is to be used in places that want to add tracing
+/// capabilities to `Result` types. For non `Result` types, use
+/// [`get_default_instrumentation`] instead.
 fn get_default_instrumentation_for_result() -> proc_macro2::TokenStream {
     #[cfg(feature = "instrumentation")]
     quote! {
@@ -69,6 +131,7 @@ fn get_default_instrumentation_for_result() -> proc_macro2::TokenStream {
     quote! {}
 }
 
+/// Returns instrumentation settings that ignore `settings` in traces.
 fn get_default_instrumentation_without_settings() -> proc_macro2::TokenStream {
     #[cfg(feature = "instrumentation")]
     quote! {
@@ -79,6 +142,26 @@ fn get_default_instrumentation_without_settings() -> proc_macro2::TokenStream {
     quote! {}
 }
 
+/// Derives the `Services` trait for a struct, implementing service lifecycle
+/// operations.
+///
+/// This macro generates the necessary implementations to manage services,
+/// including:
+/// - Initializing services.
+/// - Starting/stopping services.
+/// - Handling relays and status updates.
+///
+/// **THIS MACRO IS NOT MEANT TO BE USED DIRECTLY BY DEVELOPERS, WHO SHOULD
+/// RATHER USE THE `derive_services` MACRO**.
+///
+/// # Example
+/// ```rust
+/// #[derive(Services)]
+/// struct MyServices {
+///     database: OpaqueServiceHandle<DatabaseService, RuntimeServiceId>,
+///     cache: OpaqueServiceHandle<CacheService, RuntimeServiceId>,
+/// }
+/// ```
 #[proc_macro_derive(Services)]
 #[proc_macro_error]
 pub fn services_derive(input: TokenStream) -> TokenStream {
@@ -87,18 +170,67 @@ pub fn services_derive(input: TokenStream) -> TokenStream {
     derived.into()
 }
 
+/// Creates a service settings identifier from a services identifier.
+///
+/// This function takes a services identifier and appends `"ServiceSettings"` to
+/// create the corresponding settings type name.
+///
+/// # Arguments
+///
+/// * `services_identifier` - The identifier of the services struct
+///
+/// # Examples
+///
+/// ```
+/// let service_id = format_ident!("AppServices");
+/// let settings_id = service_settings_identifier_from(&service_id);
+/// // settings_id will be "AppServicesServiceSettings"
+/// ```
 fn service_settings_identifier_from(
     services_identifier: &proc_macro2::Ident,
 ) -> proc_macro2::Ident {
     format_ident!("{}ServiceSettings", services_identifier)
 }
 
+/// Creates a service settings field identifier from a field identifier.
+///
+/// This function takes a field identifier and appends "_settings" to create
+/// the corresponding settings field name.
+///
+/// # Arguments
+///
+/// * `field_identifier` - The identifier of the service field
+///
+/// # Examples
+///
+/// ```
+/// let field_id = format_ident!("database");
+/// let settings_field_id = service_settings_field_identifier_from(&field_id);
+/// // settings_field_id will be "database_settings"
+/// ```
 fn service_settings_field_identifier_from(
     field_identifier: &proc_macro2::Ident,
 ) -> proc_macro2::Ident {
     format_ident!("{}_settings", field_identifier)
 }
 
+/// Implements the [`overwatch::overwatch::Services`] trait for the given input.
+///
+/// This function examines the input structure and generates the appropriate
+/// implementation of the trait based on the structure's fields.
+///
+/// # Arguments
+///
+/// * `input` - The parsed derive input
+///
+/// # Returns
+///
+/// A token stream containing the Services trait implementation
+///
+/// # Panics
+///
+/// This function will abort compilation if the input is not a struct with named
+/// fields.
 fn impl_services(input: &DeriveInput) -> proc_macro2::TokenStream {
     use syn::DataStruct;
 
@@ -118,6 +250,22 @@ fn impl_services(input: &DeriveInput) -> proc_macro2::TokenStream {
     }
 }
 
+/// Implements the [`overwatch::overwatch::Services`] trait for a struct with
+/// named fields.
+///
+/// This function generates all necessary code for implementing the Services
+/// trait, including runtime service types, settings, and implementation
+/// methods.
+///
+/// # Arguments
+///
+/// * `identifier` - The struct identifier
+/// * `generics` - The struct's generic parameters
+/// * `fields` - The struct's fields
+///
+/// # Returns
+///
+/// A token stream containing the combined implementations.
 fn impl_services_for_struct(
     identifier: &proc_macro2::Ident,
     generics: &Generics,
@@ -136,6 +284,21 @@ fn impl_services_for_struct(
     }
 }
 
+/// Generates the services settings struct for a given service.
+///
+/// This function creates a new struct that holds the settings for each service
+/// field in the original struct. The generated struct will have the same
+/// generics as the original struct.
+///
+/// # Arguments
+///
+/// * `services_identifier` - The identifier of the services struct
+/// * `generics` - The generic parameters of the services struct
+/// * `fields` - The fields of the services struct
+///
+/// # Returns
+///
+/// A token stream containing the settings struct definition.
 fn generate_services_settings(
     services_identifier: &proc_macro2::Ident,
     generics: &Generics,
@@ -168,6 +331,22 @@ fn get_runtime_lifecycle_handlers_type_name() -> Type {
         .expect("Runtime lifecycle handlers type is a valid type token stream.")
 }
 
+/// Generates the [`overwatch::overwatch::Services`] trait implementation for a
+/// struct.
+///
+/// This function creates the full implementation of the `Services` trait,
+/// including all required methods like `new`, `start_all`, `start`, `stop`,
+/// etc.
+///
+/// # Arguments
+///
+/// * `services_identifier` - The identifier of the services struct
+/// * `generics` - The generic parameters of the services struct
+/// * `fields` - The fields of the services struct
+///
+/// # Returns
+///
+/// A token stream containing the Services trait implementation.
 fn generate_services_impl(
     services_identifier: &proc_macro2::Ident,
     generics: &Generics,
@@ -209,6 +388,18 @@ fn generate_services_impl(
     }
 }
 
+/// Generates the `new` method implementation for the `Services` trait.
+///
+/// This function creates the code to initialize each service field with its
+/// corresponding settings and wrap it in an `OpaqueServiceHandle`.
+///
+/// # Arguments
+///
+/// * `fields` - The fields of the services struct
+///
+/// # Returns
+///
+/// A token stream containing the new method implementation.
 fn generate_new_impl(fields: &Punctuated<Field, Comma>) -> proc_macro2::TokenStream {
     let fields_settings = fields.iter().map(|field| {
         let field_identifier = field.ident.as_ref().expect("A struct attribute identifier");
@@ -248,6 +439,18 @@ fn generate_new_impl(fields: &Punctuated<Field, Comma>) -> proc_macro2::TokenStr
     }
 }
 
+/// Generates the `start_all` method implementation for the `Services` trait.
+///
+/// This function creates code to start all service runners and return a
+/// combined lifecycle handle that can be used to manage the running services.
+///
+/// # Arguments
+///
+/// * `fields` - The fields of the services struct
+///
+/// # Returns
+///
+/// A token stream containing the `start_all` method implementation.
 fn generate_start_all_impl(fields: &Punctuated<Field, Comma>) -> proc_macro2::TokenStream {
     let call_start = fields.iter().map(|field| {
         let field_identifier = field.ident.as_ref().expect("A struct attribute identifier");
@@ -268,6 +471,19 @@ fn generate_start_all_impl(fields: &Punctuated<Field, Comma>) -> proc_macro2::To
     }
 }
 
+/// Generates the `start` method implementation for the `Services` trait.
+///
+/// This function creates code to start a specific service identified by its
+/// `RuntimeServiceId`. It generates a match expression that maps each service
+/// ID to the corresponding field's service runner.
+///
+/// # Arguments
+///
+/// * `fields` - The fields of the services struct
+///
+/// # Returns
+///
+/// A token stream containing the start method implementation.
 fn generate_start_impl(fields: &Punctuated<Field, Comma>) -> proc_macro2::TokenStream {
     let cases = fields.iter().map(|field| {
         let field_identifier = field.ident.as_ref().expect("A struct attribute identifier");
@@ -291,6 +507,19 @@ fn generate_start_impl(fields: &Punctuated<Field, Comma>) -> proc_macro2::TokenS
     }
 }
 
+/// Generates the `stop` method implementation for the `Services` trait.
+///
+/// This function creates code to stop a specific service identified by its
+/// `RuntimeServiceId`. Currently, this generates unimplemented stubs as the
+/// service lifecycle is not yet fully implemented.
+///
+/// # Arguments
+///
+/// * `fields` - The fields of the services struct
+///
+/// # Returns
+///
+/// A token stream containing the stop method implementation.
 fn generate_stop_impl(fields: &Punctuated<Field, Comma>) -> proc_macro2::TokenStream {
     let cases = fields.iter().map(|field| {
         let _field_identifier = field.ident.as_ref().expect("A struct attribute identifier");
@@ -312,6 +541,19 @@ fn generate_stop_impl(fields: &Punctuated<Field, Comma>) -> proc_macro2::TokenSt
     }
 }
 
+/// Generates the `request_relay` method implementation for the `Services`
+/// trait.
+///
+/// This function creates code to request a message relay for a specific service
+/// identified by its `RuntimeServiceId`.
+///
+/// # Arguments
+///
+/// * `fields` - The fields of the services struct
+///
+/// # Returns
+///
+/// A token stream containing the `request_relay` method implementation.
 fn generate_request_relay_impl(fields: &Punctuated<Field, Comma>) -> proc_macro2::TokenStream {
     let cases = fields.iter().map(|field| {
         let field_identifier = field.ident.as_ref().expect("A struct attribute identifier");
@@ -338,6 +580,21 @@ fn generate_request_relay_impl(fields: &Punctuated<Field, Comma>) -> proc_macro2
     }
 }
 
+/// Generates the `request_status_watcher` method implementation for the
+/// `Services` trait.
+///
+/// This function creates code to request a status watcher for a specific
+/// service identified by its `RuntimeServiceId`. The status watcher can be used
+/// to monitor the service's status changes.
+///
+/// # Arguments
+///
+/// * `fields` - The fields of the services struct
+///
+/// # Returns
+///
+/// A token stream containing the `request_status_watcher` method
+/// implementation.
 fn generate_request_status_watcher_impl(
     fields: &Punctuated<Field, Comma>,
 ) -> proc_macro2::TokenStream {
@@ -362,6 +619,20 @@ fn generate_request_status_watcher_impl(
     }
 }
 
+/// Generates the `update_settings` method implementation for the `Services`
+/// trait.
+///
+/// This function creates code to update the settings for all services. It
+/// destructures the settings struct and passes each field's settings to the
+/// corresponding service handle.
+///
+/// # Arguments
+///
+/// * `fields` - The fields of the services struct
+///
+/// # Returns
+///
+/// A token stream containing the `update_settings` method implementation.
 fn generate_update_settings_impl(fields: &Punctuated<Field, Comma>) -> proc_macro2::TokenStream {
     let fields_settings = fields.iter().map(|field| {
         let field_identifier = field.ident.as_ref().expect("A struct attribute identifier");
@@ -392,6 +663,20 @@ fn generate_update_settings_impl(fields: &Punctuated<Field, Comma>) -> proc_macr
     }
 }
 
+/// Generates the runtime service type definitions.
+///
+/// This function creates the `RuntimeServiceId` enum, service ID trait
+/// implementations, and `AsServiceId` trait implementations for each service
+/// type that is part of the specified runtime.
+///
+/// # Arguments
+///
+/// * `fields` - The fields of the services struct, indicating the different
+///   services that are part of the runtime.
+///
+/// # Returns
+///
+/// A token stream containing all runtime service type definitions.
 fn generate_runtime_service_types(fields: &Punctuated<Field, Comma>) -> proc_macro2::TokenStream {
     let runtime_service_id = generate_runtime_service_id(fields);
     let service_id_trait_impls = generate_service_id_trait_impls();
@@ -406,6 +691,51 @@ fn generate_runtime_service_types(fields: &Punctuated<Field, Comma>) -> proc_mac
     }
 }
 
+/// Generates a runtime service ID enum from the fields of a service container
+/// struct.
+///
+/// This function creates an enum named `RuntimeServiceId` where each variant
+/// corresponds to a service defined in the service container struct. The enum
+/// is automatically derived with useful traits including `Debug`, `Clone`,
+/// `Copy`, `PartialEq`, `Eq`, and the custom `LifecycleHandlers` trait.
+///
+/// The service names from the struct fields are converted to PascalCase for the
+/// enum variants.
+///
+/// # Arguments
+///
+/// * `fields` - A punctuated list of fields from the service container struct
+///
+/// # Returns
+///
+/// A `TokenStream` containing the definition of the `RuntimeServiceId` enum
+///
+/// # Example
+///
+/// For a service container struct like:
+///
+/// ```rust
+/// struct MyServices {
+///     database: OpaqueServiceHandle<DatabaseService, RuntimeServiceId>,
+///     api_gateway: OpaqueServiceHandle<ApiGatewayService, RuntimeServiceId>,
+///     user_cache: OpaqueServiceHandle<CacheService<User>, RuntimeServiceId>,
+/// }
+/// ```
+///
+/// This function will generate:
+///
+/// ```rust
+/// #[derive(Debug, Clone, Copy, PartialEq, Eq, LifecycleHandlers)]
+/// pub enum RuntimeServiceId {
+///     Database,
+///     ApiGateway,
+///     UserCache,
+/// }
+/// ```
+///
+/// The generated enum serves as a unique identifier for each service in the
+/// application, enabling service lookup, lifecycle management, and message
+/// routing throughout the Overwatch framework.
 fn generate_runtime_service_id(fields: &Punctuated<Field, Comma>) -> proc_macro2::TokenStream {
     let services_names = fields.iter().clone().map(|field| &field.ident);
     let enum_variants = services_names.map(|service_name| {
@@ -434,6 +764,12 @@ fn generate_runtime_service_id(fields: &Punctuated<Field, Comma>) -> proc_macro2
     }
 }
 
+/// Generates different trait implementations, e.g. `Display`, for
+/// `RuntimeServiceId`.
+///
+/// # Returns
+///
+/// A token stream containing the Display trait implementation
 fn generate_service_id_trait_impls() -> proc_macro2::TokenStream {
     let runtime_service_id_type_name = get_runtime_service_id_type_name();
     quote! {
@@ -445,6 +781,68 @@ fn generate_service_id_trait_impls() -> proc_macro2::TokenStream {
     }
 }
 
+/// Generates implementations of the `AsServiceId` trait for service types.
+///
+/// This function creates trait implementations that map service types to their
+/// corresponding service ID enum variants. It examines the fields of a service
+/// container struct and automatically generates the necessary trait
+/// implementations to connect each service with its identifier in the runtime
+/// service ID enum.
+///
+/// This is an internal function used by the `derive_services` macro to generate
+/// the necessary trait implementations for service identification.
+///
+/// # Arguments
+///
+/// * `fields` - A punctuated list of fields from the service container struct
+///
+/// # Returns
+///
+/// A `TokenStream` containing all the `AsServiceId` trait implementations for
+/// the service types
+///
+/// # Example
+///
+/// Assuming we have the following service container struct:
+///
+/// ```rust
+/// struct MyServices {
+///     database: OpaqueServiceHandle<DatabaseService, RuntimeServiceId>,
+///     api: OpaqueServiceHandle<ApiService, RuntimeServiceId>,
+/// }
+/// ```
+///
+/// The function will generate code similar to:
+///
+/// ```rust
+/// impl AsServiceId<DatabaseService> for RuntimeServiceId {
+///     const SERVICE_ID: Self = RuntimeServiceId::Database;
+/// }
+///
+/// impl AsServiceId<ApiService> for RuntimeServiceId {
+///     const SERVICE_ID: Self = RuntimeServiceId::Api;
+/// }
+/// ```
+///
+/// For services with generic parameters:
+///
+/// ```rust
+/// struct MyServices {
+///     cache: OpaqueServiceHandle<CacheService<String, u64>, RuntimeServiceId>,
+/// }
+/// ```
+///
+/// It will generate:
+///
+/// ```rust
+/// impl AsServiceId<CacheService<String, u64>> for RuntimeServiceId {
+///     const SERVICE_ID: Self = RuntimeServiceId::Cache;
+/// }
+/// ```
+///
+/// This enables the runtime system to map between service types and their
+/// corresponding identifiers, which is essential for service lifecycle
+/// management and message routing.
 fn generate_as_service_id_impl(fields: &Punctuated<Field, Comma>) -> proc_macro2::TokenStream {
     let impl_blocks = fields.iter().filter_map(|field| {
         let field_type = &field.ty;
@@ -512,11 +910,37 @@ fn generate_as_service_id_impl(fields: &Punctuated<Field, Comma>) -> proc_macro2
     }
 }
 
-/// Docs WIP.
+/// Generates a lifecycle handler implementation for an enum that represents
+/// service IDs.
+///
+/// This macro derives the `LifecycleHandlers` trait for an enum that represents
+/// service IDs in an Overwatch application. It automatically creates a struct
+/// that contains lifecycle handles for each service and implements the
+/// `ServicesLifeCycleHandle` trait which provides methods to manage the
+/// lifecycle of services (shutdown and kill operations).
 ///
 /// # Panics
 ///
-/// If the derive macro is not used on the created service ID enum.
+/// This macro will panic if:
+/// - It's applied to a type that is not an enum
+/// - The enum is not named `RuntimeServiceId`, since this macro is expected to
+///   be added by the `derive_services` macro only.
+///
+/// # Generated Code
+///
+/// For each variant in the enum, the macro:
+/// 1. Creates a field in the `RuntimeLifeCycleHandlers` struct
+/// 2. Implements methods to route lifecycle messages to the appropriate service
+///    handler
+/// 3. Provides unified control over all services through the
+///    `ServicesLifeCycleHandle` trait
+///
+/// # Note
+///
+/// This macro is typically used in conjunction with the `Services` derive macro
+/// and is part of the Overwatch service framework. You generally don't need to
+/// use this macro directly as it's automatically applied by the
+/// `derive_services` macro.
 #[proc_macro_derive(LifecycleHandlers)]
 pub fn generate_lifecyle_handlers(input: TokenStream) -> TokenStream {
     let input = parse_macro_input!(input as DeriveInput);

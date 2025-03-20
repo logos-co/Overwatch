@@ -21,6 +21,9 @@ impl<Message> ReplyChannel<Message> {
 }
 
 /// Command for requesting communications with another service.
+///
+/// Commands can only be sent to other services that are aggregated under the
+/// same `RuntimeServiceId`, i.e., they are part of the same overwatch runtime.
 #[derive(Debug)]
 pub struct RelayCommand<RuntimeServiceId> {
     pub(crate) service_id: RuntimeServiceId,

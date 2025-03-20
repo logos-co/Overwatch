@@ -26,7 +26,9 @@ use crate::{
 /// Handler object over the main [`crate::overwatch::Overwatch`] runner.
 ///
 /// It handles communications to the main
-/// [`OverwatchRunner`](crate::overwatch::OverwatchRunner).
+/// [`OverwatchRunner`](crate::overwatch::OverwatchRunner) for services that are
+/// part of the same runtime, i.e., aggregated under the same
+/// `RuntimeServiceId`.
 #[derive(Clone, Debug)]
 pub struct OverwatchHandle<RuntimeServiceId> {
     runtime_handle: Handle,
@@ -86,7 +88,8 @@ where
     /// Request a [`StatusWatcher`] for a service
     ///
     /// # Panics
-    /// If the service watcher is not available.
+    /// If the service watcher is not available, although this should never
+    /// happen.
     pub async fn status_watcher<Service>(&self) -> StatusWatcher
     where
         RuntimeServiceId: AsServiceId<Service>,

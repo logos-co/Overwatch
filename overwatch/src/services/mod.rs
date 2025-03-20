@@ -24,6 +24,8 @@ pub trait ServiceData {
     type Message;
 }
 
+/// Trait implemented for services that are included in a specific Overwatch
+/// handle by the aggregated runtime service ID.
 // This trait is implemented by the runtime macro and must be required by
 // services to be able to communicate with each other. This trait basically
 // guarantees that services implementing this for the same runtime service ID,
