@@ -12,8 +12,6 @@ use state::ServiceState;
 /// The core data a service needs to handle.
 /// Holds the necessary information of a service.
 pub trait ServiceData {
-    /// Service identification tag for tracing purposes
-    const SERVICE_NAME: &'static str;
     /// Service relay buffer size
     const SERVICE_RELAY_BUFFER_SIZE: usize = 16;
     /// Service settings object
@@ -26,8 +24,14 @@ pub trait ServiceData {
     type Message;
 }
 
-pub trait ServiceId<T>: ServiceData {
-    const SERVICE_ID: T;
+/// Trait implemented for services that are included in a specific Overwatch
+/// handle by the aggregated runtime service ID.
+// This trait is implemented by the runtime macro and must be required by
+// services to be able to communicate with each other. This trait basically
+// guarantees that services implementing this for the same runtime service ID,
+// are indeed part of the same runtime.
+pub trait AsServiceId<T> {
+    const SERVICE_ID: Self;
 }
 
 /// Main trait for Services initialization and main loop hook.

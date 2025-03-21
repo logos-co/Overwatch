@@ -24,7 +24,6 @@ pub struct AwaitService3 {
 }
 
 impl ServiceData for AwaitService1 {
-    const SERVICE_NAME: &'static str = "S1";
     type Settings = ();
     type State = NoState<Self::Settings>;
     type StateOperator = NoOperator<Self::State>;
@@ -32,7 +31,6 @@ impl ServiceData for AwaitService1 {
 }
 
 impl ServiceData for AwaitService2 {
-    const SERVICE_NAME: &'static str = "S2";
     type Settings = ();
     type State = NoState<Self::Settings>;
     type StateOperator = NoOperator<Self::State>;
@@ -40,7 +38,6 @@ impl ServiceData for AwaitService2 {
 }
 
 impl ServiceData for AwaitService3 {
-    const SERVICE_NAME: &'static str = "S3";
     type Settings = ();
     type State = NoState<Self::Settings>;
     type StateOperator = NoOperator<Self::State>;

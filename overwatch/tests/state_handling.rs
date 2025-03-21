@@ -77,7 +77,6 @@ impl StateOperator for CounterStateOperator {
 }
 
 impl ServiceData for UpdateStateService {
-    const SERVICE_NAME: &'static str = "FooService";
     type Settings = ();
     type State = CounterState;
     type StateOperator = CounterStateOperator;

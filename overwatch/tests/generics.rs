@@ -21,7 +21,6 @@ pub struct GenericService {
 pub struct GenericServiceMessage(String);
 
 impl ServiceData for GenericService {
-    const SERVICE_NAME: &'static str = "FooService";
     type Settings = ();
     type State = NoState<Self::Settings>;
     type StateOperator = NoOperator<Self::State>;
