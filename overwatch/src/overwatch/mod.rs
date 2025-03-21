@@ -58,8 +58,14 @@ pub trait Services: Sized {
     /// services settings.
     type Settings;
 
+    /// The type aggregating all different services identifiers that are part of
+    /// this runtime implementation.
+    ///
+    /// This type is used by the services themselves to communicate with each
+    /// other and to verify whether two services are part of the same runtime.
     type RuntimeServiceId;
 
+    /// A handler for handling services lifecycles once they are spawned.
     type ServicesLifeCycleHandle;
 
     /// Spawn a new instance of the [`Services`] object.
@@ -96,17 +102,20 @@ pub trait Services: Sized {
     /// Stop a service attached to the trait implementer.
     fn stop(&mut self, service_id: &Self::RuntimeServiceId);
 
-    /// Request a communication relay for a service.
+    /// Request a communication relay for a service attached to the trait
+    /// implementer.
     ///
     /// # Errors
     ///
     /// The generated [`Error`].
     fn request_relay(&mut self, service_id: &Self::RuntimeServiceId) -> RelayResult;
 
-    /// Request a status watcher for a service.
+    /// Request a status watcher for a service attached to the trait
+    /// implementer.
     fn request_status_watcher(&self, service_id: &Self::RuntimeServiceId) -> StatusWatcher;
 
-    /// Update service settings.
+    /// Update service settings for all services attached to the trait
+    /// implementer.
     fn update_settings(&mut self, settings: Self::Settings);
 }
 
@@ -118,10 +127,10 @@ pub trait Services: Sized {
 /// be able to stop it.
 ///
 /// That is, it's responsible for [`Overwatch`]'s application lifecycle.
-pub struct GenericOverwatchRunner<Services, ServiceId> {
+pub struct GenericOverwatchRunner<Services, RuntimeServiceId> {
     services: Services,
     finish_signal_sender: oneshot::Sender<()>,
-    commands_receiver: Receiver<OverwatchCommand<ServiceId>>,
+    commands_receiver: Receiver<OverwatchCommand<RuntimeServiceId>>,
 }
 
 pub type OverwatchRunner<ServicesImpl> =
@@ -340,10 +349,10 @@ mod test {
 
     struct EmptyLifeCycleHandle;
 
-    impl ServicesLifeCycleHandle<()> for EmptyLifeCycleHandle {
+    impl ServicesLifeCycleHandle<String> for EmptyLifeCycleHandle {
         type Error = &'static str;
 
-        fn kill(&self, _service: &()) -> Result<(), Self::Error> {
+        fn kill(&self, _service: &String) -> Result<(), Self::Error> {
             Ok(())
         }
 
@@ -353,7 +362,7 @@ mod test {
 
         fn shutdown(
             &self,
-            _service: &(),
+            _service: &String,
             _sender: Sender<FinishedSignal>,
         ) -> Result<(), Self::Error> {
             Ok(())
@@ -362,17 +371,17 @@ mod test {
 
     impl Services for EmptyServices {
         type Settings = ();
-        type RuntimeServiceId = ();
+        type RuntimeServiceId = String;
         type ServicesLifeCycleHandle = EmptyLifeCycleHandle;
 
         fn new(
             _settings: Self::Settings,
-            _overwatch_handle: OverwatchHandle<()>,
+            _overwatch_handle: OverwatchHandle<String>,
         ) -> Result<Self, Box<dyn std::error::Error + Send + Sync + 'static>> {
             Ok(Self)
         }
 
-        fn start(&mut self, _service_id: &()) -> Result<(), Error> {
+        fn start(&mut self, _service_id: &String) -> Result<(), Error> {
             Ok(())
         }
 
@@ -380,13 +389,13 @@ mod test {
             Ok(EmptyLifeCycleHandle)
         }
 
-        fn stop(&mut self, _service_id: &()) {}
+        fn stop(&mut self, _service_id: &String) {}
 
-        fn request_relay(&mut self, _service_id: &()) -> RelayResult {
+        fn request_relay(&mut self, _service_id: &String) -> RelayResult {
             Ok(Box::new(()))
         }
 
-        fn request_status_watcher(&self, _service_id: &()) -> StatusWatcher {
+        fn request_status_watcher(&self, _service_id: &String) -> StatusWatcher {
             unimplemented!("Not necessary for these tests.")
         }
 

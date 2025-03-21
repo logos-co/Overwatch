@@ -62,7 +62,6 @@ struct TryLoad {
 }
 
 impl ServiceData for TryLoad {
-    const SERVICE_NAME: &'static str = "try_load";
     type Settings = TryLoadSettings;
     type State = TryLoadState;
     type StateOperator = TryLoadOperator;

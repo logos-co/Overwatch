@@ -9,7 +9,7 @@ use overwatch::{
     services::{
         life_cycle::LifecycleMessage,
         state::{NoOperator, NoState},
-        ServiceCore, ServiceData, ServiceId,
+        AsServiceId, ServiceCore, ServiceData,
     },
     DynError, OpaqueServiceStateHandle,
 };
@@ -21,7 +21,6 @@ pub struct CancellableService {
 }
 
 impl ServiceData for CancellableService {
-    const SERVICE_NAME: &'static str = "cancel-me-please";
     type Settings = ();
     type State = NoState<Self::Settings>;
     type StateOperator = NoOperator<Self::State, Self::Settings>;
@@ -82,7 +81,7 @@ fn run_overwatch_then_shutdown_service_and_kill() {
         let _ = handle
             .send(OverwatchCommand::ServiceLifeCycle(
                 ServiceLifeCycleCommand {
-                    service_id: <CancellableService as ServiceId<RuntimeServiceId>>::SERVICE_ID,
+                    service_id: RuntimeServiceId::SERVICE_ID,
                     msg: LifecycleMessage::Shutdown(sender),
                 },
             ))

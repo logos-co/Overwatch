@@ -21,7 +21,6 @@ pub struct PingService {
 }
 
 impl ServiceData for PingService {
-    const SERVICE_NAME: &'static str = "ping";
     type Settings = PingSettings;
     type State = PingState;
     type StateOperator = StateSaveOperator;
