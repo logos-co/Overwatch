@@ -23,9 +23,9 @@ pub trait ServiceData {
     /// Service settings object
     type Settings;
     /// Service state object
-    type State: ServiceState<Settings = Self::Settings>;
+    type State;
     /// State operator
-    type StateOperator: StateOperator<State = Self::State>;
+    type StateOperator;
     /// Service messages that the service itself understands and can react to
     type Message;
 }

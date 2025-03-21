@@ -17,8 +17,8 @@ use tracing::error;
 pub trait ServiceState: Sized {
     /// Settings object that the state can be initialized from
     ///
-    /// Needs to match [`ServiceData::Settings`](crate::ServiceData::Settings)'s
-    /// [`ServiceState::Settings`].
+    /// In the standard use case - [`ServiceData::State`](crate::ServiceData::State) - it needs to
+    /// match [`ServiceData::Settings`](crate::ServiceData::Settings).
     type Settings;
 
     /// Errors that can occur during state initialization
@@ -42,8 +42,9 @@ pub trait ServiceState: Sized {
 pub trait StateOperator {
     /// The type of state that the operator can handle.
     ///
-    /// Needs to match [`ServiceData::State`](crate::ServiceData::State)'s
-    /// [`ServiceState::State`].
+    /// In the standard use case -
+    /// [`ServiceData::StateOperator`](crate::ServiceData::StateOperator) - it needs to match
+    /// [`ServiceData::State`](crate::ServiceData::State).
     type State: ServiceState;
 
     /// Errors that can occur during state loading.
