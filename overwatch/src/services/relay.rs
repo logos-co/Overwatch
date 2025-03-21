@@ -11,32 +11,18 @@ use tokio::sync::mpsc::{channel, Receiver, Sender};
 use tokio_util::sync::PollSender;
 use tracing::error;
 
-use crate::services::ServiceId;
-
 #[derive(Error, Debug)]
 pub enum RelayError {
-    #[error("error requesting relay to {to} service")]
-    InvalidRequest { to: ServiceId },
     #[error("couldn't relay message")]
     Send,
     #[error("relay is already connected")]
     AlreadyConnected,
-    #[error("service {service_id} is not available")]
-    Unavailable { service_id: ServiceId },
-    #[error("invalid message with type id [{type_id}] for service {service_id}")]
-    InvalidMessage {
-        type_id: String,
-        service_id: &'static str,
-    },
     #[error("receiver failed due to {0:?}")]
     Receiver(Box<dyn Debug + Send + Sync>),
 }
 
 /// Message wrapper type.
 pub type AnyMessage = Box<dyn Any + Send + 'static>;
-
-#[derive(Debug, Clone)]
-pub struct NoMessage;
 
 /// Result type when creating a relay connection.
 pub type RelayResult = Result<AnyMessage, RelayError>;
@@ -46,6 +32,21 @@ pub type RelayResult = Result<AnyMessage, RelayError>;
 pub struct InboundRelay<Message> {
     receiver: Receiver<Message>,
     _stats: (), // placeholder
+}
+
+impl<Message> InboundRelay<Message> {
+    /// Receive a message from the relay connections
+    pub async fn recv(&mut self) -> Option<Message> {
+        self.receiver.recv().await
+    }
+}
+
+impl<Message> Stream for InboundRelay<Message> {
+    type Item = Message;
+
+    fn poll_next(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Option<Self::Item>> {
+        self.receiver.poll_recv(cx)
+    }
 }
 
 /// Channel sender of a relay connection.
@@ -63,28 +64,10 @@ impl<Message> Clone for OutboundRelay<Message> {
     }
 }
 
-/// Relay channel builder.
-// TODO: make buffer_size const?
-#[must_use]
-pub fn relay<Message>(buffer_size: usize) -> (InboundRelay<Message>, OutboundRelay<Message>) {
-    let (sender, receiver) = channel(buffer_size);
-    (
-        InboundRelay {
-            receiver,
-            _stats: (),
-        },
-        OutboundRelay { sender, _stats: () },
-    )
-}
-
-impl<Message> InboundRelay<Message> {
-    /// Receive a message from the relay connections
-    pub async fn recv(&mut self) -> Option<Message> {
-        self.receiver.recv().await
-    }
-}
-
-impl<Message> OutboundRelay<Message> {
+impl<Message> OutboundRelay<Message>
+where
+    Message: Send,
+{
     /// Send a message to the relay connection
     ///
     /// # Errors
@@ -114,21 +97,22 @@ impl<Message> OutboundRelay<Message> {
             .blocking_send(message)
             .map_err(|e| (RelayError::Send, e.0))
     }
-}
 
-impl<Message> OutboundRelay<Message>
-where
-    Message: Send,
-{
     pub fn into_sink(self) -> impl Sink<Message> {
         PollSender::new(self.sender)
     }
 }
 
-impl<Message> Stream for InboundRelay<Message> {
-    type Item = Message;
-
-    fn poll_next(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Option<Self::Item>> {
-        self.receiver.poll_recv(cx)
-    }
+/// Relay channel builder.
+// TODO: make buffer_size const?
+#[must_use]
+pub fn relay<Message>(buffer_size: usize) -> (InboundRelay<Message>, OutboundRelay<Message>) {
+    let (sender, receiver) = channel(buffer_size);
+    (
+        InboundRelay {
+            receiver,
+            _stats: (),
+        },
+        OutboundRelay { sender, _stats: () },
+    )
 }

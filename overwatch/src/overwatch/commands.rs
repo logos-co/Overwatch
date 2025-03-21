@@ -2,9 +2,7 @@ use tokio::sync::oneshot;
 
 use crate::{
     overwatch::AnySettings,
-    services::{
-        life_cycle::LifecycleMessage, relay::RelayResult, status::StatusWatcher, ServiceId,
-    },
+    services::{life_cycle::LifecycleMessage, relay::RelayResult, status::StatusWatcher},
 };
 
 #[derive(Debug)]
@@ -23,9 +21,12 @@ impl<Message> ReplyChannel<Message> {
 }
 
 /// Command for requesting communications with another service.
+///
+/// Commands can only be sent to other services that are aggregated under the
+/// same `RuntimeServiceId`, i.e., they are part of the same overwatch runtime.
 #[derive(Debug)]
-pub struct RelayCommand {
-    pub(crate) service_id: ServiceId,
+pub struct RelayCommand<RuntimeServiceId> {
+    pub(crate) service_id: RuntimeServiceId,
     pub(crate) reply_channel: ReplyChannel<RelayResult>,
 }
 
@@ -33,16 +34,16 @@ pub struct RelayCommand {
 /// [`ServiceStatus`](crate::services::status::ServiceStatus) updates
 /// from another service.
 #[derive(Debug)]
-pub struct StatusCommand {
-    pub(crate) service_id: ServiceId,
+pub struct StatusCommand<RuntimeServiceId> {
+    pub(crate) service_id: RuntimeServiceId,
     pub(crate) reply_channel: ReplyChannel<StatusWatcher>,
 }
 
 /// Command for managing [`ServiceCore`](crate::services::ServiceCore)
 /// lifecycle.
 #[derive(Debug)]
-pub struct ServiceLifeCycleCommand {
-    pub service_id: ServiceId,
+pub struct ServiceLifeCycleCommand<RuntimeServiceId> {
+    pub service_id: RuntimeServiceId,
     pub msg: LifecycleMessage,
 }
 
@@ -59,10 +60,10 @@ pub struct SettingsCommand(pub(crate) AnySettings);
 
 /// [`Overwatch`](crate::overwatch::Overwatch) tasks related commands.
 #[derive(Debug)]
-pub enum OverwatchCommand {
-    Relay(RelayCommand),
-    Status(StatusCommand),
-    ServiceLifeCycle(ServiceLifeCycleCommand),
+pub enum OverwatchCommand<RuntimeServiceId> {
+    Relay(RelayCommand<RuntimeServiceId>),
+    Status(StatusCommand<RuntimeServiceId>),
+    ServiceLifeCycle(ServiceLifeCycleCommand<RuntimeServiceId>),
     OverwatchLifeCycle(OverwatchLifeCycleCommand),
     Settings(SettingsCommand),
 }
