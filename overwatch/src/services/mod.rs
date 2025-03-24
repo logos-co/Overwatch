@@ -7,7 +7,7 @@ pub mod status;
 
 use async_trait::async_trait;
 use handle::ServiceStateHandle;
-use state::{ServiceState, StateOperator};
+use state::ServiceState;
 
 // TODO: Make this type unique for each service?
 /// Services identification type.
