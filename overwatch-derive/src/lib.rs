@@ -739,8 +739,11 @@ fn generate_runtime_service_types(fields: &Punctuated<Field, Comma>) -> proc_mac
 /// application, enabling service lookup, lifecycle management, and message
 /// routing throughout the Overwatch framework.
 fn generate_runtime_service_id(fields: &Punctuated<Field, Comma>) -> proc_macro2::TokenStream {
-    let services_names = fields.iter().clone().map(|field| &field.ident);
-    let enum_variants = services_names.map(|service_name| {
+    let services_names = fields
+        .iter()
+        .clone()
+        .map(|field| (&field.ident, &field.attrs));
+    let enum_variants = services_names.map(|(service_name, service_attrs)| {
         let capitalized_service_name = format_ident!(
             "{}",
             utils::field_name_to_type_name(
@@ -751,7 +754,7 @@ fn generate_runtime_service_id(fields: &Punctuated<Field, Comma>) -> proc_macro2
             )
         );
 
-        quote! { #capitalized_service_name }
+        quote! { #(#service_attrs),* #capitalized_service_name }
     });
     let runtime_service_id_type_name = get_runtime_service_id_type_name();
     let expanded = quote! {
@@ -848,6 +851,7 @@ fn generate_service_id_trait_impls() -> proc_macro2::TokenStream {
 fn generate_as_service_id_impl(fields: &Punctuated<Field, Comma>) -> proc_macro2::TokenStream {
     let impl_blocks = fields.iter().filter_map(|field| {
         let field_type = &field.ty;
+        let field_attrs = &field.attrs;
         let capitalized_service_name = format_ident!(
             "{}",
             utils::field_name_to_type_name(
@@ -892,6 +896,7 @@ fn generate_as_service_id_impl(fields: &Punctuated<Field, Comma>) -> proc_macro2
                         .collect();
 
                     Some(quote! {
+                        #(#field_attrs),*
                         impl ::overwatch::services::AsServiceId<#inner_ident<#(#struct_generics),*>> for #runtime_service_id_type_name {
                             const SERVICE_ID: Self = #runtime_service_id_type_name::#capitalized_service_name;
                         }
@@ -899,6 +904,7 @@ fn generate_as_service_id_impl(fields: &Punctuated<Field, Comma>) -> proc_macro2
                 },
                 // No generics case
                 _ => Some(quote! {
+                    #(#field_attrs),*
                     impl ::overwatch::services::AsServiceId<#inner_ident> for #runtime_service_id_type_name {
                         const SERVICE_ID: Self = #runtime_service_id_type_name::#capitalized_service_name;
                     }
