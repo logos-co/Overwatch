@@ -19,7 +19,7 @@ impl ServiceData for PongService {
     const SERVICE_ID: ServiceId = "pong";
     type Settings = ();
     type State = NoState<Self::Settings>;
-    type StateOperator = NoOperator<Self::State, Self::Settings>;
+    type StateOperator = NoOperator<Self::State>;
     type Message = PongMessage;
 }
 

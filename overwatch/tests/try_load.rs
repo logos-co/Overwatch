@@ -32,24 +32,23 @@ struct TryLoadOperator;
 
 #[async_trait]
 impl StateOperator for TryLoadOperator {
-    type StateInput = TryLoadState;
-    type Settings = TryLoadSettings;
+    type State = TryLoadState;
     type LoadError = SendError<String>;
 
     fn try_load(
-        settings: &<Self::StateInput as ServiceState>::Settings,
-    ) -> Result<Option<Self::StateInput>, Self::LoadError> {
+        settings: &<Self::State as ServiceState>::Settings,
+    ) -> Result<Option<Self::State>, Self::LoadError> {
         settings
             .origin_sender
             .send(String::from("StateOperator::try_load"))?;
-        Ok(Some(Self::StateInput {}))
+        Ok(Some(Self::State {}))
     }
 
-    fn from_settings(_settings: <Self::StateInput as ServiceState>::Settings) -> Self {
+    fn from_settings(_settings: &<Self::State as ServiceState>::Settings) -> Self {
         Self {}
     }
 
-    async fn run(&mut self, _state: Self::StateInput) {}
+    async fn run(&mut self, _state: Self::State) {}
 }
 
 #[derive(Debug, Clone)]

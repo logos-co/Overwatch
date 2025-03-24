@@ -72,7 +72,7 @@ where
         relay_buffer_size: usize,
     ) -> Result<Self, State::Error>
     where
-        StateOp: StateOperator<Settings = Settings, StateInput = State>,
+        StateOp: StateOperator<State = State>,
     {
         let initial_state = if let Ok(Some(loaded_state)) = StateOp::try_load(&settings) {
             info!("Loaded state from Operator");
@@ -126,7 +126,7 @@ where
     /// Build a runner for this service
     pub fn service_runner<StateOp>(&mut self) -> ServiceRunner<Message, Settings, State, StateOp>
     where
-        StateOp: StateOperator<Settings = Settings>,
+        StateOp: StateOperator<State = State>,
     {
         // TODO: Add proper status handling here.
         // A service should be able to produce a runner if it is already running.
@@ -135,7 +135,7 @@ where
         // Add relay channel to handle
         self.outbound_relay = Some(outbound_relay);
         let settings = self.settings.notifier().get_updated_settings();
-        let operator = StateOp::from_settings(settings);
+        let operator = StateOp::from_settings(&settings);
         let (state_handle, state_updater) =
             StateHandle::<State, StateOp>::new(self.initial_state.clone(), operator);
 
@@ -162,7 +162,7 @@ where
 impl<Message, Settings, State, StateOp> ServiceRunner<Message, Settings, State, StateOp>
 where
     State: Clone + Send + Sync + 'static,
-    StateOp: StateOperator<StateInput = State> + Send + 'static,
+    StateOp: StateOperator<State = State> + Send + 'static,
 {
     /// Spawn the service main loop and handle its lifecycle.
     ///
