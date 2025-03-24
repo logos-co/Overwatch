@@ -77,6 +77,7 @@ pub fn derive_services(_attr: TokenStream, item: TokenStream) -> TokenStream {
     let modified_fields = fields.iter().map(|field| {
         let field_name = &field.ident;
         let field_type = &field.ty;
+        let field_attrs = &field.attrs; // Preserve attributes (including feature flags)
 
         let runtime_service_id_type_name = get_runtime_service_id_type_name();
         let new_field_type = quote! {
@@ -84,6 +85,7 @@ pub fn derive_services(_attr: TokenStream, item: TokenStream) -> TokenStream {
         };
 
         quote! {
+            #(#field_attrs)*
             #field_name: #new_field_type
         }
     });
