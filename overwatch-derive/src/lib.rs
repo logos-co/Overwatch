@@ -995,6 +995,9 @@ pub fn generate_lifecyle_handlers(input: TokenStream) -> TokenStream {
 
             /// Send a `Shutdown` message to the specified service.
             ///
+            /// Expanding this function as part of the macro requires the crate in which the macro is expanded to add `tokio` as a dependency,
+            /// since the `sender` parameter is taken from the `tokio` library.
+            ///
             /// # Arguments
             ///
             /// `service` - The [`ServiceId`] of the target service
