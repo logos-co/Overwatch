@@ -1,16 +1,16 @@
 use std::{thread, time::Duration};
 
+// Crates
 use async_trait::async_trait;
 use overwatch::{
+    derive_services,
     overwatch::OverwatchRunner,
     services::{
-        relay::NoMessage,
         state::{ServiceState, StateOperator},
-        ServiceCore, ServiceData, ServiceId,
+        ServiceCore, ServiceData,
     },
-    DynError, OpaqueServiceHandle, OpaqueServiceStateHandle,
+    DynError, OpaqueServiceStateHandle,
 };
-use overwatch_derive::Services;
 use tokio::sync::{broadcast, broadcast::error::SendError};
 
 #[derive(Clone)]
@@ -57,21 +57,20 @@ struct TryLoadSettings {
 }
 
 struct TryLoad {
-    service_state_handle: OpaqueServiceStateHandle<Self>,
+    service_state_handle: OpaqueServiceStateHandle<Self, RuntimeServiceId>,
 }
 
 impl ServiceData for TryLoad {
-    const SERVICE_ID: ServiceId = "try_load";
     type Settings = TryLoadSettings;
     type State = TryLoadState;
     type StateOperator = TryLoadOperator;
-    type Message = NoMessage;
+    type Message = ();
 }
 
 #[async_trait]
-impl ServiceCore for TryLoad {
+impl ServiceCore<RuntimeServiceId> for TryLoad {
     fn init(
-        service_state: OpaqueServiceStateHandle<Self>,
+        service_state: OpaqueServiceStateHandle<Self, RuntimeServiceId>,
         _initial_state: Self::State,
     ) -> Result<Self, DynError> {
         Ok(Self {
@@ -90,9 +89,9 @@ impl ServiceCore for TryLoad {
     }
 }
 
-#[derive(Services)]
+#[derive_services]
 struct TryLoadApp {
-    try_load: OpaqueServiceHandle<TryLoad>,
+    try_load: TryLoad,
 }
 
 #[test]

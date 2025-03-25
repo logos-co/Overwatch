@@ -1,4 +1,4 @@
-use std::fmt::Debug;
+use std::fmt::{Debug, Display};
 
 use tokio::{
     runtime::Handle,
@@ -19,40 +19,57 @@ use crate::{
     services::{
         relay::{OutboundRelay, RelayError},
         status::StatusWatcher,
-        ServiceData,
+        AsServiceId, ServiceData,
     },
 };
 
 /// Handler object over the main [`crate::overwatch::Overwatch`] runner.
 ///
 /// It handles communications to the main
-/// [`OverwatchRunner`](crate::overwatch::OverwatchRunner).
+/// [`OverwatchRunner`](crate::overwatch::OverwatchRunner) for services that are
+/// part of the same runtime, i.e., aggregated under the same
+/// `RuntimeServiceId`.
 #[derive(Clone, Debug)]
-pub struct OverwatchHandle {
+pub struct OverwatchHandle<RuntimeServiceId> {
     runtime_handle: Handle,
-    sender: Sender<OverwatchCommand>,
+    sender: Sender<OverwatchCommand<RuntimeServiceId>>,
 }
 
-impl OverwatchHandle {
+impl<RuntimeServiceId> OverwatchHandle<RuntimeServiceId> {
     #[must_use]
-    pub const fn new(runtime_handle: Handle, sender: Sender<OverwatchCommand>) -> Self {
+    pub const fn new(
+        runtime_handle: Handle,
+        sender: Sender<OverwatchCommand<RuntimeServiceId>>,
+    ) -> Self {
         Self {
             runtime_handle,
             sender,
         }
     }
 
+    #[must_use]
+    pub const fn runtime(&self) -> &Handle {
+        &self.runtime_handle
+    }
+}
+
+impl<RuntimeServiceId> OverwatchHandle<RuntimeServiceId>
+where
+    RuntimeServiceId: Debug + Sync + Display,
+{
     /// Request a relay with a service
     pub async fn relay<Service>(&self) -> Result<OutboundRelay<Service::Message>, RelayError>
     where
         Service: ServiceData,
         Service::Message: 'static,
+        RuntimeServiceId: AsServiceId<Service>,
     {
-        info!("Requesting relay with {}", Service::SERVICE_ID);
+        info!("Requesting relay with {}", RuntimeServiceId::SERVICE_ID);
         let (sender, receiver) = tokio::sync::oneshot::channel();
+
         let Ok(()) = self
             .send(OverwatchCommand::Relay(RelayCommand {
-                service_id: Service::SERVICE_ID,
+                service_id: RuntimeServiceId::SERVICE_ID,
                 reply_channel: ReplyChannel::from(sender),
             }))
             .await
@@ -71,13 +88,20 @@ impl OverwatchHandle {
     /// Request a [`StatusWatcher`] for a service
     ///
     /// # Panics
-    /// If the service watcher is not available.
-    pub async fn status_watcher<Service: ServiceData>(&self) -> StatusWatcher {
-        info!("Requesting status watcher for {}", Service::SERVICE_ID);
+    /// If the service watcher is not available, although this should never
+    /// happen.
+    pub async fn status_watcher<Service>(&self) -> StatusWatcher
+    where
+        RuntimeServiceId: AsServiceId<Service>,
+    {
+        info!(
+            "Requesting status watcher for {}",
+            RuntimeServiceId::SERVICE_ID
+        );
         let (sender, receiver) = tokio::sync::oneshot::channel();
         let Ok(()) = self
             .send(OverwatchCommand::Status(StatusCommand {
-                service_id: Service::SERVICE_ID,
+                service_id: RuntimeServiceId::SERVICE_ID,
                 reply_channel: ReplyChannel::from(sender),
             }))
             .await
@@ -87,7 +111,7 @@ impl OverwatchHandle {
         receiver.await.unwrap_or_else(|_| {
             panic!(
                 "Service {} watcher should always be available",
-                Service::SERVICE_ID
+                RuntimeServiceId::SERVICE_ID
             )
         })
     }
@@ -117,16 +141,20 @@ impl OverwatchHandle {
     }
 
     /// Send an overwatch command to the
-    /// [`OverwatchRunner`](crate::overwatch::OverwatchRunner)
+    /// [`OverwatchRunner`](crate::overwatch::OverwatchRunner).
     ///
     /// # Errors
     ///
-    /// If an error occurs while trying to send the command.
+    /// If the received side of the channel is closed and the message cannot be
+    /// sent.
     #[cfg_attr(
         feature = "instrumentation",
         instrument(name = "overwatch-command-send", skip(self))
     )]
-    pub async fn send(&self, command: OverwatchCommand) -> Result<(), SendError<OverwatchCommand>> {
+    pub async fn send(
+        &self,
+        command: OverwatchCommand<RuntimeServiceId>,
+    ) -> Result<(), SendError<OverwatchCommand<RuntimeServiceId>>> {
         self.sender.send(command).await.map_err(|e| {
             error!(error=?e, "Error sending overwatch command");
             e
@@ -144,10 +172,5 @@ impl OverwatchHandle {
             ))))
             .await
             .map_err(|e| error!(error=?e, "Error updating settings"));
-    }
-
-    #[must_use]
-    pub const fn runtime(&self) -> &Handle {
-        &self.runtime_handle
     }
 }

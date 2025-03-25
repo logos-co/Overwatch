@@ -2,18 +2,18 @@ use std::time::Duration;
 
 use async_trait::async_trait;
 use overwatch::{
+    derive_services,
     overwatch::OverwatchRunner,
     services::{
         state::{NoOperator, NoState},
-        ServiceCore, ServiceData, ServiceId,
+        ServiceCore, ServiceData,
     },
-    OpaqueServiceHandle, OpaqueServiceStateHandle,
+    OpaqueServiceStateHandle,
 };
-use overwatch_derive::Services;
 use tokio::time::sleep;
 
 pub struct SettingsService {
-    state: OpaqueServiceStateHandle<Self>,
+    state: OpaqueServiceStateHandle<Self, RuntimeServiceId>,
 }
 
 type SettingsServiceSettings = String;
@@ -22,7 +22,6 @@ type SettingsServiceSettings = String;
 pub struct SettingsMsg;
 
 impl ServiceData for SettingsService {
-    const SERVICE_ID: ServiceId = "FooService";
     type Settings = SettingsServiceSettings;
     type State = NoState<Self::Settings>;
     type StateOperator = NoOperator<Self::State>;
@@ -30,9 +29,9 @@ impl ServiceData for SettingsService {
 }
 
 #[async_trait]
-impl ServiceCore for SettingsService {
+impl ServiceCore<RuntimeServiceId> for SettingsService {
     fn init(
-        state: OpaqueServiceStateHandle<Self>,
+        state: OpaqueServiceStateHandle<Self, RuntimeServiceId>,
         _initial_state: Self::State,
     ) -> Result<Self, overwatch::DynError> {
         Ok(Self { state })
@@ -41,7 +40,7 @@ impl ServiceCore for SettingsService {
     async fn run(mut self) -> Result<(), overwatch::DynError> {
         let Self {
             state:
-                OpaqueServiceStateHandle::<Self> {
+                OpaqueServiceStateHandle::<Self, RuntimeServiceId> {
                     settings_reader, ..
                 },
         } = self;
@@ -65,9 +64,9 @@ impl ServiceCore for SettingsService {
     }
 }
 
-#[derive(Services)]
+#[derive_services]
 struct TestApp {
-    settings_service: OpaqueServiceHandle<SettingsService>,
+    settings_service: SettingsService,
 }
 
 #[test]

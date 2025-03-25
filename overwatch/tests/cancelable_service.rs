@@ -1,38 +1,36 @@
 use std::time::Duration;
 
 use overwatch::{
+    derive_services,
     overwatch::{
         commands::{OverwatchCommand, ServiceLifeCycleCommand},
         OverwatchRunner,
     },
     services::{
         life_cycle::LifecycleMessage,
-        relay::NoMessage,
         state::{NoOperator, NoState},
-        ServiceCore, ServiceData, ServiceId,
+        AsServiceId, ServiceCore, ServiceData,
     },
-    DynError, OpaqueServiceHandle, OpaqueServiceStateHandle,
+    DynError, OpaqueServiceStateHandle,
 };
-use overwatch_derive::Services;
 use tokio::time::sleep;
 use tokio_stream::StreamExt;
 
 pub struct CancellableService {
-    service_state: OpaqueServiceStateHandle<Self>,
+    service_state: OpaqueServiceStateHandle<Self, RuntimeServiceId>,
 }
 
 impl ServiceData for CancellableService {
-    const SERVICE_ID: ServiceId = "cancel-me-please";
     type Settings = ();
     type State = NoState<Self::Settings>;
     type StateOperator = NoOperator<Self::State>;
-    type Message = NoMessage;
+    type Message = ();
 }
 
 #[async_trait::async_trait]
-impl ServiceCore for CancellableService {
+impl ServiceCore<RuntimeServiceId> for CancellableService {
     fn init(
-        service_state: OpaqueServiceStateHandle<Self>,
+        service_state: OpaqueServiceStateHandle<Self, RuntimeServiceId>,
         _initial_state: Self::State,
     ) -> Result<Self, DynError> {
         Ok(Self { service_state })
@@ -67,9 +65,9 @@ impl ServiceCore for CancellableService {
     }
 }
 
-#[derive(Services)]
+#[derive_services]
 struct CancelableServices {
-    cancelable: OpaqueServiceHandle<CancellableService>,
+    cancelable: CancellableService,
 }
 
 #[test]
@@ -83,7 +81,7 @@ fn run_overwatch_then_shutdown_service_and_kill() {
         let _ = handle
             .send(OverwatchCommand::ServiceLifeCycle(
                 ServiceLifeCycleCommand {
-                    service_id: <CancellableService as ServiceData>::SERVICE_ID,
+                    service_id: RuntimeServiceId::SERVICE_ID,
                     msg: LifecycleMessage::Shutdown(sender),
                 },
             ))

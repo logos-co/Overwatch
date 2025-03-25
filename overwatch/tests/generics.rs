@@ -3,26 +3,24 @@ use std::{fmt::Debug, time::Duration};
 use async_trait::async_trait;
 use futures::future::select;
 use overwatch::{
+    derive_services,
     overwatch::OverwatchRunner,
     services::{
         handle::ServiceStateHandle,
         state::{NoOperator, NoState},
-        ServiceCore, ServiceData, ServiceId,
+        ServiceCore, ServiceData,
     },
-    OpaqueServiceHandle,
 };
-use overwatch_derive::Services;
 use tokio::time::sleep;
 
 pub struct GenericService {
-    state: ServiceStateHandle<GenericServiceMessage, (), NoState<()>>,
+    state: ServiceStateHandle<GenericServiceMessage, (), NoState<()>, RuntimeServiceId>,
 }
 
 #[derive(Clone, Debug)]
 pub struct GenericServiceMessage(String);
 
 impl ServiceData for GenericService {
-    const SERVICE_ID: ServiceId = "FooService";
     type Settings = ();
     type State = NoState<Self::Settings>;
     type StateOperator = NoOperator<Self::State>;
@@ -30,9 +28,9 @@ impl ServiceData for GenericService {
 }
 
 #[async_trait]
-impl ServiceCore for GenericService {
+impl ServiceCore<RuntimeServiceId> for GenericService {
     fn init(
-        state: ServiceStateHandle<Self::Message, Self::Settings, Self::State>,
+        state: ServiceStateHandle<Self::Message, Self::Settings, Self::State, RuntimeServiceId>,
         _initial_state: Self::State,
     ) -> Result<Self, overwatch::DynError> {
         Ok(Self { state })
@@ -85,9 +83,9 @@ impl ServiceCore for GenericService {
     }
 }
 
-#[derive(Services)]
+#[derive_services]
 struct TestApp {
-    generic_service: OpaqueServiceHandle<GenericService>,
+    generic_service: GenericService,
 }
 
 #[test]

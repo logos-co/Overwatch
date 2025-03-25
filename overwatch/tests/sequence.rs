@@ -1,57 +1,53 @@
 use std::time::Duration;
 
 use overwatch::{
+    derive_services,
     overwatch::OverwatchRunner,
     services::{
-        relay::NoMessage,
         state::{NoOperator, NoState},
         status::{ServiceStatus, StatusWatcher},
-        ServiceCore, ServiceData, ServiceId,
+        ServiceCore, ServiceData,
     },
-    DynError, OpaqueServiceHandle, OpaqueServiceStateHandle,
+    DynError, OpaqueServiceStateHandle,
 };
-use overwatch_derive::Services;
 
 pub struct AwaitService1 {
-    service_state: OpaqueServiceStateHandle<Self>,
+    service_state: OpaqueServiceStateHandle<Self, RuntimeServiceId>,
 }
 
 pub struct AwaitService2 {
-    service_state: OpaqueServiceStateHandle<Self>,
+    service_state: OpaqueServiceStateHandle<Self, RuntimeServiceId>,
 }
 
 pub struct AwaitService3 {
-    service_state: OpaqueServiceStateHandle<Self>,
+    service_state: OpaqueServiceStateHandle<Self, RuntimeServiceId>,
 }
 
 impl ServiceData for AwaitService1 {
-    const SERVICE_ID: ServiceId = "S1";
     type Settings = ();
     type State = NoState<Self::Settings>;
     type StateOperator = NoOperator<Self::State>;
-    type Message = NoMessage;
+    type Message = ();
 }
 
 impl ServiceData for AwaitService2 {
-    const SERVICE_ID: ServiceId = "S2";
     type Settings = ();
     type State = NoState<Self::Settings>;
     type StateOperator = NoOperator<Self::State>;
-    type Message = NoMessage;
+    type Message = ();
 }
 
 impl ServiceData for AwaitService3 {
-    const SERVICE_ID: ServiceId = "S3";
     type Settings = ();
     type State = NoState<Self::Settings>;
     type StateOperator = NoOperator<Self::State>;
-    type Message = NoMessage;
+    type Message = ();
 }
 
 #[async_trait::async_trait]
-impl ServiceCore for AwaitService1 {
+impl ServiceCore<RuntimeServiceId> for AwaitService1 {
     fn init(
-        service_state: OpaqueServiceStateHandle<Self>,
+        service_state: OpaqueServiceStateHandle<Self, RuntimeServiceId>,
         _initial_state: Self::State,
     ) -> Result<Self, DynError> {
         Ok(Self { service_state })
@@ -73,9 +69,9 @@ impl ServiceCore for AwaitService1 {
 }
 
 #[async_trait::async_trait]
-impl ServiceCore for AwaitService2 {
+impl ServiceCore<RuntimeServiceId> for AwaitService2 {
     fn init(
-        service_state: OpaqueServiceStateHandle<Self>,
+        service_state: OpaqueServiceStateHandle<Self, RuntimeServiceId>,
         _initial_state: Self::State,
     ) -> Result<Self, DynError> {
         Ok(Self { service_state })
@@ -113,9 +109,9 @@ impl ServiceCore for AwaitService2 {
 }
 
 #[async_trait::async_trait]
-impl ServiceCore for AwaitService3 {
+impl ServiceCore<RuntimeServiceId> for AwaitService3 {
     fn init(
-        service_state: OpaqueServiceStateHandle<Self>,
+        service_state: OpaqueServiceStateHandle<Self, RuntimeServiceId>,
         _initial_state: Self::State,
     ) -> Result<Self, DynError> {
         Ok(Self { service_state })
@@ -152,11 +148,11 @@ impl ServiceCore for AwaitService3 {
     }
 }
 
-#[derive(Services)]
+#[derive_services]
 struct SequenceServices {
-    c: OpaqueServiceHandle<AwaitService3>,
-    b: OpaqueServiceHandle<AwaitService2>,
-    a: OpaqueServiceHandle<AwaitService1>,
+    c: AwaitService3,
+    b: AwaitService2,
+    a: AwaitService1,
 }
 
 #[test]

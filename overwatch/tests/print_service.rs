@@ -3,25 +3,24 @@ use std::time::Duration;
 use async_trait::async_trait;
 use futures::future::select;
 use overwatch::{
+    derive_services,
     overwatch::OverwatchRunner,
     services::{
         state::{NoOperator, NoState},
-        ServiceCore, ServiceData, ServiceId,
+        ServiceCore, ServiceData,
     },
-    OpaqueServiceHandle, OpaqueServiceStateHandle,
+    OpaqueServiceStateHandle,
 };
-use overwatch_derive::Services;
 use tokio::time::sleep;
 
 pub struct PrintService {
-    state: OpaqueServiceStateHandle<Self>,
+    state: OpaqueServiceStateHandle<Self, RuntimeServiceId>,
 }
 
 #[derive(Clone, Debug)]
 pub struct PrintServiceMessage(String);
 
 impl ServiceData for PrintService {
-    const SERVICE_ID: ServiceId = "FooService";
     type Settings = ();
     type State = NoState<Self::Settings>;
     type StateOperator = NoOperator<Self::State>;
@@ -29,9 +28,9 @@ impl ServiceData for PrintService {
 }
 
 #[async_trait]
-impl ServiceCore for PrintService {
+impl ServiceCore<RuntimeServiceId> for PrintService {
     fn init(
-        state: OpaqueServiceStateHandle<Self>,
+        state: OpaqueServiceStateHandle<Self, RuntimeServiceId>,
         _initial_state: Self::State,
     ) -> Result<Self, overwatch::DynError> {
         Ok(Self { state })
@@ -42,7 +41,7 @@ impl ServiceCore for PrintService {
 
         let Self {
             state:
-                OpaqueServiceStateHandle::<Self> {
+                OpaqueServiceStateHandle::<Self, RuntimeServiceId> {
                     mut inbound_relay, ..
                 },
         } = self;
@@ -84,9 +83,9 @@ impl ServiceCore for PrintService {
     }
 }
 
-#[derive(Services)]
+#[derive_services]
 struct TestApp {
-    print_service: OpaqueServiceHandle<PrintService>,
+    print_service: PrintService,
 }
 
 #[test]

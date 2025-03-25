@@ -2,3 +2,6 @@
 .idea/
 Cargo.lock
 .vscode
+
+# A folder for temp and local-only files
+.ignore
