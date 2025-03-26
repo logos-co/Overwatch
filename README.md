@@ -40,19 +40,26 @@ components. It combines the flexibility of microservices with the simplicity of 
 
 ## Table of Contents
 
-- [Requirements](#requirements)
-- [Quick Start](#quick-start)
-- [Features](#features)
-- [Design Goals](#design-goals)
-- [Components](#components)
-- [Project Structure](#project-structure)
-- [Development Workflow](#development-workflow)
-    - [Running Tests](#running-tests)
-    - [Running Examples](#running-examples)
-    - [Generating Documentation](#generating-documentation)
-- [Contributing](#contributing)
-- [License](#license)
-- [Community](#community)
+- [Overwatch](#overwatch)
+  - [Table of Contents](#table-of-contents)
+  - [Requirements](#requirements)
+  - [Quick Start](#quick-start)
+  - [Features](#features)
+  - [Design Goals](#design-goals)
+    - [**Modularity**](#modularity)
+    - [**Single Responsibility**](#single-responsibility)
+    - [**Observability**](#observability)
+  - [Components](#components)
+    - [**Overwatch**](#overwatch-1)
+    - [**Services**](#services)
+  - [Project Structure](#project-structure)
+  - [Development Workflow](#development-workflow)
+    - [**Running Tests**](#running-tests)
+    - [**Running Examples**](#running-examples)
+    - [**Generating Documentation**](#generating-documentation)
+  - [Contributing](#contributing)
+  - [License](#license)
+  - [Community](#community)
 
 ## Requirements
 
@@ -78,9 +85,8 @@ Here's a simple example to get you started:
 use overwatch::{
     overwatch::OverwatchRunner,
     services::{ServiceCore, ServiceData},
-    OpaqueServiceHandle
+    derive_services
 };
-use overwatch_derive::Services;
 
 struct MyService;
 
@@ -95,7 +101,7 @@ impl ServiceCore for MyService {
 
 #[derive(Services)]
 struct MyApp {
-    my_service: OpaqueServiceHandle<MyService>,
+    my_service: MyService,
     // ... other services
 }
 
