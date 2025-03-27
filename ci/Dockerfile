@@ -1,4 +1,4 @@
-FROM rust:1.65.0-slim-bullseye
+FROM rust:1.85.1-slim-bullseye
 
 LABEL maintainer="augustinas@status.im"
 LABEL source="https://github.com/logos-co/Overwatch"
@@ -18,4 +18,4 @@ RUN rustup component add rustfmt clippy
 
 # Jenkins user needs a specific UID/GID to work.
 RUN groupadd -g 1001 jenkins \
- && useradd -u 1001 -g jenkins jenkins
+    && useradd -u 1001 -g jenkins jenkins
