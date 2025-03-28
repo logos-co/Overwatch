@@ -7,8 +7,9 @@ name: Release
 
 jobs:
   release:
+    runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: katyo/publish-crates@v1
+      - uses: actions/checkout@85e6279cec87321a52edac9c87bce653a07cf6c2  # Version 4.2.2
+      - uses: katyo/publish-crates@5e67639f17e8a1f221e804c2bd47f7a253e45dac # Version 2.0.0
         with:
           registry-token: ${{ secrets.CARGO_REGISTRY_TOKEN }}

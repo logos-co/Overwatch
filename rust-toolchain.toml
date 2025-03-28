@@ -1,2 +1,5 @@
 [toolchain]
+# Keep this version in sync also in the following places:
+# * ci/Dockerfile
+# * shell.nix
 channel = "1.85.1"
