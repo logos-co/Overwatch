@@ -170,14 +170,16 @@ where
         let (finish_signal_sender, finish_runner_signal) = oneshot::channel();
         let (commands_sender, commands_receiver) = tokio::sync::mpsc::channel(16);
         let handle = OverwatchHandle::new(runtime.handle().clone(), commands_sender);
-        let services = ServicesImpl::new(settings, handle.clone())?;
+        let mut services = ServicesImpl::new(settings, handle.clone())?;
+        let lifecycle_handles = services.start_all()?;
+
         let runner = Self {
             services,
             finish_signal_sender,
             commands_receiver,
         };
 
-        runtime.spawn(async move { runner.run_().await });
+        runtime.spawn(async move { runner.run_(lifecycle_handles).await });
 
         Ok(Overwatch {
             runtime,
@@ -190,14 +192,12 @@ where
         feature = "instrumentation",
         instrument(name = "overwatch-run", skip_all)
     )]
-    async fn run_(self) {
+    async fn run_(self, lifecycle_handlers: ServicesImpl::ServicesLifeCycleHandle) {
         let Self {
             mut services,
             finish_signal_sender,
             mut commands_receiver,
-            ..
         } = self;
-        let lifecycle_handlers = services.start_all().expect("Services to start running");
         while let Some(command) = commands_receiver.recv().await {
             info!(command = ?command, "Overwatch command received");
             match command {
