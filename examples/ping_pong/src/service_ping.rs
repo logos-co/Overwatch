@@ -55,7 +55,6 @@ impl ServiceCore<RuntimeServiceId> for PingService {
 
         let sender = match lifecycle_message {
             LifecycleMessage::Shutdown(sender) => {
-                println!("Service started 1.");
                 if sender.send(()).is_err() {
                     eprintln!(
                         "Error sending successful shutdown signal from service {}",
@@ -74,6 +73,7 @@ impl ServiceCore<RuntimeServiceId> for PingService {
             .overwatch_handle
             .relay::<PongService>()
             .await?;
+
         let Self::State { mut pong_count } = initial_state;
 
         if sender.send(()).is_err() {

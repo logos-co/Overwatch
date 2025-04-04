@@ -46,13 +46,7 @@ impl ServiceCore<RuntimeServiceId> for CancellableService {
 
         let sender = match lifecycle_message {
             LifecycleMessage::Shutdown(sender) => {
-                println!("Service started 1.");
-                if sender.send(()).is_err() {
-                    eprintln!(
-                        "Error sending successful shutdown signal from service {}",
-                        <RuntimeServiceId as AsServiceId<Self>>::SERVICE_ID
-                    );
-                }
+                sender.send(()).unwrap();
                 return Ok(());
             }
             LifecycleMessage::Kill => return Ok(()),
@@ -62,12 +56,7 @@ impl ServiceCore<RuntimeServiceId> for CancellableService {
 
         let mut interval = tokio::time::interval(Duration::from_millis(200));
 
-        if sender.send(()).is_err() {
-            eprintln!(
-                "Error sending successful startup signal from service {}",
-                <RuntimeServiceId as AsServiceId<Self>>::SERVICE_ID
-            );
-        }
+        sender.send(()).unwrap();
 
         loop {
             tokio::select! {

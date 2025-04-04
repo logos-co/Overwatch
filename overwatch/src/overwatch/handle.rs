@@ -194,8 +194,7 @@ where
         self.sender.send(command).await.map_err(|e| {
             error!(error=?e, "Error sending overwatch command");
             e
-        })?;
-        Ok(())
+        })
     }
 
     #[cfg_attr(feature = "instrumentation", instrument(skip(self)))]
