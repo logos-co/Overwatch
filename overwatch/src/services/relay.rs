@@ -21,6 +21,12 @@ pub enum RelayError {
     Receiver(Box<dyn Debug + Send + Sync>),
 }
 
+#[derive(Error, Debug)]
+pub enum ServiceError {
+    #[error("couldn't start service")]
+    Start,
+}
+
 /// Message wrapper type.
 pub type AnyMessage = Box<dyn Any + Send + 'static>;
 

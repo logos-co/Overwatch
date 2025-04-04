@@ -7,11 +7,13 @@ use overwatch::{
     overwatch::OverwatchRunner,
     services::{
         handle::ServiceStateHandle,
+        life_cycle::LifecycleMessage,
         state::{NoOperator, NoState},
         ServiceCore, ServiceData,
     },
 };
 use tokio::time::sleep;
+use tokio_stream::StreamExt as _;
 
 pub struct GenericService {
     state: ServiceStateHandle<GenericServiceMessage, (), NoState<()>, RuntimeServiceId>,
@@ -40,11 +42,31 @@ impl ServiceCore<RuntimeServiceId> for GenericService {
         use tokio::io::{self, AsyncWriteExt};
 
         let Self {
-            state: ServiceStateHandle {
-                mut inbound_relay, ..
-            },
-            ..
+            state:
+                ServiceStateHandle {
+                    mut inbound_relay,
+                    lifecycle_handle,
+                    ..
+                },
         } = self;
+
+        let mut lifecycle_stream = lifecycle_handle.message_stream();
+
+        let lifecycle_message = lifecycle_stream
+            .next()
+            .await
+            .expect("first received message to be a lifecycle message.");
+
+        let sender = match lifecycle_message {
+            LifecycleMessage::Shutdown(sender) => {
+                sender.send(()).unwrap();
+                return Ok(());
+            }
+            LifecycleMessage::Kill => return Ok(()),
+            // Continue below if a `Start` message is received.
+            LifecycleMessage::Start(sender) => sender,
+        };
+        sender.send(()).unwrap();
 
         let generic = async move {
             let mut stdout = io::stdout();
@@ -95,6 +117,11 @@ fn derive_generic_service() {
     };
     let overwatch = OverwatchRunner::<TestApp>::run(settings, None).unwrap();
     let handle = overwatch.handle().clone();
+
+    handle
+        .runtime()
+        .block_on(handle.start_service::<GenericService>())
+        .expect("service to start successfully.");
 
     overwatch.spawn(async move {
         let generic_service_relay = handle

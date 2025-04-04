@@ -14,7 +14,7 @@ use overwatch::{
     DynError, OpaqueServiceStateHandle,
 };
 use tokio::time::sleep;
-use tokio_stream::StreamExt;
+use tokio_stream::StreamExt as _;
 
 pub struct CancellableService {
     service_state: OpaqueServiceStateHandle<Self, RuntimeServiceId>,
@@ -38,7 +38,26 @@ impl ServiceCore<RuntimeServiceId> for CancellableService {
 
     async fn run(self) -> Result<(), DynError> {
         let mut lifecycle_stream = self.service_state.lifecycle_handle.message_stream();
+
+        let lifecycle_message = lifecycle_stream
+            .next()
+            .await
+            .expect("first received message to be a lifecycle message.");
+
+        let sender = match lifecycle_message {
+            LifecycleMessage::Shutdown(sender) => {
+                sender.send(()).unwrap();
+                return Ok(());
+            }
+            LifecycleMessage::Kill => return Ok(()),
+            // Continue below if a `Start` message is received.
+            LifecycleMessage::Start(sender) => sender,
+        };
+
         let mut interval = tokio::time::interval(Duration::from_millis(200));
+
+        sender.send(()).unwrap();
+
         loop {
             tokio::select! {
                 msg = lifecycle_stream.next() => {
@@ -74,6 +93,10 @@ fn run_overwatch_then_shutdown_service_and_kill() {
     let settings = CancelableServicesServiceSettings { cancelable: () };
     let overwatch = OverwatchRunner::<CancelableServices>::run(settings, None).unwrap();
     let handle = overwatch.handle().clone();
+    handle
+        .runtime()
+        .block_on(handle.start_service::<CancellableService>())
+        .expect("service to start successfully.");
     let (sender, mut receiver) = tokio::sync::broadcast::channel(1);
     overwatch.spawn(async move {
         sleep(Duration::from_millis(500)).await;
