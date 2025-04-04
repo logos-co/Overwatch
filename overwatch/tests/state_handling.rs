@@ -5,8 +5,9 @@ use overwatch::{
     derive_services,
     overwatch::OverwatchRunner,
     services::{
+        life_cycle::LifecycleMessage,
         state::{ServiceState, StateOperator},
-        ServiceCore, ServiceData,
+        AsServiceId, ServiceCore, ServiceData,
     },
     OpaqueServiceStateHandle,
 };
@@ -14,6 +15,7 @@ use tokio::{
     io::{self, AsyncWriteExt},
     time::sleep,
 };
+use tokio_stream::StreamExt as _;
 
 pub struct UpdateStateService {
     state: OpaqueServiceStateHandle<Self, RuntimeServiceId>,
@@ -94,8 +96,43 @@ impl ServiceCore<RuntimeServiceId> for UpdateStateService {
 
     async fn run(mut self) -> Result<(), overwatch::DynError> {
         let Self {
-            state: OpaqueServiceStateHandle::<Self, RuntimeServiceId> { state_updater, .. },
+            state:
+                OpaqueServiceStateHandle::<Self, RuntimeServiceId> {
+                    state_updater,
+                    lifecycle_handle,
+                    ..
+                },
         } = self;
+        let mut lifecycle_stream = lifecycle_handle.message_stream();
+
+        let lifecycle_message = lifecycle_stream
+            .next()
+            .await
+            .expect("first received message to be a lifecycle message.");
+
+        let sender = match lifecycle_message {
+            LifecycleMessage::Shutdown(sender) => {
+                println!("Service started 1.");
+                if sender.send(()).is_err() {
+                    eprintln!(
+                        "Error sending successful shutdown signal from service {}",
+                        <RuntimeServiceId as AsServiceId<Self>>::SERVICE_ID
+                    );
+                }
+                return Ok(());
+            }
+            LifecycleMessage::Kill => return Ok(()),
+            // Continue below if a `Start` message is received.
+            LifecycleMessage::Start(sender) => sender,
+        };
+
+        if sender.send(()).is_err() {
+            eprintln!(
+                "Error sending successful startup signal from service {}",
+                <RuntimeServiceId as AsServiceId<Self>>::SERVICE_ID
+            );
+        }
+
         for value in 0..10 {
             state_updater.update(CounterState { value });
             sleep(Duration::from_millis(50)).await;
@@ -116,6 +153,11 @@ fn state_update_service() {
     };
     let overwatch = OverwatchRunner::<TestApp>::run(settings, None).unwrap();
     let handle = overwatch.handle().clone();
+
+    handle
+        .runtime()
+        .block_on(handle.start_service::<UpdateStateService>())
+        .expect("service to start successfully.");
 
     overwatch.spawn(async move {
         sleep(Duration::from_secs(1)).await;

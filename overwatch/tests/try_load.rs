@@ -6,12 +6,14 @@ use overwatch::{
     derive_services,
     overwatch::OverwatchRunner,
     services::{
+        life_cycle::LifecycleMessage,
         state::{ServiceState, StateOperator},
-        ServiceCore, ServiceData,
+        AsServiceId, ServiceCore, ServiceData,
     },
     DynError, OpaqueServiceStateHandle,
 };
 use tokio::sync::{broadcast, broadcast::error::SendError};
+use tokio_stream::StreamExt as _;
 
 #[derive(Clone)]
 struct TryLoadState;
@@ -84,6 +86,36 @@ impl ServiceCore<RuntimeServiceId> for TryLoad {
             ..
         } = self;
 
+        let mut lifecycle_stream = service_state_handle.lifecycle_handle.message_stream();
+
+        let lifecycle_message = lifecycle_stream
+            .next()
+            .await
+            .expect("first received message to be a lifecycle message.");
+
+        let sender = match lifecycle_message {
+            LifecycleMessage::Shutdown(sender) => {
+                println!("Service started 1.");
+                if sender.send(()).is_err() {
+                    eprintln!(
+                        "Error sending successful shutdown signal from service {}",
+                        <RuntimeServiceId as AsServiceId<Self>>::SERVICE_ID
+                    );
+                }
+                return Ok(());
+            }
+            LifecycleMessage::Kill => return Ok(()),
+            // Continue below if a `Start` message is received.
+            LifecycleMessage::Start(sender) => sender,
+        };
+
+        if sender.send(()).is_err() {
+            eprintln!(
+                "Error sending successful startup signal from service {}",
+                <RuntimeServiceId as AsServiceId<Self>>::SERVICE_ID
+            );
+        }
+
         service_state_handle.overwatch_handle.shutdown().await;
         Ok(())
     }
@@ -104,6 +136,13 @@ fn load_state_from_operator() {
 
     // Run the app
     let app = OverwatchRunner::<TryLoadApp>::run(settings, None).unwrap();
+    let handle = app.handle().clone();
+
+    handle
+        .runtime()
+        .block_on(handle.start_service::<TryLoad>())
+        .expect("service to start successfully.");
+
     app.wait_finished();
 
     // Check if the origin was called
