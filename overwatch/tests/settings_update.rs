@@ -5,12 +5,14 @@ use overwatch::{
     derive_services,
     overwatch::OverwatchRunner,
     services::{
+        life_cycle::LifecycleMessage,
         state::{NoOperator, NoState},
-        ServiceCore, ServiceData,
+        AsServiceId, ServiceCore, ServiceData,
     },
     OpaqueServiceStateHandle,
 };
 use tokio::time::sleep;
+use tokio_stream::StreamExt as _;
 
 pub struct SettingsService {
     state: OpaqueServiceStateHandle<Self, RuntimeServiceId>,
@@ -41,9 +43,41 @@ impl ServiceCore<RuntimeServiceId> for SettingsService {
         let Self {
             state:
                 OpaqueServiceStateHandle::<Self, RuntimeServiceId> {
-                    settings_reader, ..
+                    settings_reader,
+                    lifecycle_handle,
+                    ..
                 },
         } = self;
+
+        let mut lifecycle_stream = lifecycle_handle.message_stream();
+
+        let lifecycle_message = lifecycle_stream
+            .next()
+            .await
+            .expect("first received message to be a lifecycle message.");
+
+        let sender = match lifecycle_message {
+            LifecycleMessage::Shutdown(sender) => {
+                println!("Service started 1.");
+                if sender.send(()).is_err() {
+                    eprintln!(
+                        "Error sending successful shutdown signal from service {}",
+                        <RuntimeServiceId as AsServiceId<Self>>::SERVICE_ID
+                    );
+                }
+                return Ok(());
+            }
+            LifecycleMessage::Kill => return Ok(()),
+            // Continue below if a `Start` message is received.
+            LifecycleMessage::Start(sender) => sender,
+        };
+
+        if sender.send(()).is_err() {
+            eprintln!(
+                "Error sending successful startup signal from service {}",
+                <RuntimeServiceId as AsServiceId<Self>>::SERVICE_ID
+            );
+        }
 
         let print = async move {
             let mut asserted = false;
@@ -76,6 +110,12 @@ fn settings_service_update_settings() {
     };
     let overwatch = OverwatchRunner::<TestApp>::run(settings.clone(), None).unwrap();
     let handle = overwatch.handle().clone();
+
+    handle
+        .runtime()
+        .block_on(handle.start_service::<SettingsService>())
+        .expect("service to start successfully.");
+
     let handle2 = handle.clone();
     settings.settings_service = "New settings".to_string();
     overwatch.spawn(async move { handle.clone().update_settings::<TestApp>(settings).await });

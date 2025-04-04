@@ -360,6 +360,14 @@ mod test {
     impl ServicesLifeCycleHandle<String> for EmptyLifeCycleHandle {
         type Error = &'static str;
 
+        fn start(
+            &self,
+            _service: &String,
+            _sender: Sender<FinishedSignal>,
+        ) -> Result<(), Self::Error> {
+            Ok(())
+        }
+
         fn kill(&self, _service: &String) -> Result<(), Self::Error> {
             Ok(())
         }
