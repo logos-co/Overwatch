@@ -39,7 +39,6 @@ impl ServiceCore<RuntimeServiceId> for CancellableService {
     async fn run(self) -> Result<(), DynError> {
         let mut lifecycle_stream = self.service_state.lifecycle_handle.message_stream();
         let mut interval = tokio::time::interval(Duration::from_millis(200));
-        #[expect(clippy::redundant_pub_crate)]
         loop {
             tokio::select! {
                 msg = lifecycle_stream.next() => {

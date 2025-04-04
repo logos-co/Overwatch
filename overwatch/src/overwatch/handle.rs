@@ -57,7 +57,11 @@ impl<RuntimeServiceId> OverwatchHandle<RuntimeServiceId>
 where
     RuntimeServiceId: Debug + Sync + Display,
 {
-    /// Request a relay with a service
+    /// Request a relay with a service.
+    ///
+    /// # Errors
+    ///
+    /// If the relay cannot be created, or if the service is not available.
     pub async fn relay<Service>(&self) -> Result<OutboundRelay<Service::Message>, RelayError>
     where
         Service: ServiceData,
