@@ -131,7 +131,7 @@ where
     where
         RuntimeServiceId: AsServiceId<Service>,
     {
-        println!("Starting service with ID {}", RuntimeServiceId::SERVICE_ID);
+        info!("Starting service with ID {}", RuntimeServiceId::SERVICE_ID);
 
         let (sender, mut receiver) = tokio::sync::broadcast::channel(1);
         self.send(OverwatchCommand::ServiceLifeCycle(
@@ -148,7 +148,8 @@ where
         receiver.recv().await.map_err(|e| {
             dbg!(e);
             ServiceError::Start
-        })
+        })?;
+        Ok(())
     }
 
     /// Send a shutdown signal to the
@@ -193,7 +194,8 @@ where
         self.sender.send(command).await.map_err(|e| {
             error!(error=?e, "Error sending overwatch command");
             e
-        })
+        })?;
+        Ok(())
     }
 
     #[cfg_attr(feature = "instrumentation", instrument(skip(self)))]
