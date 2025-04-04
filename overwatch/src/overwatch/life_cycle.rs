@@ -7,6 +7,17 @@ pub trait ServicesLifeCycleHandle<RuntimeServiceId> {
     /// The error for different operations.
     type Error;
 
+    /// Start a service.
+    ///
+    /// # Errors
+    ///
+    /// If the startup fails.
+    fn start(
+        &self,
+        service: &RuntimeServiceId,
+        sender: Sender<FinishedSignal>,
+    ) -> Result<(), Self::Error>;
+
     /// Shut down a service.
     ///
     /// # Errors
