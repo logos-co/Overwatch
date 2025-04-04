@@ -50,6 +50,7 @@ pub struct ServiceLifeCycleCommand<RuntimeServiceId> {
 /// [`Overwatch`](crate::overwatch::Overwatch) lifecycle related commands.
 #[derive(Debug)]
 pub enum OverwatchLifeCycleCommand {
+    Start,
     Shutdown,
     Kill,
 }
