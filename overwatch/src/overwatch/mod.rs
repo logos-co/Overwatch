@@ -224,6 +224,14 @@ where
                             error!(e);
                         }
                     }
+                    ServiceLifeCycleCommand {
+                        service_id,
+                        msg: LifecycleMessage::Start(channel),
+                    } => {
+                        if let Err(e) = lifecycle_handlers.start(&service_id, channel) {
+                            error!(e);
+                        }
+                    }
                 },
                 OverwatchCommand::OverwatchLifeCycle(command) => {
                     if matches!(

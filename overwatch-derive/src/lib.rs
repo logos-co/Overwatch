@@ -971,6 +971,10 @@ pub fn generate_lifecyle_handlers(input: TokenStream) -> TokenStream {
         quote! { #field_name: ::overwatch::services::life_cycle::LifecycleHandle }
     });
 
+    let match_arms_start = variants_names.clone().zip(variants_as_field_names.clone()).map(|(variant_name, field_name)| {
+        quote! { &#enum_name::#variant_name => self.#field_name.send(::overwatch::services::life_cycle::LifecycleMessage::Start(sender)) }
+    });
+
     let match_arms_shutdown = variants_names.clone().zip(variants_as_field_names.clone()).map(|(variant_name, field_name)| {
         quote! { &#enum_name::#variant_name => self.#field_name.send(::overwatch::services::life_cycle::LifecycleMessage::Shutdown(sender)) }
     });
@@ -992,6 +996,16 @@ pub fn generate_lifecyle_handlers(input: TokenStream) -> TokenStream {
 
         impl ::overwatch::overwatch::life_cycle::ServicesLifeCycleHandle<#runtime_service_id_type_name> for #runtime_lifecycle_handlers_type_name {
             type Error = ::overwatch::DynError;
+
+            fn start(
+                &self,
+                service: &#runtime_service_id_type_name,
+                sender: ::tokio::sync::broadcast::Sender<::overwatch::services::life_cycle::FinishedSignal>,
+            ) -> Result<(), Self::Error> {
+                match service {
+                    #(#match_arms_start,)*
+                }
+            }
 
             /// Send a `Shutdown` message to the specified service.
             ///

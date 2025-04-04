@@ -11,6 +11,7 @@ version     = "0.1.0"
 [dependencies]
 async-trait  = "0.1.83"
 const_format = "0.2.34"
+futures      = "0.3"
 overwatch    = { workspace = true }
 serde        = { version = "1.0.216", features = ["derive"] }
 serde_json   = "1.0.134"

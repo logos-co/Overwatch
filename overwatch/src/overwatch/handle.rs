@@ -12,12 +12,13 @@ use crate::{
     overwatch::{
         commands::{
             OverwatchCommand, OverwatchLifeCycleCommand, RelayCommand, ReplyChannel,
-            SettingsCommand, StatusCommand,
+            ServiceLifeCycleCommand, SettingsCommand, StatusCommand,
         },
         Services,
     },
     services::{
-        relay::{OutboundRelay, RelayError},
+        life_cycle::LifecycleMessage,
+        relay::{OutboundRelay, RelayError, ServiceError},
         status::StatusWatcher,
         AsServiceId, ServiceData,
     },
@@ -117,6 +118,36 @@ where
                 "Service {} watcher should always be available",
                 RuntimeServiceId::SERVICE_ID
             )
+        })
+    }
+
+    /// Send a start signal to the specified service.
+    ///
+    /// # Errors
+    ///
+    /// If the start signal cannot be successfully delivered to the specified
+    /// service.
+    pub async fn start_service<Service>(&self) -> Result<(), ServiceError>
+    where
+        RuntimeServiceId: AsServiceId<Service>,
+    {
+        println!("Starting service with ID {}", RuntimeServiceId::SERVICE_ID);
+
+        let (sender, mut receiver) = tokio::sync::broadcast::channel(1);
+        self.send(OverwatchCommand::ServiceLifeCycle(
+            ServiceLifeCycleCommand {
+                service_id: RuntimeServiceId::SERVICE_ID,
+                msg: LifecycleMessage::Start(sender),
+            },
+        ))
+        .await
+        .map_err(|e| {
+            dbg!(e);
+            ServiceError::Start
+        })?;
+        receiver.recv().await.map_err(|e| {
+            dbg!(e);
+            ServiceError::Start
         })
     }
 
