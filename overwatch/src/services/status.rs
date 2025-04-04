@@ -74,6 +74,10 @@ impl StatusHandle {
         let watcher = StatusWatcher(watcher);
         Self { updater, watcher }
     }
+    #[expect(
+        clippy::missing_const_for_fn,
+        reason = "We dereference an `Arc`, which is not const"
+    )]
     #[must_use]
     pub fn updater(&self) -> &StatusUpdater {
         &self.updater
