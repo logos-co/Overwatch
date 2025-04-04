@@ -6,12 +6,14 @@ use overwatch::{
     derive_services,
     overwatch::OverwatchRunner,
     services::{
+        life_cycle::LifecycleMessage,
         state::{NoOperator, NoState},
-        ServiceCore, ServiceData,
+        AsServiceId, ServiceCore, ServiceData,
     },
     OpaqueServiceStateHandle,
 };
 use tokio::time::sleep;
+use tokio_stream::StreamExt as _;
 
 pub struct PrintService {
     state: OpaqueServiceStateHandle<Self, RuntimeServiceId>,
@@ -42,9 +44,41 @@ impl ServiceCore<RuntimeServiceId> for PrintService {
         let Self {
             state:
                 OpaqueServiceStateHandle::<Self, RuntimeServiceId> {
-                    mut inbound_relay, ..
+                    mut inbound_relay,
+                    lifecycle_handle,
+                    ..
                 },
         } = self;
+
+        let mut lifecycle_stream = lifecycle_handle.message_stream();
+
+        let lifecycle_message = lifecycle_stream
+            .next()
+            .await
+            .expect("first received message to be a lifecycle message.");
+
+        let sender = match lifecycle_message {
+            LifecycleMessage::Shutdown(sender) => {
+                println!("Service started 1.");
+                if sender.send(()).is_err() {
+                    eprintln!(
+                        "Error sending successful shutdown signal from service {}",
+                        <RuntimeServiceId as AsServiceId<Self>>::SERVICE_ID
+                    );
+                }
+                return Ok(());
+            }
+            LifecycleMessage::Kill => return Ok(()),
+            // Continue below if a `Start` message is received.
+            LifecycleMessage::Start(sender) => sender,
+        };
+
+        if sender.send(()).is_err() {
+            eprintln!(
+                "Error sending successful startup signal from service {}",
+                <RuntimeServiceId as AsServiceId<Self>>::SERVICE_ID
+            );
+        }
 
         let print = async move {
             let mut stdout = io::stdout();
@@ -93,6 +127,11 @@ fn derive_print_service() {
     let settings: TestAppServiceSettings = TestAppServiceSettings { print_service: () };
     let overwatch = OverwatchRunner::<TestApp>::run(settings, None).unwrap();
     let handle = overwatch.handle().clone();
+
+    handle
+        .runtime()
+        .block_on(handle.start_service::<PrintService>())
+        .expect("service to start successfully.");
 
     overwatch.spawn(async move {
         let print_service_relay = handle

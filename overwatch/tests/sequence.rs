@@ -1,15 +1,18 @@
 use std::time::Duration;
 
+use futures::future::join3;
 use overwatch::{
     derive_services,
     overwatch::OverwatchRunner,
     services::{
+        life_cycle::LifecycleMessage,
         state::{NoOperator, NoState},
         status::{ServiceStatus, StatusWatcher},
-        ServiceCore, ServiceData,
+        AsServiceId, ServiceCore, ServiceData,
     },
     DynError, OpaqueServiceStateHandle,
 };
+use tokio_stream::StreamExt as _;
 
 pub struct AwaitService1 {
     service_state: OpaqueServiceStateHandle<Self, RuntimeServiceId>,
@@ -55,6 +58,36 @@ impl ServiceCore<RuntimeServiceId> for AwaitService1 {
 
     async fn run(self) -> Result<(), DynError> {
         println!("Initialized 1");
+        let mut lifecycle_stream = self.service_state.lifecycle_handle.message_stream();
+
+        let lifecycle_message = lifecycle_stream
+            .next()
+            .await
+            .expect("first received message to be a lifecycle message.");
+
+        let sender = match lifecycle_message {
+            LifecycleMessage::Shutdown(sender) => {
+                println!("Service started 1.");
+                if sender.send(()).is_err() {
+                    eprintln!(
+                        "Error sending successful shutdown signal from service {}",
+                        <RuntimeServiceId as AsServiceId<Self>>::SERVICE_ID
+                    );
+                }
+                return Ok(());
+            }
+            LifecycleMessage::Kill => return Ok(()),
+            // Continue below if a `Start` message is received.
+            LifecycleMessage::Start(sender) => sender,
+        };
+
+        if sender.send(()).is_err() {
+            eprintln!(
+                "Error sending successful startup signal from service {}",
+                <RuntimeServiceId as AsServiceId<Self>>::SERVICE_ID
+            );
+        }
+
         self.service_state
             .status_handle
             .updater()
@@ -78,6 +111,36 @@ impl ServiceCore<RuntimeServiceId> for AwaitService2 {
     }
 
     async fn run(self) -> Result<(), DynError> {
+        let mut lifecycle_stream = self.service_state.lifecycle_handle.message_stream();
+
+        let lifecycle_message = lifecycle_stream
+            .next()
+            .await
+            .expect("first received message to be a lifecycle message.");
+
+        let sender = match lifecycle_message {
+            LifecycleMessage::Shutdown(sender) => {
+                println!("Service started 1.");
+                if sender.send(()).is_err() {
+                    eprintln!(
+                        "Error sending successful shutdown signal from service {}",
+                        <RuntimeServiceId as AsServiceId<Self>>::SERVICE_ID
+                    );
+                }
+                return Ok(());
+            }
+            LifecycleMessage::Kill => return Ok(()),
+            // Continue below if a `Start` message is received.
+            LifecycleMessage::Start(sender) => sender,
+        };
+
+        if sender.send(()).is_err() {
+            eprintln!(
+                "Error sending successful startup signal from service {}",
+                <RuntimeServiceId as AsServiceId<Self>>::SERVICE_ID
+            );
+        }
+
         self.service_state
             .status_handle
             .updater()
@@ -118,6 +181,36 @@ impl ServiceCore<RuntimeServiceId> for AwaitService3 {
     }
 
     async fn run(self) -> Result<(), DynError> {
+        let mut lifecycle_stream = self.service_state.lifecycle_handle.message_stream();
+
+        let lifecycle_message = lifecycle_stream
+            .next()
+            .await
+            .expect("first received message to be a lifecycle message.");
+
+        let sender = match lifecycle_message {
+            LifecycleMessage::Shutdown(sender) => {
+                println!("Service started 1.");
+                if sender.send(()).is_err() {
+                    eprintln!(
+                        "Error sending successful shutdown signal from service {}",
+                        <RuntimeServiceId as AsServiceId<Self>>::SERVICE_ID
+                    );
+                }
+                return Ok(());
+            }
+            LifecycleMessage::Kill => return Ok(()),
+            // Continue below if a `Start` message is received.
+            LifecycleMessage::Start(sender) => sender,
+        };
+
+        if sender.send(()).is_err() {
+            eprintln!(
+                "Error sending successful startup signal from service {}",
+                <RuntimeServiceId as AsServiceId<Self>>::SERVICE_ID
+            );
+        }
+
         self.service_state
             .status_handle
             .updater()
@@ -164,6 +257,12 @@ fn sequenced_services_startup() {
     };
     let overwatch = OverwatchRunner::<SequenceServices>::run(settings, None).unwrap();
     let handle = overwatch.handle().clone();
+
+    handle.runtime().block_on(join3(
+        handle.start_service::<AwaitService1>(),
+        handle.start_service::<AwaitService2>(),
+        handle.start_service::<AwaitService3>(),
+    ));
 
     overwatch.spawn(async move {
         tokio::time::sleep(Duration::from_secs(1)).await;
