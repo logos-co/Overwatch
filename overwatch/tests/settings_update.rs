@@ -7,7 +7,7 @@ use overwatch::{
     services::{
         life_cycle::LifecycleMessage,
         state::{NoOperator, NoState},
-        AsServiceId, ServiceCore, ServiceData,
+        ServiceCore, ServiceData,
     },
     OpaqueServiceStateHandle,
 };
@@ -58,13 +58,7 @@ impl ServiceCore<RuntimeServiceId> for SettingsService {
 
         let sender = match lifecycle_message {
             LifecycleMessage::Shutdown(sender) => {
-                println!("Service started 1.");
-                if sender.send(()).is_err() {
-                    eprintln!(
-                        "Error sending successful shutdown signal from service {}",
-                        <RuntimeServiceId as AsServiceId<Self>>::SERVICE_ID
-                    );
-                }
+                sender.send(()).unwrap();
                 return Ok(());
             }
             LifecycleMessage::Kill => return Ok(()),
@@ -72,12 +66,7 @@ impl ServiceCore<RuntimeServiceId> for SettingsService {
             LifecycleMessage::Start(sender) => sender,
         };
 
-        if sender.send(()).is_err() {
-            eprintln!(
-                "Error sending successful startup signal from service {}",
-                <RuntimeServiceId as AsServiceId<Self>>::SERVICE_ID
-            );
-        }
+        sender.send(()).unwrap();
 
         let print = async move {
             let mut asserted = false;

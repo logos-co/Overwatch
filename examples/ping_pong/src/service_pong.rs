@@ -50,7 +50,6 @@ impl ServiceCore<RuntimeServiceId> for PongService {
 
         let sender = match lifecycle_message {
             LifecycleMessage::Shutdown(sender) => {
-                println!("Service started 2.");
                 if sender.send(()).is_err() {
                     eprintln!(
                         "Error sending successful shutdown signal from service {}",

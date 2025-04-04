@@ -8,7 +8,7 @@ use overwatch::{
         life_cycle::LifecycleMessage,
         state::{NoOperator, NoState},
         status::{ServiceStatus, StatusWatcher},
-        AsServiceId, ServiceCore, ServiceData,
+        ServiceCore, ServiceData,
     },
     DynError, OpaqueServiceStateHandle,
 };
@@ -67,13 +67,7 @@ impl ServiceCore<RuntimeServiceId> for AwaitService1 {
 
         let sender = match lifecycle_message {
             LifecycleMessage::Shutdown(sender) => {
-                println!("Service started 1.");
-                if sender.send(()).is_err() {
-                    eprintln!(
-                        "Error sending successful shutdown signal from service {}",
-                        <RuntimeServiceId as AsServiceId<Self>>::SERVICE_ID
-                    );
-                }
+                sender.send(()).unwrap();
                 return Ok(());
             }
             LifecycleMessage::Kill => return Ok(()),
@@ -81,12 +75,7 @@ impl ServiceCore<RuntimeServiceId> for AwaitService1 {
             LifecycleMessage::Start(sender) => sender,
         };
 
-        if sender.send(()).is_err() {
-            eprintln!(
-                "Error sending successful startup signal from service {}",
-                <RuntimeServiceId as AsServiceId<Self>>::SERVICE_ID
-            );
-        }
+        sender.send(()).unwrap();
 
         self.service_state
             .status_handle
@@ -120,13 +109,7 @@ impl ServiceCore<RuntimeServiceId> for AwaitService2 {
 
         let sender = match lifecycle_message {
             LifecycleMessage::Shutdown(sender) => {
-                println!("Service started 1.");
-                if sender.send(()).is_err() {
-                    eprintln!(
-                        "Error sending successful shutdown signal from service {}",
-                        <RuntimeServiceId as AsServiceId<Self>>::SERVICE_ID
-                    );
-                }
+                sender.send(()).unwrap();
                 return Ok(());
             }
             LifecycleMessage::Kill => return Ok(()),
@@ -134,12 +117,7 @@ impl ServiceCore<RuntimeServiceId> for AwaitService2 {
             LifecycleMessage::Start(sender) => sender,
         };
 
-        if sender.send(()).is_err() {
-            eprintln!(
-                "Error sending successful startup signal from service {}",
-                <RuntimeServiceId as AsServiceId<Self>>::SERVICE_ID
-            );
-        }
+        sender.send(()).unwrap();
 
         self.service_state
             .status_handle
@@ -190,13 +168,7 @@ impl ServiceCore<RuntimeServiceId> for AwaitService3 {
 
         let sender = match lifecycle_message {
             LifecycleMessage::Shutdown(sender) => {
-                println!("Service started 1.");
-                if sender.send(()).is_err() {
-                    eprintln!(
-                        "Error sending successful shutdown signal from service {}",
-                        <RuntimeServiceId as AsServiceId<Self>>::SERVICE_ID
-                    );
-                }
+                sender.send(()).unwrap();
                 return Ok(());
             }
             LifecycleMessage::Kill => return Ok(()),
@@ -204,12 +176,7 @@ impl ServiceCore<RuntimeServiceId> for AwaitService3 {
             LifecycleMessage::Start(sender) => sender,
         };
 
-        if sender.send(()).is_err() {
-            eprintln!(
-                "Error sending successful startup signal from service {}",
-                <RuntimeServiceId as AsServiceId<Self>>::SERVICE_ID
-            );
-        }
+        sender.send(()).unwrap();
 
         self.service_state
             .status_handle
@@ -258,7 +225,7 @@ fn sequenced_services_startup() {
     let overwatch = OverwatchRunner::<SequenceServices>::run(settings, None).unwrap();
     let handle = overwatch.handle().clone();
 
-    handle.runtime().block_on(join3(
+    let _ = handle.runtime().block_on(join3(
         handle.start_service::<AwaitService1>(),
         handle.start_service::<AwaitService2>(),
         handle.start_service::<AwaitService3>(),
