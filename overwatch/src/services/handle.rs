@@ -5,11 +5,13 @@ use crate::{
     overwatch::handle::OverwatchHandle,
     services::{
         life_cycle::LifecycleHandle,
-        relay::{relay, InboundRelay, OutboundRelay},
-        settings::{SettingsNotifier, SettingsUpdater},
-        state::{StateHandle, StateOperator, StateUpdater},
+        relay::{relay, OutboundRelay},
+        runner::ServiceRunner,
+        settings::SettingsUpdater,
+        state::{StateHandle, StateOperator},
+        state_handle::ServiceStateHandle,
         status::{StatusHandle, StatusWatcher},
-        AsServiceId, ServiceCore, ServiceState,
+        ServiceState,
     },
 };
 
@@ -31,29 +33,6 @@ pub struct ServiceHandle<Message, Settings, State, RuntimeServiceId> {
     status: StatusHandle,
     initial_state: State,
     relay_buffer_size: usize,
-}
-
-/// Core resources for a `Service`.
-///
-/// Contains everything required to start a new [`ServiceRunner`].
-pub struct ServiceStateHandle<Message, Settings, State, RuntimeServiceId> {
-    /// Message channel relay to receive messages from other services
-    pub inbound_relay: InboundRelay<Message>,
-    pub status_handle: StatusHandle,
-    pub overwatch_handle: OverwatchHandle<RuntimeServiceId>,
-    pub settings_reader: SettingsNotifier<Settings>,
-    pub state_updater: StateUpdater<State>,
-    pub lifecycle_handle: LifecycleHandle,
-}
-
-/// Executor for a `Service`.
-///
-/// Contains all the necessary information to run a `Service`.
-pub struct ServiceRunner<Message, Settings, State, StateOperator, RuntimeServiceId> {
-    service_state: ServiceStateHandle<Message, Settings, State, RuntimeServiceId>,
-    state_handle: StateHandle<State, StateOperator>,
-    lifecycle_handle: LifecycleHandle,
-    initial_state: State,
 }
 
 impl<Message, Settings, State, RuntimeServiceId>
@@ -154,51 +133,11 @@ where
             lifecycle_handle: lifecycle_handle.clone(),
         };
 
-        ServiceRunner {
+        ServiceRunner::new(
             service_state,
             state_handle,
             lifecycle_handle,
-            initial_state: self.initial_state.clone(),
-        }
-    }
-}
-
-impl<Message, Settings, State, StateOp, RuntimeServiceId>
-    ServiceRunner<Message, Settings, State, StateOp, RuntimeServiceId>
-where
-    State: Clone + Send + Sync + 'static,
-    StateOp: StateOperator<State = State> + Send + 'static,
-{
-    /// Spawn the service main loop and handle its lifecycle.
-    ///
-    /// # Returns
-    ///
-    /// A tuple containing the service id and the lifecycle handle, which allows
-    /// to manually abort the execution.
-    ///
-    /// # Errors
-    ///
-    /// If the service cannot be initialized properly with the retrieved state.
-    pub fn run<Service>(self) -> Result<LifecycleHandle, crate::DynError>
-    where
-        Service: ServiceCore<RuntimeServiceId, Settings = Settings, State = State, Message = Message>
-            + 'static,
-        RuntimeServiceId: AsServiceId<Service>,
-    {
-        let Self {
-            service_state,
-            state_handle,
-            lifecycle_handle,
-            initial_state,
-            ..
-        } = self;
-
-        let runtime = service_state.overwatch_handle.runtime().clone();
-        let service = Service::init(service_state, initial_state)?;
-
-        runtime.spawn(service.run());
-        runtime.spawn(state_handle.run());
-
-        Ok(lifecycle_handle)
+            self.initial_state.clone(),
+        )
     }
 }
