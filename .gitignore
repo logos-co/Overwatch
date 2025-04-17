@@ -3,5 +3,5 @@
 Cargo.lock
 .vscode
 
-# A folder for temp and local-only files
-.ignore
+# A folder for temp and local-only files, or for files that are not meant to be shared
+*.ignore*
