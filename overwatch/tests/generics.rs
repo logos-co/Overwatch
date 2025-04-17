@@ -6,9 +6,9 @@ use overwatch::{
     derive_services,
     overwatch::OverwatchRunner,
     services::{
-        handle::ServiceStateHandle,
         life_cycle::LifecycleMessage,
         state::{NoOperator, NoState},
+        state_handle::ServiceStateHandle,
         ServiceCore, ServiceData,
     },
 };
