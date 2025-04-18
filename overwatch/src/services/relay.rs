@@ -1,5 +1,5 @@
 use futures::{Sink, Stream};
-use std::sync::Arc;
+use std::sync::mpsc as sync_mpsc;
 use std::{
     any::Any,
     fmt::Debug,
@@ -9,7 +9,6 @@ use std::{
 };
 use thiserror::Error;
 use tokio::sync::mpsc::{channel, Receiver, Sender};
-use tokio::sync::oneshot;
 use tokio_util::sync::PollSender;
 use tracing::error;
 
@@ -35,6 +34,11 @@ pub type AnyMessage = Box<dyn Any + Send + 'static>;
 /// Result type when creating a relay connection.
 pub type RelayResult = Result<AnyMessage, RelayError>;
 
+/// Channel to retrieve the consumer of the relay connection.
+/// Technically they should be `oneshot`, but having them as mpsc simplifies reusing the relay
+pub type ConsumerSender<Message> = sync_mpsc::Sender<Receiver<Message>>;
+pub type ConsumerReceiver<Message> = sync_mpsc::Receiver<Receiver<Message>>;
+
 /// Channel receiver of a relay connection.
 #[derive(Debug)]
 pub struct InboundRelay<Message> {
@@ -42,11 +46,26 @@ pub struct InboundRelay<Message> {
     /// Sender to return the consumer back to the caller
     /// This is used to maintain a single consumer while being able to reuse it when the same
     /// service is stopped and started.
-    return_sender: oneshot::Sender<Receiver<Message>>,
+    consumer_sender: ConsumerSender<Message>,
+    /// Size of the relay buffer, used for consistency in a hack in Drop to return the receiver
+    buffer_size: usize,
     _stats: (), // placeholder
 }
 
 impl<Message> InboundRelay<Message> {
+    pub fn new(
+        receiver: Receiver<Message>,
+        consumer_sender: ConsumerSender<Message>,
+        buffer_size: usize,
+    ) -> Self {
+        Self {
+            receiver,
+            consumer_sender,
+            buffer_size,
+            _stats: (),
+        }
+    }
+
     /// Receive a message from the relay connections
     pub async fn recv(&mut self) -> Option<Message> {
         self.receiver.recv().await
@@ -65,21 +84,22 @@ impl<Message> Drop for InboundRelay<Message> {
     fn drop(&mut self) {
         let Self {
             receiver,
-            return_sender,
+            consumer_sender,
+            buffer_size,
             ..
         } = self;
 
         // Instantiate a fake receiver to swap with the original one
         // This is hack to take ownership of the receiver, required to send it back
-        let (_sender, mut swapped_receiver) = channel(32);
+        let (_sender, mut swapped_receiver) = channel(*buffer_size);
         mem::swap(&mut swapped_receiver, receiver);
 
         // Instantiate a fake return sender to swap with the original one
         // This is hack to take ownership of the receiver, required to call `send`
-        let (mut swapped_return_sender, _oneshot_rx) = oneshot::channel();
-        mem::swap(&mut swapped_return_sender, return_sender);
+        let (mut swapped_consumer_sender, _oneshot_rx) = sync_mpsc::channel();
+        mem::swap(&mut swapped_consumer_sender, consumer_sender);
 
-        if let Err(e) = swapped_return_sender.send(swapped_receiver) {
+        if let Err(e) = swapped_consumer_sender.send(swapped_receiver) {
             panic!("Failed returning receiver: {:?}", e);
         }
     }
@@ -88,20 +108,19 @@ impl<Message> Drop for InboundRelay<Message> {
 /// Channel sender of a relay connection.
 pub struct OutboundRelay<Message> {
     sender: Sender<Message>,
-    /// Receiver to fetch the consumer
-    /// This is used to maintain a single consumer while being able to reuse it when the same
-    /// service is stopped and started.
-    /// TODO: The relay needs to be recreated when the service is stopped and started, to reset
-    ///   the channel.
-    return_receiver: Arc<oneshot::Receiver<Receiver<Message>>>,
     _stats: (), // placeholder
+}
+
+impl<Message> OutboundRelay<Message> {
+    pub fn new(sender: Sender<Message>) -> Self {
+        Self { sender, _stats: () }
+    }
 }
 
 impl<Message> Clone for OutboundRelay<Message> {
     fn clone(&self) -> Self {
         Self {
             sender: self.sender.clone(),
-            return_receiver: Arc::clone(&self.return_receiver),
             _stats: (),
         }
     }
@@ -146,23 +165,24 @@ where
     }
 }
 
-/// Relay channel builder.
-// TODO: make buffer_size const?
-#[must_use]
-pub fn relay<Message>(buffer_size: usize) -> (InboundRelay<Message>, OutboundRelay<Message>) {
-    let (sender, receiver) = channel(buffer_size);
-    let (return_sender, return_receiver) = oneshot::channel();
-    let return_receiver = Arc::new(return_receiver);
-    (
-        InboundRelay {
-            receiver,
-            return_sender,
-            _stats: (),
-        },
-        OutboundRelay {
-            sender,
-            return_receiver,
-            _stats: (),
-        },
-    )
+pub struct Relay<Message> {
+    pub inbound: InboundRelay<Message>,
+    pub outbound: OutboundRelay<Message>,
+    pub consumer_sender: ConsumerSender<Message>,
+    pub consumer_receiver: ConsumerReceiver<Message>,
+}
+
+impl<Message> Relay<Message> {
+    // TODO: make buffer_size const?
+    #[must_use]
+    pub fn new(buffer_size: usize) -> Self {
+        let (sender, receiver) = channel(buffer_size);
+        let (consumer_sender, consumer_receiver) = sync_mpsc::channel();
+        Self {
+            inbound: InboundRelay::new(receiver, consumer_sender.clone(), buffer_size),
+            outbound: OutboundRelay::new(sender),
+            consumer_sender,
+            consumer_receiver,
+        }
+    }
 }
