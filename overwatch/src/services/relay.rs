@@ -1,12 +1,13 @@
-use futures::{Sink, Stream};
-use std::sync::mpsc as sync_mpsc;
 use std::{
     any::Any,
     fmt::Debug,
     mem,
     pin::Pin,
+    sync::mpsc as sync_mpsc,
     task::{Context, Poll},
 };
+
+use futures::{Sink, Stream};
 use thiserror::Error;
 use tokio::sync::mpsc::{channel, Receiver, Sender};
 use tokio_util::sync::PollSender;
@@ -35,7 +36,8 @@ pub type AnyMessage = Box<dyn Any + Send + 'static>;
 pub type RelayResult = Result<AnyMessage, RelayError>;
 
 /// Channel to retrieve the consumer of the relay connection.
-/// Technically they should be `oneshot`, but having them as mpsc simplifies reusing the relay
+/// The intended usage is oneshot-like, but having them as mpsc simplifies
+/// reusing the relay when a service is stopped and started.
 pub type ConsumerSender<Message> = sync_mpsc::Sender<Receiver<Message>>;
 pub type ConsumerReceiver<Message> = sync_mpsc::Receiver<Receiver<Message>>;
 
@@ -44,16 +46,18 @@ pub type ConsumerReceiver<Message> = sync_mpsc::Receiver<Receiver<Message>>;
 pub struct InboundRelay<Message> {
     receiver: Receiver<Message>,
     /// Sender to return the consumer back to the caller
-    /// This is used to maintain a single consumer while being able to reuse it when the same
-    /// service is stopped and started.
+    /// This is used to maintain a single consumer while being able to reuse it
+    /// when the same service is stopped and started.
     consumer_sender: ConsumerSender<Message>,
-    /// Size of the relay buffer, used for consistency in a hack in Drop to return the receiver
+    /// Size of the relay buffer, used for consistency in a hack in Drop to
+    /// return the receiver
     buffer_size: usize,
     _stats: (), // placeholder
 }
 
 impl<Message> InboundRelay<Message> {
-    pub fn new(
+    #[must_use]
+    pub const fn new(
         receiver: Receiver<Message>,
         consumer_sender: ConsumerSender<Message>,
         buffer_size: usize,
@@ -100,7 +104,7 @@ impl<Message> Drop for InboundRelay<Message> {
         mem::swap(&mut swapped_consumer_sender, consumer_sender);
 
         if let Err(e) = swapped_consumer_sender.send(swapped_receiver) {
-            panic!("Failed returning receiver: {:?}", e);
+            panic!("Failed returning receiver: {e:?}");
         }
     }
 }
@@ -112,7 +116,8 @@ pub struct OutboundRelay<Message> {
 }
 
 impl<Message> OutboundRelay<Message> {
-    pub fn new(sender: Sender<Message>) -> Self {
+    #[must_use]
+    pub const fn new(sender: Sender<Message>) -> Self {
         Self { sender, _stats: () }
     }
 }
