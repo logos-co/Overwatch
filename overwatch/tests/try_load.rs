@@ -1,19 +1,19 @@
-use std::{thread, time::Duration};
+use std::{
+    sync::mpsc::{self, SendError},
+    thread,
+    time::Duration,
+};
 
-// Crates
 use async_trait::async_trait;
 use overwatch::{
     derive_services,
     overwatch::OverwatchRunner,
     services::{
-        life_cycle::LifecycleMessage,
         state::{ServiceState, StateOperator},
         ServiceCore, ServiceData,
     },
-    DynError, OpaqueServiceStateHandle,
+    DynError, OpaqueServiceResourcesHandle,
 };
-use tokio::sync::{broadcast, broadcast::error::SendError};
-use tokio_stream::StreamExt as _;
 
 #[derive(Clone)]
 struct TryLoadState;
@@ -55,11 +55,11 @@ impl StateOperator for TryLoadOperator {
 
 #[derive(Debug, Clone)]
 struct TryLoadSettings {
-    origin_sender: broadcast::Sender<String>,
+    origin_sender: mpsc::Sender<String>,
 }
 
 struct TryLoad {
-    service_state_handle: OpaqueServiceStateHandle<Self, RuntimeServiceId>,
+    service_resources_handle: OpaqueServiceResourcesHandle<Self, RuntimeServiceId>,
 }
 
 impl ServiceData for TryLoad {
@@ -72,17 +72,17 @@ impl ServiceData for TryLoad {
 #[async_trait]
 impl ServiceCore<RuntimeServiceId> for TryLoad {
     fn init(
-        service_state: OpaqueServiceStateHandle<Self, RuntimeServiceId>,
+        service_resources_handle: OpaqueServiceResourcesHandle<Self, RuntimeServiceId>,
         _initial_state: Self::State,
     ) -> Result<Self, DynError> {
         Ok(Self {
-            service_state_handle: service_state,
+            service_resources_handle,
         })
     }
 
     async fn run(self) -> Result<(), DynError> {
         let Self {
-            service_state_handle,
+            service_resources_handle,
             ..
         } = self;
 
@@ -118,7 +118,7 @@ struct TryLoadApp {
 #[test]
 fn load_state_from_operator() {
     // Create a sender that will be called wherever the state is loaded
-    let (origin_sender, mut origin_receiver) = broadcast::channel(1);
+    let (origin_sender, origin_receiver) = mpsc::channel();
     let settings = TryLoadAppServiceSettings {
         try_load: TryLoadSettings { origin_sender },
     };
@@ -136,6 +136,12 @@ fn load_state_from_operator() {
 
     // Check if the origin was called
     thread::sleep(Duration::from_secs(1));
-    let origin = origin_receiver.try_recv().expect("Value was not sent");
-    assert_eq!(origin, "StateOperator::try_load");
+    let service_message_1 = origin_receiver.recv().expect("Value was not sent");
+    assert_eq!(service_message_1, "StateOperator::try_load");
+    // TODO: Remove when the double initialization is removed on
+    //   ServiceHandle/ServiceRunner.
+    let service_message_2 = origin_receiver.recv().expect("Value was not sent");
+    assert_eq!(service_message_2, "StateOperator::try_load");
+    let service_message_3 = origin_receiver.recv().expect("Value was not sent");
+    assert_eq!(service_message_3, "Service::run");
 }

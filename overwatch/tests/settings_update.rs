@@ -9,13 +9,13 @@ use overwatch::{
         state::{NoOperator, NoState},
         ServiceCore, ServiceData,
     },
-    OpaqueServiceStateHandle,
+    OpaqueServiceResourcesHandle,
 };
 use tokio::time::sleep;
 use tokio_stream::StreamExt as _;
 
 pub struct SettingsService {
-    state: OpaqueServiceStateHandle<Self, RuntimeServiceId>,
+    service_resources_handle: OpaqueServiceResourcesHandle<Self, RuntimeServiceId>,
 }
 
 type SettingsServiceSettings = String;
@@ -33,16 +33,18 @@ impl ServiceData for SettingsService {
 #[async_trait]
 impl ServiceCore<RuntimeServiceId> for SettingsService {
     fn init(
-        state: OpaqueServiceStateHandle<Self, RuntimeServiceId>,
+        service_resources_handle: OpaqueServiceResourcesHandle<Self, RuntimeServiceId>,
         _initial_state: Self::State,
     ) -> Result<Self, overwatch::DynError> {
-        Ok(Self { state })
+        Ok(Self {
+            service_resources_handle,
+        })
     }
 
     async fn run(mut self) -> Result<(), overwatch::DynError> {
         let Self {
-            state:
-                OpaqueServiceStateHandle::<Self, RuntimeServiceId> {
+            service_resources_handle:
+                OpaqueServiceResourcesHandle::<Self, RuntimeServiceId> {
                     settings_reader,
                     lifecycle_handle,
                     ..

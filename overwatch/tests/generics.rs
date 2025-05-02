@@ -8,7 +8,7 @@ use overwatch::{
     services::{
         life_cycle::LifecycleMessage,
         state::{NoOperator, NoState},
-        state_handle::ServiceStateHandle,
+        state_handle::ServiceResourcesHandle,
         ServiceCore, ServiceData,
     },
 };
@@ -16,7 +16,8 @@ use tokio::time::sleep;
 use tokio_stream::StreamExt as _;
 
 pub struct GenericService {
-    state: ServiceStateHandle<GenericServiceMessage, (), NoState<()>, RuntimeServiceId>,
+    service_resources_handle:
+        ServiceResourcesHandle<GenericServiceMessage, (), NoState<()>, RuntimeServiceId>,
 }
 
 #[derive(Clone, Debug)]
@@ -32,18 +33,25 @@ impl ServiceData for GenericService {
 #[async_trait]
 impl ServiceCore<RuntimeServiceId> for GenericService {
     fn init(
-        state: ServiceStateHandle<Self::Message, Self::Settings, Self::State, RuntimeServiceId>,
+        service_resources_handle: ServiceResourcesHandle<
+            Self::Message,
+            Self::Settings,
+            Self::State,
+            RuntimeServiceId,
+        >,
         _initial_state: Self::State,
     ) -> Result<Self, overwatch::DynError> {
-        Ok(Self { state })
+        Ok(Self {
+            service_resources_handle,
+        })
     }
 
     async fn run(mut self) -> Result<(), overwatch::DynError> {
         use tokio::io::{self, AsyncWriteExt};
 
         let Self {
-            state:
-                ServiceStateHandle {
+            service_resources_handle:
+                ServiceResourcesHandle {
                     mut inbound_relay,
                     lifecycle_handle,
                     ..
