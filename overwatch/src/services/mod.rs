@@ -9,7 +9,8 @@ pub mod status;
 
 use async_trait::async_trait;
 use state::ServiceState;
-use state_handle::ServiceStateHandle;
+
+use crate::services::state_handle::ServiceResourcesHandle;
 
 /// The core data a service needs to handle.
 /// Holds the necessary information of a service.
@@ -45,7 +46,7 @@ pub trait ServiceCore<RuntimeServiceId>: Sized + ServiceData {
     ///
     /// The initialization creation error.
     fn init(
-        service_state_handle: ServiceStateHandle<
+        service_resources_handle: ServiceResourcesHandle<
             Self::Message,
             Self::Settings,
             Self::State,

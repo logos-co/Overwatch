@@ -9,7 +9,7 @@ use overwatch::{
         state::{ServiceState, StateOperator},
         ServiceCore, ServiceData,
     },
-    OpaqueServiceStateHandle,
+    OpaqueServiceResourcesHandle,
 };
 use tokio::{
     io::{self, AsyncWriteExt},
@@ -18,7 +18,7 @@ use tokio::{
 use tokio_stream::StreamExt as _;
 
 pub struct UpdateStateService {
-    state: OpaqueServiceStateHandle<Self, RuntimeServiceId>,
+    service_resources_handle: OpaqueServiceResourcesHandle<Self, RuntimeServiceId>,
 }
 
 #[derive(Clone, Debug)]
@@ -88,16 +88,18 @@ impl ServiceData for UpdateStateService {
 #[async_trait]
 impl ServiceCore<RuntimeServiceId> for UpdateStateService {
     fn init(
-        state: OpaqueServiceStateHandle<Self, RuntimeServiceId>,
+        service_resources_handle: OpaqueServiceResourcesHandle<Self, RuntimeServiceId>,
         _initial_state: Self::State,
     ) -> Result<Self, overwatch::DynError> {
-        Ok(Self { state })
+        Ok(Self {
+            service_resources_handle,
+        })
     }
 
     async fn run(mut self) -> Result<(), overwatch::DynError> {
         let Self {
-            state:
-                OpaqueServiceStateHandle::<Self, RuntimeServiceId> {
+            service_resources_handle:
+                OpaqueServiceResourcesHandle::<Self, RuntimeServiceId> {
                     state_updater,
                     lifecycle_handle,
                     ..

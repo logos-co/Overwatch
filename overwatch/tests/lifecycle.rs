@@ -16,10 +16,10 @@ use overwatch::{
     services::{
         life_cycle::LifecycleMessage,
         state::{ServiceState, StateOperator},
-        state_handle::ServiceStateHandle,
+        state_handle::ServiceResourcesHandle,
         ServiceCore, ServiceData,
     },
-    DynError, OpaqueServiceStateHandle,
+    DynError, OpaqueServiceResourcesHandle,
 };
 use overwatch_derive::derive_services;
 use tokio::{runtime::Handle, sync::broadcast};
@@ -80,8 +80,8 @@ struct LifecycleServiceSettings {
 }
 
 struct LifecycleService {
+    service_resources_handle: OpaqueServiceResourcesHandle<Self, RuntimeServiceId>,
     initial_state: <Self as ServiceData>::State,
-    service_state_handle: OpaqueServiceStateHandle<Self, RuntimeServiceId>,
 }
 
 impl ServiceData for LifecycleService {
@@ -94,7 +94,7 @@ impl ServiceData for LifecycleService {
 #[async_trait::async_trait]
 impl ServiceCore<RuntimeServiceId> for LifecycleService {
     fn init(
-        service_state_handle: ServiceStateHandle<
+        service_resources_handle: ServiceResourcesHandle<
             Self::Message,
             Self::Settings,
             Self::State,
@@ -103,18 +103,18 @@ impl ServiceCore<RuntimeServiceId> for LifecycleService {
         initial_state: Self::State,
     ) -> Result<Self, DynError> {
         Ok(Self {
-            service_state_handle,
+            service_resources_handle,
             initial_state,
         })
     }
 
     async fn run(self) -> Result<(), DynError> {
         let Self {
-            service_state_handle,
+            service_resources_handle,
             initial_state,
         } = self;
 
-        let sender = service_state_handle
+        let sender = service_resources_handle
             .settings_reader
             .get_updated_settings()
             .sender;
@@ -123,7 +123,7 @@ impl ServiceCore<RuntimeServiceId> for LifecycleService {
         sender.send(initial_state.value.to_string()).unwrap();
 
         // Increment and save
-        service_state_handle.state_updater.update(Self::State {
+        service_resources_handle.state_updater.update(Self::State {
             value: initial_state.value + 1,
         });
 

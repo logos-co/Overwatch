@@ -10,13 +10,13 @@ use overwatch::{
         state::{NoOperator, NoState},
         ServiceCore, ServiceData,
     },
-    OpaqueServiceStateHandle,
+    OpaqueServiceResourcesHandle,
 };
 use tokio::time::sleep;
 use tokio_stream::StreamExt as _;
 
 pub struct PrintService {
-    state: OpaqueServiceStateHandle<Self, RuntimeServiceId>,
+    service_resources_handle: OpaqueServiceResourcesHandle<Self, RuntimeServiceId>,
 }
 
 #[derive(Clone, Debug)]
@@ -32,18 +32,20 @@ impl ServiceData for PrintService {
 #[async_trait]
 impl ServiceCore<RuntimeServiceId> for PrintService {
     fn init(
-        state: OpaqueServiceStateHandle<Self, RuntimeServiceId>,
+        service_resources_handle: OpaqueServiceResourcesHandle<Self, RuntimeServiceId>,
         _initial_state: Self::State,
     ) -> Result<Self, overwatch::DynError> {
-        Ok(Self { state })
+        Ok(Self {
+            service_resources_handle,
+        })
     }
 
     async fn run(mut self) -> Result<(), overwatch::DynError> {
         use tokio::io::{self, AsyncWriteExt};
 
         let Self {
-            state:
-                OpaqueServiceStateHandle::<Self, RuntimeServiceId> {
+            service_resources_handle:
+                OpaqueServiceResourcesHandle::<Self, RuntimeServiceId> {
                     mut inbound_relay,
                     lifecycle_handle,
                     ..
