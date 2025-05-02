@@ -11,13 +11,13 @@ use overwatch::{
         state::{NoOperator, NoState},
         AsServiceId, ServiceCore, ServiceData,
     },
-    DynError, OpaqueServiceStateHandle,
+    DynError, OpaqueServiceResourcesHandle,
 };
 use tokio::time::sleep;
 use tokio_stream::StreamExt as _;
 
 pub struct CancellableService {
-    service_state: OpaqueServiceStateHandle<Self, RuntimeServiceId>,
+    service_resources_handle: OpaqueServiceResourcesHandle<Self, RuntimeServiceId>,
 }
 
 impl ServiceData for CancellableService {
@@ -30,14 +30,19 @@ impl ServiceData for CancellableService {
 #[async_trait::async_trait]
 impl ServiceCore<RuntimeServiceId> for CancellableService {
     fn init(
-        service_state: OpaqueServiceStateHandle<Self, RuntimeServiceId>,
+        service_resources_handle: OpaqueServiceResourcesHandle<Self, RuntimeServiceId>,
         _initial_state: Self::State,
     ) -> Result<Self, DynError> {
-        Ok(Self { service_state })
+        Ok(Self {
+            service_resources_handle,
+        })
     }
 
     async fn run(self) -> Result<(), DynError> {
-        let mut lifecycle_stream = self.service_state.lifecycle_handle.message_stream();
+        let mut lifecycle_stream = self
+            .service_resources_handle
+            .lifecycle_handle
+            .message_stream();
 
         let lifecycle_message = lifecycle_stream
             .next()
