@@ -123,10 +123,6 @@ fn load_state_from_operator() {
     thread::sleep(Duration::from_secs(1));
     let service_message_1 = origin_receiver.recv().expect("Value was not sent");
     assert_eq!(service_message_1, "StateOperator::try_load");
-    // TODO: Remove when the double initialization is removed on
-    //   ServiceHandle/ServiceRunner.
     let service_message_2 = origin_receiver.recv().expect("Value was not sent");
-    assert_eq!(service_message_2, "StateOperator::try_load");
-    let service_message_3 = origin_receiver.recv().expect("Value was not sent");
-    assert_eq!(service_message_3, "Service::run");
+    assert_eq!(service_message_2, "Service::run");
 }

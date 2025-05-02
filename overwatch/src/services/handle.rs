@@ -1,18 +1,13 @@
 use tokio::runtime::Handle;
-use tracing::info;
 
-use crate::services::state::StateUpdater;
 use crate::{
     overwatch::handle::OverwatchHandle,
     services::{
         life_cycle::LifecycleHandle,
-        relay::{OutboundRelay, Relay},
-        runner::ServiceRunner,
+        relay::OutboundRelay,
         settings::SettingsUpdater,
-        state::{StateHandle, StateOperator},
-        state_handle::ServiceResources,
+        state::StateHandle,
         status::{StatusHandle, StatusWatcher},
-        ServiceState,
     },
 };
 
@@ -23,63 +18,41 @@ use crate::{
 // and when it is not. That way we could expose a better API depending on what
 // is happening and it would get rid of the probably unnecessary Option and
 // cloning.
+#[derive(Clone)]
 pub struct ServiceHandle<Message, Settings, State, Operator, RuntimeServiceId> {
     /// Message channel relay
     ///
     /// It contains the channel if the service is running, otherwise it'll be
     /// [`None`]
+    /// TODO: Remove Option
     outbound_relay: Option<OutboundRelay<Message>>,
     overwatch_handle: OverwatchHandle<RuntimeServiceId>,
     settings_updater: SettingsUpdater<Settings>,
-    status: StatusHandle,
+    status_handle: StatusHandle,
     state_handle: StateHandle<State, Operator>,
-    state_updater: StateUpdater<State>, // TODO: Remove this. It's not needed.
-    relay_buffer_size: usize,
+    lifecycle_handle: LifecycleHandle,
 }
 
 impl<Message, Settings, State, Operator, RuntimeServiceId>
     ServiceHandle<Message, Settings, State, Operator, RuntimeServiceId>
-where
-    Settings: Clone,
-    State: ServiceState<Settings = Settings> + Clone,
-    RuntimeServiceId: Clone,
-    Operator: StateOperator<State = State> + Clone,
 {
     /// Crate a new service handle.
-    ///
-    /// # Errors
-    ///
-    /// If the service state cannot be loaded from the provided settings.
-    pub fn new(
-        settings: Settings,
+    pub const fn new(
+        outbound_relay: Option<OutboundRelay<Message>>,
         overwatch_handle: OverwatchHandle<RuntimeServiceId>,
+        settings_updater: SettingsUpdater<Settings>,
+        status_handle: StatusHandle,
+        state_handle: StateHandle<State, Operator>,
         lifecycle_handle: LifecycleHandle,
-        relay_buffer_size: usize,
-    ) -> Result<Self, State::Error> {
-        let settings_updater = SettingsUpdater::new(settings);
-        let settings = settings_updater.notifier().get_updated_settings();
-        let operator = Operator::from_settings(&settings);
-
-        // TODO: Remove. Initial state should be in runner, as well as state stuff.
-        let initial_state = if let Ok(Some(loaded_state)) = Operator::try_load(&settings) {
-            info!("Loaded state from Operator");
-            loaded_state
-        } else {
-            info!("Couldn't load state from Operator. Creating from settings.");
-            State::from_settings(&settings)?
-        };
-        let (state_handle, state_updater) =
-            StateHandle::<State, Operator>::new(initial_state, operator);
-
-        Ok(Self {
-            outbound_relay: None,
+    ) -> Self {
+        Self {
+            outbound_relay,
             overwatch_handle,
             settings_updater,
-            status: StatusHandle::new(),
+            status_handle,
             state_handle,
-            state_updater,
-            relay_buffer_size,
-        })
+            lifecycle_handle,
+        }
     }
 
     /// Get the service's [`Handle`].
@@ -105,7 +78,7 @@ where
 
     /// Get the [`StatusWatcher`] for this service.
     pub fn status_watcher(&self) -> StatusWatcher {
-        self.status.watcher()
+        self.status_handle.watcher()
     }
 
     /// Update the current settings with a new one.
@@ -113,42 +86,18 @@ where
         self.settings_updater.update(settings);
     }
 
-    /// Build a runner for this service
-    pub fn service_runner(
-        &mut self,
-    ) -> ServiceRunner<Message, Settings, State, Operator, RuntimeServiceId> {
-        // TODO: Add proper status handling here.
-        // A service should be able to produce a runner if it is already running.
+    /// Get the [`StatusHandle`] for this service.
+    pub const fn status_handle(&self) -> &StatusHandle {
+        &self.status_handle
+    }
 
-        let Relay {
-            inbound,
-            outbound,
-            consumer_sender,
-            consumer_receiver,
-        } = Relay::new(self.relay_buffer_size);
+    /// Get the [`StateHandle`] for this service.
+    pub const fn state_handle(&self) -> &StateHandle<State, Operator> {
+        &self.state_handle
+    }
 
-        let settings_reader = self.settings_updater.notifier();
-        // Add relay channel to handle
-        self.outbound_relay = Some(outbound);
-
-        let lifecycle_handle = LifecycleHandle::new();
-
-        let service_resources = ServiceResources::new(
-            self.status.clone(),
-            self.overwatch_handle.clone(),
-            settings_reader,
-            self.state_updater.clone(),
-            lifecycle_handle.clone(),
-        );
-
-        ServiceRunner::new(
-            service_resources,
-            self.state_handle.clone(),
-            lifecycle_handle,
-            inbound,
-            consumer_sender,
-            consumer_receiver,
-            self.relay_buffer_size,
-        )
+    /// Get the [`LifecycleHandle`] for this service.
+    pub const fn lifecycle_handle(&self) -> &LifecycleHandle {
+        &self.lifecycle_handle
     }
 }
