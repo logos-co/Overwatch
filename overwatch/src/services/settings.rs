@@ -37,6 +37,7 @@ where
 }
 
 /// Settings update notification sender.
+#[derive(Clone)]
 pub struct SettingsUpdater<Settings> {
     sender: Sender<Settings>,
     receiver: Receiver<Settings>,
