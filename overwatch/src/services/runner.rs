@@ -1,16 +1,19 @@
-use std::fmt::Display;
+use std::fmt::{Debug, Display};
 
 use tokio::task::JoinHandle;
 use tokio_stream::StreamExt;
 use tracing::info;
 
-use crate::services::handle::ServiceHandle;
 use crate::{
+    overwatch::handle::OverwatchHandle,
     services::{
+        handle::ServiceHandle,
         life_cycle::{LifecycleHandle, LifecycleMessage},
-        relay::{ConsumerReceiver, ConsumerSender, InboundRelay},
+        relay::{InboundRelay, Relay},
+        settings::SettingsUpdater,
         state::{ServiceState, StateHandle, StateOperator},
         state_handle::ServiceResources,
+        status::StatusHandle,
         AsServiceId, ServiceCore,
     },
     DynError,
@@ -23,36 +26,62 @@ pub struct ServiceRunner<Message, Settings, State, StateOperator, RuntimeService
     service_resources: ServiceResources<Message, Settings, State, RuntimeServiceId>,
     state_handle: StateHandle<State, StateOperator>,
     lifecycle_handle: LifecycleHandle,
-    inbound_relay: InboundRelay<Message>,
-    consumer_sender: ConsumerSender<Message>,
-    consumer_receiver: ConsumerReceiver<Message>,
+    overwatch_handle: OverwatchHandle<RuntimeServiceId>,
+    settings_updater: SettingsUpdater<Settings>,
+    status_handle: StatusHandle,
+    relay: Relay<Message>,
     relay_buffer_size: usize,
 }
 
 impl<Message, Settings, State, StateOp, RuntimeServiceId>
     ServiceRunner<Message, Settings, State, StateOp, RuntimeServiceId>
+where
+    Settings: Clone,
+    State: ServiceState<Settings = Settings> + Clone,
+    <State as ServiceState>::Error: Display + Debug,
+    StateOp: StateOperator<State = State> + Clone,
+    RuntimeServiceId: Clone,
 {
-    #![expect(
-        clippy::too_many_arguments,
-        reason = "Refactor in progress. This will be simplified."
-    )]
+    /// Creates a new `ServiceRunner`.
+    ///
+    /// # Panics
+    ///
+    /// If the state cannot be created from the settings.
     #[must_use]
-    pub const fn new(
-        service_resources: ServiceResources<Message, Settings, State, RuntimeServiceId>,
-        state_handle: StateHandle<State, StateOp>,
-        lifecycle_handle: LifecycleHandle,
-        inbound_relay: InboundRelay<Message>,
-        consumer_sender: ConsumerSender<Message>,
-        consumer_receiver: ConsumerReceiver<Message>,
+    pub fn new(
+        settings: Settings,
+        overwatch_handle: OverwatchHandle<RuntimeServiceId>,
         relay_buffer_size: usize,
     ) -> Self {
+        let lifecycle_handle = LifecycleHandle::new();
+        let relay = Relay::new(relay_buffer_size);
+        let status_handle = StatusHandle::new();
+        let state_operator = StateOp::from_settings(&settings);
+        let settings_updater = SettingsUpdater::new(settings.clone());
+        let settings_reader = settings_updater.notifier();
+
+        // TODO: Needs to be initialized on start, not here, otherwise it's two times
+        //   Probably solved by watch -> broadcast
+        let state_zero = State::from_settings(&settings).expect("Failed to create state Zero");
+        let (state_handle, state_updater) =
+            StateHandle::<State, StateOp>::new(state_zero, state_operator);
+
+        let service_resources = ServiceResources::new(
+            status_handle.clone(),
+            overwatch_handle.clone(),
+            settings_reader,
+            state_updater,
+            lifecycle_handle.clone(),
+        );
+
         Self {
             service_resources,
             state_handle,
             lifecycle_handle,
-            inbound_relay,
-            consumer_sender,
-            consumer_receiver,
+            overwatch_handle,
+            settings_updater,
+            status_handle,
+            relay,
             relay_buffer_size,
         }
     }
@@ -68,7 +97,7 @@ where
     Message: 'static + Send + Sync,
     Settings: Clone + 'static + Sync + Send,
     RuntimeServiceId: 'static + Clone + Send,
-    <State as ServiceState>::Error: Display + std::fmt::Debug,
+    <State as ServiceState>::Error: Display + Debug,
 {
     /// Spawn the service main loop and handle its lifecycle.
     ///
@@ -87,19 +116,8 @@ where
         RuntimeServiceId: AsServiceId<Service>,
         StateOp: Clone, // For StateHandle::clone
     {
-        // Return a copy of the lifecycle handle to the caller, it's the same that will
-        // be passed to the service.
-        let lifecycle_handle = self.lifecycle_handle.clone();
-        let overwatch_handle = self.service_resources.overwatch_handle.clone();
-
-        let service_handle = ServiceHandle::new(
-            settings,
-            overwatch_handle,
-            lifecycle_handle,
-            self.relay_buffer_size,
-        )?;
-
-        let runtime = self.service_resources.overwatch_handle.runtime();
+        let service_handle = ServiceHandle::from(&self);
+        let runtime = self.service_resources.overwatch_handle.runtime().clone();
         let _lifecycle_task_handle = runtime.spawn(self.run_::<Service>());
 
         service_handle
@@ -113,28 +131,36 @@ where
         RuntimeServiceId: Clone, // For ServiceStateHandle::into
     {
         let Self {
-            inbound_relay,
-            consumer_sender,
-            consumer_receiver,
             service_resources,
             state_handle,
             lifecycle_handle,
+            relay,
             relay_buffer_size,
+            ..
         } = self;
 
-        let mut service_task_handle: Option<_> = None;
-        let mut state_handle_task_handle: Option<_> = None;
-        let mut inbound_relay = Some(inbound_relay);
+        let Relay {
+            inbound,
+            outbound: _,
+            consumer_sender,
+            consumer_receiver,
+        } = relay;
 
         let runtime = service_resources.overwatch_handle.runtime().clone();
         let mut lifecycle_stream = lifecycle_handle.message_stream();
+        let mut service_task_handle: Option<_> = None;
+        let mut state_handle_task_handle: Option<_> = None;
+
+        let mut inbound_relay = Some(inbound);
 
         while let Some(lifecycle_message) = lifecycle_stream.next().await {
             match lifecycle_message {
                 LifecycleMessage::Start(sender) => {
-                    // TODO: Better error handling
-                    let initial_state = Self::get_service_initial_state(&service_resources)
-                        .expect("Couldn't build initial state");
+                    let initial_state_result = Self::get_service_initial_state(&service_resources);
+                    let Ok(initial_state) = initial_state_result else {
+                        // TODO: Print error message
+                        panic!("Failed to create initial state from settings");
+                    };
 
                     let inbound_relay = inbound_relay.take().expect("Inbound relay must exist");
                     let services_resources_handle = service_resources.to_handle(inbound_relay);
@@ -176,9 +202,14 @@ where
         }
     }
 
+    /// Retrieves the initial state for the service.
+    ///
+    /// First tries to load the state from the operator (a previously saved
+    /// state). If it fails, it defaults to the initial state created from
+    /// the settings.
     fn get_service_initial_state(
         service_resources: &ServiceResources<Message, Settings, State, RuntimeServiceId>,
-    ) -> Result<State, <State as ServiceState>::Error> {
+    ) -> Result<State, State::Error> {
         let settings = service_resources.settings_reader.get_updated_settings();
         if let Ok(Some(loaded_state)) = StateOp::try_load(&settings) {
             info!("Loaded state from Operator");
@@ -199,5 +230,27 @@ where
         if let Some(handle) = state_handle_task_handle.take() {
             handle.abort_handle().abort();
         }
+    }
+}
+
+impl<Message, Settings, State, Operator, RuntimeServiceId>
+    From<&ServiceRunner<Message, Settings, State, Operator, RuntimeServiceId>>
+    for ServiceHandle<Message, Settings, State, Operator, RuntimeServiceId>
+where
+    RuntimeServiceId: Clone,
+    Settings: Clone,
+    Operator: Clone,
+{
+    fn from(
+        service_runner: &ServiceRunner<Message, Settings, State, Operator, RuntimeServiceId>,
+    ) -> Self {
+        Self::new(
+            Some(service_runner.relay.outbound.clone()),
+            service_runner.overwatch_handle.clone(),
+            service_runner.settings_updater.clone(),
+            service_runner.status_handle.clone(),
+            service_runner.state_handle.clone(),
+            service_runner.lifecycle_handle.clone(),
+        )
     }
 }

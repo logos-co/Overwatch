@@ -50,7 +50,15 @@ where
 
     /// Create a new [`ServiceResourcesHandle`](ServiceResourcesHandle) from the
     /// current `ServiceResources`.
-    /// TODO: Needed extra inbound_relay?
+    ///
+    /// # Parameters
+    ///
+    /// * `inbound_relay`: The relay the service will use to receive messages.
+    ///   Due to the singleton nature of the inbound relay, if the recipient
+    ///   service is being restarted, then the relay should be same one returned
+    ///   by the previous instance when it was stopped. This ensures the new
+    ///   instance will maintain communication with other services who opened a
+    ///   relay to the previous instance.
     #[must_use]
     pub fn to_handle(
         &self,
