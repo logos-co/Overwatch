@@ -85,27 +85,12 @@ impl ServiceCore<RuntimeServiceId> for TryLoad {
             service_resources_handle,
             ..
         } = self;
-
-        let mut lifecycle_stream = service_state_handle.lifecycle_handle.message_stream();
-
-        let lifecycle_message = lifecycle_stream
-            .next()
-            .await
-            .expect("first received message to be a lifecycle message.");
-
-        let sender = match lifecycle_message {
-            LifecycleMessage::Shutdown(sender) => {
-                sender.send(()).unwrap();
-                return Ok(());
-            }
-            LifecycleMessage::Kill => return Ok(()),
-            // Continue below if a `Start` message is received.
-            LifecycleMessage::Start(sender) => sender,
-        };
-
-        sender.send(()).unwrap();
-
-        service_state_handle.overwatch_handle.shutdown().await;
+        let sender = service_resources_handle
+            .settings_reader
+            .get_updated_settings()
+            .origin_sender;
+        sender.send(String::from("Service::run")).unwrap();
+        service_resources_handle.overwatch_handle.shutdown().await;
         Ok(())
     }
 }

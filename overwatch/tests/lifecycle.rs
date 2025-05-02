@@ -123,9 +123,10 @@ impl ServiceCore<RuntimeServiceId> for LifecycleService {
         sender.send(initial_state.value.to_string()).unwrap();
 
         // Increment and save
-        service_resources_handle.state_updater.update(Self::State {
-            value: initial_state.value + 1,
-        });
+        let value = initial_state.value + 1;
+        service_resources_handle
+            .state_updater
+            .update(Self::State { value });
 
         Ok(())
     }

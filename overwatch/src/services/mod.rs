@@ -1,7 +1,7 @@
 pub mod handle;
 pub mod life_cycle;
 pub mod relay;
-mod runner;
+pub mod runner;
 pub mod settings;
 pub mod state;
 pub mod state_handle;

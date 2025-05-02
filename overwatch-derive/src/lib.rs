@@ -417,10 +417,15 @@ fn generate_new_impl(fields: &Punctuated<Field, Comma>) -> proc_macro2::TokenStr
         let settings_field_identifier = service_settings_field_identifier_from(field_identifier);
         quote! {
             #field_identifier: {
-                let manager =
-                    ::overwatch::OpaqueServiceHandle::<#service_type, Self::RuntimeServiceId>::new::<<#service_type as ::overwatch::services::ServiceData>::StateOperator>(
+                // let manager =
+                //     ::overwatch::OpaqueServiceHandle::<#service_type, Self::RuntimeServiceId>::new(
+                //         #settings_field_identifier, overwatch_handle.clone(), <#service_type as ::overwatch::services::ServiceData>::SERVICE_RELAY_BUFFER_SIZE
+                // )?;
+                let runner =
+                    ::overwatch::OpaqueServiceRunner::<#service_type, Self::RuntimeServiceId>::new(
                         #settings_field_identifier, overwatch_handle.clone(), <#service_type as ::overwatch::services::ServiceData>::SERVICE_RELAY_BUFFER_SIZE
                 )?;
+                let manager = runner.run();
                 manager
             }
         }
@@ -458,7 +463,7 @@ fn generate_start_all_impl(fields: &Punctuated<Field, Comma>) -> proc_macro2::To
         let field_identifier = field.ident.as_ref().expect("A struct attribute identifier");
         let type_id = utils::extract_type_from(&field.ty);
         quote! {
-            #field_identifier: self.#field_identifier.service_runner::<<#type_id as ::overwatch::services::ServiceData>::StateOperator>().run::<#type_id>()?
+            #field_identifier: self.#field_identifier.service_runner().run::<#type_id>()
         }
     });
 
@@ -492,7 +497,7 @@ fn generate_start_impl(fields: &Punctuated<Field, Comma>) -> proc_macro2::TokenS
         let type_id = utils::extract_type_from(&field.ty);
         quote! {
             &<Self::RuntimeServiceId as ::overwatch::services::AsServiceId<#type_id>>::SERVICE_ID => {
-                self.#field_identifier.service_runner::<<#type_id as ::overwatch::services::ServiceData>::StateOperator>().run::<#type_id>()?;
+                self.#field_identifier.service_runner().run::<#type_id>();
                 ::core::result::Result::Ok(())
             }
         }
