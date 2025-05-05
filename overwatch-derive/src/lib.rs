@@ -569,9 +569,7 @@ fn generate_request_relay_impl(fields: &Punctuated<Field, Comma>) -> proc_macro2
         quote! {
             &<Self::RuntimeServiceId as ::overwatch::services::AsServiceId<#type_id>>::SERVICE_ID => {
                 ::core::result::Result::Ok(::std::boxed::Box::new(
-                    self.#field_identifier
-                        .relay_with()
-                        .ok_or(::overwatch::services::relay::RelayError::AlreadyConnected)?
+                    self.#field_identifier.relay_with()
                 ) as ::overwatch::services::relay::AnyMessage)
             }
         }
