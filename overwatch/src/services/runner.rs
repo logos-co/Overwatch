@@ -58,14 +58,13 @@ where
         let status_handle = StatusHandle::new();
         let state_operator = StateOp::from_settings(&settings);
         let settings_updater = SettingsUpdater::new(settings);
-        let settings_reader = settings_updater.notifier();
 
         let (state_handle, state_updater) = StateHandle::<State, StateOp>::new(state_operator);
 
         let service_resources = ServiceResources::new(
             status_handle.clone(),
             overwatch_handle.clone(),
-            settings_reader,
+            settings_updater.clone(),
             state_updater,
             lifecycle_handle.clone(),
         );
@@ -212,7 +211,10 @@ where
     fn get_service_initial_state(
         service_resources: &ServiceResources<Message, Settings, State, RuntimeServiceId>,
     ) -> Result<State, State::Error> {
-        let settings = service_resources.settings_reader.get_updated_settings();
+        let settings = service_resources
+            .settings_updater
+            .notifier()
+            .get_updated_settings();
         if let Ok(Some(loaded_state)) = StateOp::try_load(&settings) {
             info!("Loaded state from Operator");
             Ok(loaded_state)
