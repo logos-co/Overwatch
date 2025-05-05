@@ -115,7 +115,8 @@ impl ServiceCore<RuntimeServiceId> for LifecycleService {
         } = self;
 
         let sender = service_resources_handle
-            .settings_reader
+            .settings_updater
+            .notifier()
             .get_updated_settings()
             .sender;
 
