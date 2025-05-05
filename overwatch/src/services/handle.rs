@@ -24,8 +24,7 @@ pub struct ServiceHandle<Message, Settings, State, Operator, RuntimeServiceId> {
     ///
     /// It contains the channel if the service is running, otherwise it'll be
     /// [`None`]
-    /// TODO: Remove Option
-    outbound_relay: Option<OutboundRelay<Message>>,
+    outbound_relay: OutboundRelay<Message>,
     overwatch_handle: OverwatchHandle<RuntimeServiceId>,
     settings_updater: SettingsUpdater<Settings>,
     status_handle: StatusHandle,
@@ -38,7 +37,7 @@ impl<Message, Settings, State, Operator, RuntimeServiceId>
 {
     /// Crate a new service handle.
     pub const fn new(
-        outbound_relay: Option<OutboundRelay<Message>>,
+        outbound_relay: OutboundRelay<Message>,
         overwatch_handle: OverwatchHandle<RuntimeServiceId>,
         settings_updater: SettingsUpdater<Settings>,
         status_handle: StatusHandle,
@@ -72,7 +71,7 @@ impl<Message, Settings, State, Operator, RuntimeServiceId>
     /// Request a relay to this service.
     ///
     /// If the service is not running, it will return [`None`].
-    pub fn relay_with(&self) -> Option<OutboundRelay<Message>> {
+    pub fn relay_with(&self) -> OutboundRelay<Message> {
         self.outbound_relay.clone()
     }
 

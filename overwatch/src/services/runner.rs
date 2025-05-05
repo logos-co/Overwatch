@@ -250,7 +250,7 @@ where
         service_runner: &ServiceRunner<Message, Settings, State, Operator, RuntimeServiceId>,
     ) -> Self {
         Self::new(
-            Some(service_runner.relay.outbound.clone()),
+            service_runner.relay.outbound.clone(),
             service_runner.overwatch_handle.clone(),
             service_runner.settings_updater.clone(),
             service_runner.status_handle.clone(),
