@@ -23,7 +23,7 @@ pub type OpaqueServiceHandle<S, RuntimeServiceId> = services::handle::ServiceHan
     RuntimeServiceId,
 >;
 pub type OpaqueServiceResourcesHandle<S, RuntimeServiceId> =
-    services::state_handle::ServiceResourcesHandle<
+    services::resources::ServiceResourcesHandle<
         <S as ServiceData>::Message,
         <S as ServiceData>::Settings,
         <S as ServiceData>::State,

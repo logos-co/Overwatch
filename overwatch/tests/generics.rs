@@ -7,8 +7,8 @@ use overwatch::{
     overwatch::OverwatchRunner,
     services::{
         life_cycle::LifecycleMessage,
+        resources::ServiceResourcesHandle,
         state::{NoOperator, NoState},
-        state_handle::ServiceResourcesHandle,
         ServiceCore, ServiceData,
     },
 };
