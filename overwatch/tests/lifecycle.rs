@@ -15,8 +15,8 @@ use overwatch::{
     },
     services::{
         life_cycle::LifecycleMessage,
+        resources::ServiceResourcesHandle,
         state::{ServiceState, StateOperator},
-        state_handle::ServiceResourcesHandle,
         ServiceCore, ServiceData,
     },
     DynError, OpaqueServiceResourcesHandle,
