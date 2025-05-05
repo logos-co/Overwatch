@@ -57,14 +57,10 @@ where
         let relay = Relay::new(relay_buffer_size);
         let status_handle = StatusHandle::new();
         let state_operator = StateOp::from_settings(&settings);
-        let settings_updater = SettingsUpdater::new(settings.clone());
+        let settings_updater = SettingsUpdater::new(settings);
         let settings_reader = settings_updater.notifier();
 
-        // TODO: Needs to be initialized on start, not here, otherwise it's two times
-        //   Probably solved by watch -> broadcast
-        let state_zero = State::from_settings(&settings).expect("Failed to create state Zero");
-        let (state_handle, state_updater) =
-            StateHandle::<State, StateOp>::new(state_zero, state_operator);
+        let (state_handle, state_updater) = StateHandle::<State, StateOp>::new(state_operator);
 
         let service_resources = ServiceResources::new(
             status_handle.clone(),
@@ -164,6 +160,12 @@ where
 
                     let inbound_relay = inbound_relay.take().expect("Inbound relay must exist");
                     let services_resources_handle = service_resources.to_handle(inbound_relay);
+
+                    // TODO: Better to auto-handle inside the StateOperator
+                    service_resources
+                        .state_updater
+                        .update(initial_state.clone());
+
                     let service = Service::init(services_resources_handle, initial_state);
 
                     match service {
@@ -237,9 +239,10 @@ impl<Message, Settings, State, Operator, RuntimeServiceId>
     From<&ServiceRunner<Message, Settings, State, Operator, RuntimeServiceId>>
     for ServiceHandle<Message, Settings, State, Operator, RuntimeServiceId>
 where
-    RuntimeServiceId: Clone,
     Settings: Clone,
+    State: Clone,
     Operator: Clone,
+    RuntimeServiceId: Clone,
 {
     fn from(
         service_runner: &ServiceRunner<Message, Settings, State, Operator, RuntimeServiceId>,
