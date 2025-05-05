@@ -3,7 +3,7 @@ use std::marker::PhantomData;
 use crate::{
     overwatch::handle::OverwatchHandle,
     services::{
-        life_cycle::LifecycleHandle, relay::InboundRelay, settings::SettingsNotifier,
+        life_cycle::LifecycleHandle, relay::InboundRelay, settings::SettingsUpdater,
         state::StateUpdater, status::StatusHandle,
     },
 };
@@ -16,8 +16,7 @@ pub struct ServiceResources<Message, Settings, State, RuntimeServiceId> {
     /// Message channel relay to receive messages from other services
     pub status_handle: StatusHandle,
     pub overwatch_handle: OverwatchHandle<RuntimeServiceId>,
-    pub settings_reader: SettingsNotifier<Settings>, /* TODO: Use SettingsUpdater and call
-                                                      * .notifier */
+    pub settings_updater: SettingsUpdater<Settings>,
     pub state_updater: StateUpdater<State>,
     pub lifecycle_handle: LifecycleHandle,
     _message: PhantomData<Message>,
@@ -33,14 +32,14 @@ where
     pub const fn new(
         status_handle: StatusHandle,
         overwatch_handle: OverwatchHandle<RuntimeServiceId>,
-        settings_reader: SettingsNotifier<Settings>,
+        settings_updater: SettingsUpdater<Settings>,
         state_updater: StateUpdater<State>,
         lifecycle_handle: LifecycleHandle,
     ) -> Self {
         Self {
             status_handle,
             overwatch_handle,
-            settings_reader,
+            settings_updater,
             state_updater,
             lifecycle_handle,
             _message: PhantomData,
@@ -67,7 +66,7 @@ where
             inbound_relay,
             status_handle: self.status_handle.clone(),
             overwatch_handle: self.overwatch_handle.clone(),
-            settings_reader: self.settings_reader.clone(),
+            settings_updater: self.settings_updater.clone(),
             state_updater: self.state_updater.clone(),
             lifecycle_handle: self.lifecycle_handle.clone(),
         }
@@ -78,7 +77,7 @@ pub struct ServiceResourcesHandle<Message, Settings, State, RuntimeServiceId> {
     pub inbound_relay: InboundRelay<Message>,
     pub status_handle: StatusHandle,
     pub overwatch_handle: OverwatchHandle<RuntimeServiceId>,
-    pub settings_reader: SettingsNotifier<Settings>,
+    pub settings_updater: SettingsUpdater<Settings>,
     pub state_updater: StateUpdater<State>,
     pub lifecycle_handle: LifecycleHandle,
 }
