@@ -13,7 +13,7 @@ use crate::{
         resources::ServiceResources,
         settings::SettingsUpdater,
         state::{ServiceState, StateHandle, StateOperator},
-        status::StatusHandle,
+        status::{ServiceStatus, StatusHandle},
         AsServiceId, ServiceCore,
     },
     DynError,
@@ -151,30 +151,35 @@ where
         while let Some(lifecycle_message) = lifecycle_stream.next().await {
             match lifecycle_message {
                 LifecycleMessage::Start(sender) => {
-                    let initial_state_result = Self::get_service_initial_state(&service_resources);
-                    let Ok(initial_state) = initial_state_result else {
-                        // TODO: Print error message
-                        panic!("Failed to create initial state from settings");
+                    let initial_state = match Self::get_service_initial_state(&service_resources) {
+                        Ok(initial_state) => initial_state,
+                        Err(error) => {
+                            panic!("Failed to create initial state from settings: {error}");
+                        }
                     };
-
-                    let inbound_relay = inbound_relay.take().expect("Inbound relay must exist");
+                    let inbound_relay = inbound_relay.take().expect("Inbound relay must exist.");
                     let services_resources_handle = service_resources.to_handle(inbound_relay);
 
-                    // TODO: Better to auto-handle inside the StateOperator
-                    service_resources
-                        .state_updater
-                        .update(initial_state.clone());
-
-                    let service = Service::init(services_resources_handle, initial_state);
+                    let service = Service::init(services_resources_handle, initial_state.clone());
 
                     match service {
                         Ok(service) => {
+                            service_resources
+                                .state_updater
+                                .update(initial_state.clone());
+
                             let state_handle = state_handle.clone();
                             service_task_handle = Some(runtime.spawn(service.run()));
                             state_handle_task_handle = Some(runtime.spawn(state_handle.run()));
+
                             sender
                                 .send(())
                                 .expect("Failed sending the Start FinishedSignal.");
+
+                            service_resources
+                                .status_handle
+                                .updater()
+                                .update(ServiceStatus::Running);
                         }
                         Err(error) => {
                             panic!("Error while initialising service: {error}");
@@ -183,6 +188,11 @@ where
                 }
                 LifecycleMessage::Shutdown(sender) => {
                     Self::stop_service(&mut service_task_handle, &mut state_handle_task_handle);
+                    service_resources
+                        .status_handle
+                        .updater()
+                        .update(ServiceStatus::Stopped);
+
                     let consumer = consumer_receiver
                         .recv()
                         .expect("Consumer must be retrieved.");
@@ -198,6 +208,10 @@ where
                 LifecycleMessage::Kill => {
                     // TODO: Remove branch
                     Self::stop_service(&mut service_task_handle, &mut state_handle_task_handle);
+                    service_resources
+                        .status_handle
+                        .updater()
+                        .update(ServiceStatus::Stopped);
                 }
             }
         }

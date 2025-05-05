@@ -86,7 +86,8 @@ impl ServiceCore<RuntimeServiceId> for TryLoad {
             ..
         } = self;
         let sender = service_resources_handle
-            .settings_reader
+            .settings_updater
+            .notifier()
             .get_updated_settings()
             .origin_sender;
         sender.send(String::from("Service::run")).unwrap();

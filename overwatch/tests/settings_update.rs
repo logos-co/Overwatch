@@ -45,7 +45,7 @@ impl ServiceCore<RuntimeServiceId> for SettingsService {
         let Self {
             service_resources_handle:
                 OpaqueServiceResourcesHandle::<Self, RuntimeServiceId> {
-                    settings_reader,
+                    settings_updater,
                     lifecycle_handle,
                     ..
                 },
@@ -70,6 +70,7 @@ impl ServiceCore<RuntimeServiceId> for SettingsService {
 
         sender.send(()).unwrap();
 
+        let settings_reader = settings_updater.notifier();
         let print = async move {
             let mut asserted = false;
             for _ in 0..10 {
