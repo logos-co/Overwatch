@@ -7,7 +7,6 @@ use crate::{
         state::StateUpdater, status::StatusHandle,
     },
 };
-// TODO: RENAME FILE
 
 /// Core resources for a `Service`.
 ///

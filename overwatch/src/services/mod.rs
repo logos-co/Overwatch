@@ -1,15 +1,15 @@
 pub mod handle;
 pub mod life_cycle;
 pub mod relay;
+pub mod resources;
 pub mod runner;
 pub mod settings;
 pub mod state;
-pub mod state_handle;
 pub mod status;
 
 use async_trait::async_trait;
 
-use crate::services::state_handle::ServiceResourcesHandle;
+use crate::services::resources::ServiceResourcesHandle;
 
 /// The core data a service needs to handle.
 /// Holds the necessary information of a service.
