@@ -34,9 +34,6 @@ pub enum ServiceError {
 /// Message wrapper type.
 pub type AnyMessage = Box<dyn Any + Send + 'static>;
 
-/// Result type when creating a relay connection.
-pub type RelayResult = Result<AnyMessage, RelayError>;
-
 /// Channel to retrieve the consumer of the relay connection.
 /// The intended usage is oneshot-like, but having them as mpsc simplifies
 /// reusing the relay when a service is stopped and started.

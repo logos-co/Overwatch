@@ -24,7 +24,7 @@ use crate::{
     },
     services::{
         life_cycle::{LifecycleHandle, LifecycleMessage},
-        relay::RelayResult,
+        relay::AnyMessage,
         status::StatusWatcher,
     },
     utils::runtime::default_multithread_runtime,
@@ -119,7 +119,7 @@ pub trait Services: Sized {
     ///
     /// The generated [`Error`].
     /// TODO: No result
-    fn request_relay(&mut self, service_id: &Self::RuntimeServiceId) -> RelayResult;
+    fn request_relay(&mut self, service_id: &Self::RuntimeServiceId) -> AnyMessage;
 
     /// Request a status watcher for a service attached to the trait
     /// implementer.
@@ -253,7 +253,7 @@ where
             reply_channel,
         } = command;
         // Send the requested reply channel result to the requesting service
-        if let Err(Err(e)) = reply_channel.reply(services.request_relay(&service_id)) {
+        if let Err(e) = reply_channel.reply(services.request_relay(&service_id)) {
             info!(error=?e, "Error requesting relay for service {service_id:#?}");
         }
     }
@@ -368,7 +368,7 @@ mod test {
     use super::*;
     use crate::{
         overwatch::{handle::OverwatchHandle, Error, OverwatchRunner, Services},
-        services::{life_cycle::LifecycleHandle, relay::RelayResult, status::StatusWatcher},
+        services::{life_cycle::LifecycleHandle, status::StatusWatcher},
     };
 
     struct EmptyServices;
@@ -401,8 +401,8 @@ mod test {
             Ok(())
         }
 
-        fn request_relay(&mut self, _service_id: &String) -> RelayResult {
-            Ok(Box::new(()))
+        fn request_relay(&mut self, _service_id: &String) -> AnyMessage {
+            Box::new(())
         }
 
         fn request_status_watcher(&self, _service_id: &String) -> StatusWatcher {
