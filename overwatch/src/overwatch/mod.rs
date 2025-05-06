@@ -3,6 +3,7 @@ pub mod handle;
 
 use std::{any::Any, fmt::Debug, future::Future};
 
+use async_trait::async_trait;
 use thiserror::Error;
 use tokio::{
     runtime::{Handle, Runtime},
@@ -52,6 +53,7 @@ pub type AnySettings = Box<dyn Any + Send>;
 ///
 /// An implementor of this trait would have to handle the inner.
 /// [`ServiceCore`](crate::services::ServiceCore).
+#[async_trait]
 pub trait Services: Sized {
     /// Inner [`ServiceCore::Settings`](crate::services::ServiceCore) grouping
     /// type.
@@ -87,28 +89,28 @@ pub trait Services: Sized {
     /// # Errors
     ///
     /// The generated [`Error`].
-    fn start(&mut self, service_id: &Self::RuntimeServiceId) -> Result<(), Error>;
+    async fn start(&mut self, service_id: &Self::RuntimeServiceId) -> Result<(), Error>;
 
     /// Start all services attached to the trait implementer.
     ///
     /// # Errors
     ///
     /// The generated [`Error`].
-    fn start_all(&mut self) -> Result<(), Error>;
+    async fn start_all(&mut self) -> Result<(), Error>;
 
     /// Stop a service attached to the trait implementer.
     ///
     /// # Errors
     ///
     /// The generated [`Error`].
-    fn stop(&mut self, service_id: &Self::RuntimeServiceId) -> Result<(), Error>;
+    async fn stop(&mut self, service_id: &Self::RuntimeServiceId) -> Result<(), Error>;
 
     /// Stop all services attached to the trait implementer.
     ///
     /// # Errors
     ///
     /// The generated [`Error`].
-    fn stop_all(&mut self) -> Result<(), Error>;
+    async fn stop_all(&mut self) -> Result<(), Error>;
 
     /// Request a communication relay for a service attached to the trait
     /// implementer.
@@ -255,7 +257,7 @@ where
                         command,
                         OverwatchLifeCycleCommand::Kill | OverwatchLifeCycleCommand::Shutdown
                     ) {
-                        if let Err(e) = services.stop_all() {
+                        if let Err(e) = services.stop_all().await {
                             error!(error=?e, "Error stopping all services");
                         }
                         break;
@@ -349,6 +351,7 @@ impl<RuntimeServiceId> Overwatch<RuntimeServiceId> {
             finish_runner_signal,
             ..
         } = self;
+
         runtime.block_on(async move {
             let signal_result = finish_runner_signal.await;
             signal_result.expect("A finished signal arrived");
@@ -360,19 +363,17 @@ impl<RuntimeServiceId> Overwatch<RuntimeServiceId> {
 mod test {
     use std::time::Duration;
 
-    use tokio::{sync::broadcast::Sender, time::sleep};
+    use tokio::time::sleep;
 
+    use super::*;
     use crate::{
         overwatch::{handle::OverwatchHandle, Error, OverwatchRunner, Services},
-        services::{
-            life_cycle::{FinishedSignal, LifecycleHandle},
-            relay::RelayResult,
-            status::StatusWatcher,
-        },
+        services::{life_cycle::LifecycleHandle, relay::RelayResult, status::StatusWatcher},
     };
 
     struct EmptyServices;
 
+    #[async_trait]
     impl Services for EmptyServices {
         type Settings = ();
         type RuntimeServiceId = String;
@@ -384,19 +385,19 @@ mod test {
             Ok(Self)
         }
 
-        fn start(&mut self, _service_id: &String) -> Result<(), Error> {
+        async fn start(&mut self, _service_id: &String) -> Result<(), Error> {
             Ok(())
         }
 
-        fn start_all(&mut self) -> Result<(), Error> {
+        async fn start_all(&mut self) -> Result<(), Error> {
             Ok(())
         }
 
-        fn stop(&mut self, _service_id: &String) -> Result<(), Error> {
+        async fn stop(&mut self, _service_id: &String) -> Result<(), Error> {
             Ok(())
         }
 
-        fn stop_all(&mut self) -> Result<(), Error> {
+        async fn stop_all(&mut self) -> Result<(), Error> {
             Ok(())
         }
 

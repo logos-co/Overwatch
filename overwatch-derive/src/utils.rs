@@ -120,6 +120,7 @@ pub fn field_name_to_type_name(name: &str) -> String {
 ///   names.
 /// - Assumes the input follows Rust naming conventions (e.g., `PascalCase` for
 ///   enum variants).
+#[expect(dead_code)]
 pub fn enum_variant_name_to_field_name(name: &str) -> String {
     name.to_case(Case::Snake)
 }

@@ -131,6 +131,7 @@ where
             lifecycle_handle,
             relay,
             relay_buffer_size,
+            status_handle,
             ..
         } = self;
 
@@ -151,6 +152,14 @@ where
         while let Some(lifecycle_message) = lifecycle_stream.next().await {
             match lifecycle_message {
                 LifecycleMessage::Start(sender) => {
+                    if *status_handle.borrow() == ServiceStatus::Running {
+                        info!("Service is already running.");
+                        sender
+                            .send(())
+                            .expect("Failed sending the Start FinishedSignal.");
+                        continue;
+                    }
+
                     let initial_state = match Self::get_service_initial_state(&service_resources) {
                         Ok(initial_state) => initial_state,
                         Err(error) => {
@@ -187,12 +196,22 @@ where
                     }
                 }
                 LifecycleMessage::Shutdown(sender) => {
+                    if matches!(
+                        *status_handle.borrow(),
+                        ServiceStatus::Stopped | ServiceStatus::Uninitialized
+                    ) {
+                        info!("Service is already stopped.");
+                        sender
+                            .send(())
+                            .expect("Failed sending the Shutdown FinishedSignal.");
+                        continue;
+                    }
+
                     Self::stop_service(&mut service_task_handle, &mut state_handle_task_handle);
                     service_resources
                         .status_handle
                         .updater()
                         .update(ServiceStatus::Stopped);
-
                     let consumer = consumer_receiver
                         .recv()
                         .expect("Consumer must be retrieved.");

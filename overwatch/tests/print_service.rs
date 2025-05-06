@@ -6,14 +6,15 @@ use overwatch::{
     derive_services,
     overwatch::OverwatchRunner,
     services::{
-        life_cycle::LifecycleMessage,
         state::{NoOperator, NoState},
         ServiceCore, ServiceData,
     },
     OpaqueServiceResourcesHandle,
 };
-use tokio::time::sleep;
-use tokio_stream::StreamExt as _;
+use tokio::{
+    io::{self, AsyncWriteExt},
+    time::sleep,
+};
 
 pub struct PrintService {
     service_resources_handle: OpaqueServiceResourcesHandle<Self, RuntimeServiceId>,
@@ -41,36 +42,7 @@ impl ServiceCore<RuntimeServiceId> for PrintService {
     }
 
     async fn run(mut self) -> Result<(), overwatch::DynError> {
-        use tokio::io::{self, AsyncWriteExt};
-
-        let Self {
-            service_resources_handle:
-                OpaqueServiceResourcesHandle::<Self, RuntimeServiceId> {
-                    mut inbound_relay,
-                    lifecycle_handle,
-                    ..
-                },
-        } = self;
-
-        let mut lifecycle_stream = lifecycle_handle.message_stream();
-
-        let lifecycle_message = lifecycle_stream
-            .next()
-            .await
-            .expect("first received message to be a lifecycle message.");
-
-        let sender = match lifecycle_message {
-            LifecycleMessage::Shutdown(sender) => {
-                sender.send(()).unwrap();
-                return Ok(());
-            }
-            LifecycleMessage::Kill => return Ok(()),
-            // Continue below if a `Start` message is received.
-            LifecycleMessage::Start(sender) => sender,
-        };
-
-        sender.send(()).unwrap();
-
+        let mut inbound_relay = self.service_resources_handle.inbound_relay;
         let print = async move {
             let mut stdout = io::stdout();
             while let Some(message) = inbound_relay.recv().await {

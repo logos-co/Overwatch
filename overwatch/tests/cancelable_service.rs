@@ -14,11 +14,8 @@ use overwatch::{
     DynError, OpaqueServiceResourcesHandle,
 };
 use tokio::time::sleep;
-use tokio_stream::StreamExt as _;
 
-pub struct CancellableService {
-    service_resources_handle: OpaqueServiceResourcesHandle<Self, RuntimeServiceId>,
-}
+pub struct CancellableService {}
 
 impl ServiceData for CancellableService {
     type Settings = ();
@@ -30,61 +27,25 @@ impl ServiceData for CancellableService {
 #[async_trait::async_trait]
 impl ServiceCore<RuntimeServiceId> for CancellableService {
     fn init(
-        service_resources_handle: OpaqueServiceResourcesHandle<Self, RuntimeServiceId>,
+        _service_resources_handle: OpaqueServiceResourcesHandle<Self, RuntimeServiceId>,
         _initial_state: Self::State,
     ) -> Result<Self, DynError> {
-        Ok(Self {
-            service_resources_handle,
-        })
+        Ok(Self {})
     }
 
     async fn run(self) -> Result<(), DynError> {
-        let mut lifecycle_stream = self
-            .service_resources_handle
-            .lifecycle_handle
-            .message_stream();
-
-        let lifecycle_message = lifecycle_stream
-            .next()
-            .await
-            .expect("first received message to be a lifecycle message.");
-
-        let sender = match lifecycle_message {
-            LifecycleMessage::Shutdown(sender) => {
-                sender.send(()).unwrap();
-                return Ok(());
-            }
-            LifecycleMessage::Kill => return Ok(()),
-            // Continue below if a `Start` message is received.
-            LifecycleMessage::Start(sender) => sender,
-        };
-
+        let mut cumulative_time = Duration::from_millis(0);
         let mut interval = tokio::time::interval(Duration::from_millis(200));
 
-        sender.send(()).unwrap();
-
         loop {
-            tokio::select! {
-                msg = lifecycle_stream.next() => {
-                    match msg {
-                        Some(LifecycleMessage::Shutdown(reply)) => {
-                            reply.send(()).unwrap();
-                            break;
-                        }
-                        Some(LifecycleMessage::Kill) => {
-                            break;
-                        }
-                        _ => {
-                            unimplemented!();
-                        }
-                    }
-                }
-                _ =  interval.tick() =>  {
-                    println!("Waiting to be killed 💀");
-                }
-            }
+            let x = interval.tick().await;
+            println!("Waiting to be killed 💀");
+            cumulative_time += x.elapsed();
+            assert!(
+                cumulative_time <= Duration::from_secs(2),
+                "Timeout while waiting to be killed."
+            );
         }
-        Ok(())
     }
 }
 
