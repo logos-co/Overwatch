@@ -1,6 +1,3 @@
-#![expect(clippy::similar_names, reason = "Test services.")]
-
-use futures::future::join;
 use overwatch::{derive_services, overwatch::OverwatchRunner};
 
 use crate::{service_ping::PingService, service_pong::PongService, settings::PingSettings};
@@ -35,12 +32,8 @@ fn main() {
         OverwatchRunner::<PingPong>::run(ping_pong_settings, None).expect("OverwatchRunner failed");
 
     let overwatch_handle = ping_pong.handle().clone();
-    let (ping, pong) = ping_pong.runtime().block_on(join(
-        overwatch_handle.start_service::<PingService>(),
-        overwatch_handle.start_service::<PongService>(),
-    ));
-    ping.expect("Ping service to start successfully.");
-    pong.expect("Pong service to start successfully.");
+    println!("Starting overwatch service");
+    ping_pong.runtime().block_on(overwatch_handle.start());
 
     ping_pong.wait_finished();
 }

@@ -1,9 +1,7 @@
-use futures::StreamExt as _;
 use overwatch::{
     services::{
-        life_cycle::LifecycleMessage,
         state::{NoOperator, NoState},
-        AsServiceId, ServiceCore, ServiceData,
+        ServiceCore, ServiceData,
     },
     DynError, OpaqueServiceResourcesHandle,
 };
@@ -41,41 +39,11 @@ impl ServiceCore<RuntimeServiceId> for PongService {
             service_resources_handle,
         } = self;
 
-        let mut lifecycle_stream = service_resources_handle.lifecycle_handle.message_stream();
-
-        // TODO: Remove
-        let lifecycle_message = lifecycle_stream
-            .next()
-            .await
-            .expect("first received message to be a lifecycle message.");
-
-        let sender = match lifecycle_message {
-            LifecycleMessage::Shutdown(sender) => {
-                if sender.send(()).is_err() {
-                    eprintln!(
-                        "Error sending successful shutdown signal from service {}",
-                        <RuntimeServiceId as AsServiceId<Self>>::SERVICE_ID
-                    );
-                }
-                return Ok(());
-            }
-            LifecycleMessage::Kill => return Ok(()),
-            // Continue below if a `Start` message is received.
-            LifecycleMessage::Start(sender) => sender,
-        };
-
         let mut inbound_relay = service_resources_handle.inbound_relay;
         let ping_outbound_relay = service_resources_handle
             .overwatch_handle
             .relay::<PingService>()
             .await?;
-
-        if sender.send(()).is_err() {
-            eprintln!(
-                "Error sending successful startup signal from service {}",
-                <RuntimeServiceId as AsServiceId<Self>>::SERVICE_ID
-            );
-        }
 
         while let Some(message) = inbound_relay.recv().await {
             match message {

@@ -252,17 +252,19 @@ where
                         }
                     }
                 },
-                OverwatchCommand::OverwatchLifeCycle(command) => {
-                    if matches!(
-                        command,
-                        OverwatchLifeCycleCommand::Kill | OverwatchLifeCycleCommand::Shutdown
-                    ) {
+                OverwatchCommand::OverwatchLifeCycle(command) => match command {
+                    OverwatchLifeCycleCommand::Start => {
+                        if let Err(e) = services.start_all().await {
+                            error!(error=?e, "Error starting all services");
+                        }
+                    }
+                    OverwatchLifeCycleCommand::Shutdown | OverwatchLifeCycleCommand::Kill => {
                         if let Err(e) = services.stop_all().await {
                             error!(error=?e, "Error stopping all services");
                         }
                         break;
                     }
-                }
+                },
                 OverwatchCommand::Settings(settings) => {
                     Self::handle_settings_update(&mut services, settings);
                 }

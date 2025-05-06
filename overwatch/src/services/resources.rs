@@ -79,5 +79,7 @@ pub struct ServiceResourcesHandle<Message, Settings, State, RuntimeServiceId> {
     pub overwatch_handle: OverwatchHandle<RuntimeServiceId>,
     pub settings_updater: SettingsUpdater<Settings>,
     pub state_updater: StateUpdater<State>,
-    pub lifecycle_handle: LifecycleHandle,
+    pub lifecycle_handle: LifecycleHandle, // TODO: Removing the ability of services to interact
+                                           //  with their lifecycle is probably a good idea.
+                                           //  Fetching data this way can lead to deadlocks.
 }
