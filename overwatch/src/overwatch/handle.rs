@@ -165,6 +165,37 @@ where
             .map_err(|e| dbg!(e));
     }
 
+    /// Send a stop signal to the specified service.
+    ///
+    /// # Errors
+    ///
+    /// If the stop signal cannot be successfully delivered to the specified
+    /// service.
+    pub async fn stop_service<Service>(&self) -> Result<(), ServiceError>
+    where
+        RuntimeServiceId: AsServiceId<Service>,
+    {
+        info!("Stopping service with ID {}", RuntimeServiceId::SERVICE_ID);
+
+        let (sender, mut receiver) = tokio::sync::broadcast::channel(1);
+        self.send(OverwatchCommand::ServiceLifeCycle(
+            ServiceLifeCycleCommand {
+                service_id: RuntimeServiceId::SERVICE_ID,
+                msg: LifecycleMessage::Shutdown(sender),
+            },
+        ))
+        .await
+        .map_err(|e| {
+            dbg!(e);
+            ServiceError::Shutdown
+        })?;
+        receiver.recv().await.map_err(|e| {
+            dbg!(e);
+            ServiceError::Shutdown
+        })?;
+        Ok(())
+    }
+
     /// Send a shutdown signal to the
     /// [`OverwatchRunner`](crate::overwatch::OverwatchRunner) signaling it
     /// to stop all services.

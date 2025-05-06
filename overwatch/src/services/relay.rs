@@ -27,6 +27,8 @@ pub enum RelayError {
 pub enum ServiceError {
     #[error("couldn't start service")]
     Start,
+    #[error("couldn't shutdown service")]
+    Shutdown,
 }
 
 /// Message wrapper type.
