@@ -15,7 +15,6 @@ pub enum LifecycleMessage {
     /// Holds a sender from a broadcast channel. This is used to signal when the
     /// service has finished handling the shutdown process.
     Shutdown(Sender<FinishedSignal>),
-    Kill,
 }
 
 /// Handle for lifecycle communications with a `Service`.
