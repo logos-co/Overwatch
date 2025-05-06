@@ -217,30 +217,9 @@ where
                 OverwatchCommand::Status(status_command) => {
                     Self::handle_status(&services, status_command);
                 }
-                OverwatchCommand::ServiceLifeCycle(msg) => match msg {
-                    ServiceLifeCycleCommand {
-                        service_id,
-                        msg: shutdown_msg @ LifecycleMessage::Shutdown(_),
-                    } => {
-                        if let Err(e) = services
-                            .get_service_lifecycle_handle(&service_id)
-                            .send(shutdown_msg)
-                        {
-                            error!(e);
-                        }
-                    }
-                    ServiceLifeCycleCommand {
-                        service_id,
-                        msg: start_msg @ LifecycleMessage::Start(_),
-                    } => {
-                        if let Err(e) = services
-                            .get_service_lifecycle_handle(&service_id)
-                            .send(start_msg)
-                        {
-                            error!(e);
-                        }
-                    }
-                },
+                OverwatchCommand::ServiceLifeCycle(msg) => {
+                    Self::handle_service_service_lifecycle(&services, msg);
+                }
                 OverwatchCommand::OverwatchLifeCycle(command) => match command {
                     OverwatchLifeCycleCommand::Start => {
                         if let Err(e) = services.start_all().await {
@@ -297,6 +276,36 @@ where
         let watcher = services.request_status_watcher(&service_id);
         if reply_channel.reply(watcher).is_err() {
             error!("Error reporting back status watcher for service: {service_id:#?}");
+        }
+    }
+
+    fn handle_service_service_lifecycle(
+        services: &ServicesImpl,
+        msg: ServiceLifeCycleCommand<ServicesImpl::RuntimeServiceId>,
+    ) {
+        match msg {
+            ServiceLifeCycleCommand {
+                service_id,
+                msg: start_msg @ LifecycleMessage::Start(_),
+            } => {
+                if let Err(e) = services
+                    .get_service_lifecycle_handle(&service_id)
+                    .send(start_msg)
+                {
+                    error!(e);
+                }
+            }
+            ServiceLifeCycleCommand {
+                service_id,
+                msg: shutdown_msg @ LifecycleMessage::Shutdown(_),
+            } => {
+                if let Err(e) = services
+                    .get_service_lifecycle_handle(&service_id)
+                    .send(shutdown_msg)
+                {
+                    error!(e);
+                }
+            }
         }
     }
 }
