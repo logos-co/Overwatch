@@ -155,6 +155,10 @@ where
     /// Send a start signal to the
     /// [`OverwatchRunner`](crate::overwatch::OverwatchRunner) signaling it
     /// to start all services.
+    ///
+    /// # Errors
+    ///
+    /// Fails silently if the start signal cannot be sent.
     pub async fn start(&self) {
         info!("Starting all services");
         let _: Result<(), _> = self
@@ -199,6 +203,15 @@ where
     /// Send a shutdown signal to the
     /// [`OverwatchRunner`](crate::overwatch::OverwatchRunner) signaling it
     /// to stop all services.
+    ///
+    /// This triggers sending the `finish_runner_signal` to
+    /// [`Overwatch`](crate::overwatch::Overwatch). It's the signal which
+    /// [`Overwatch::wait_finished`](crate::overwatch::Overwatch::wait_finished)
+    /// waits for.
+    ///
+    /// # Errors
+    ///
+    /// Fails silently if the shutdown signal cannot be sent.
     pub async fn shutdown(&self) {
         info!("Shutting down Overwatch");
         let _: Result<(), _> = self
