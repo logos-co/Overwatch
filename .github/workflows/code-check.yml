@@ -31,6 +31,7 @@ jobs:
 
   cargo-deny:
     name: Check cargo-deny rules
+    # `cargo-deny` action is only supported on Linux
     runs-on: ubuntu-latest
 
     steps:
@@ -45,7 +46,11 @@ jobs:
 
   features:
     name: Check packages feature combinations
-    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+    runs-on: ${{ matrix.os }}
     steps:
       - name: Checkout repository
         uses: actions/checkout@85e6279cec87321a52edac9c87bce653a07cf6c2  # Version 4.2.2
@@ -56,7 +61,7 @@ jobs:
       - name: Set up Cargo cache
         uses: ./.github/actions/setup-cargo-cache
         with:
-          key: ${{ github.ref }}->${{ github.workflow }}->${{ github.job }}
+          key: ${{ github.ref }}->${{ github.workflow }}->${{ github.job }}->${{ matrix.os }}
           github-token: ${{ secrets.GITHUB_TOKEN }}
       - name: Run cargo-hack
         env:
@@ -67,11 +72,15 @@ jobs:
         if: success() || failure()
         uses: ./.github/actions/update-cargo-cache
         with:
-          key: ${{ github.ref }}->${{ github.workflow }}->${{ github.job }}
+          key: ${{ github.ref }}->${{ github.workflow }}->${{ github.job }}->${{ matrix.os }}
 
   unused-deps:
     name: Check for unused dependencies
-    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+    runs-on: ${{ matrix.os }}
     steps:
       - name: Checkout repository
         uses: actions/checkout@85e6279cec87321a52edac9c87bce653a07cf6c2  # Version 4.2.2
@@ -85,14 +94,18 @@ jobs:
 
   lints:
     name: Check Rust lints
-    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+    runs-on: ${{ matrix.os }}
     steps:
       - name: Checkout repository
         uses: actions/checkout@85e6279cec87321a52edac9c87bce653a07cf6c2  # Version 4.2.2
       - name: Set up Cargo cache
         uses: ./.github/actions/setup-cargo-cache
         with:
-          key: ${{ github.ref }}->${{ github.workflow }}->${{ github.job }}
+          key: ${{ github.ref }}->${{ github.workflow }}->${{ github.job }}->${{ matrix.os }}
           github-token: ${{ secrets.GITHUB_TOKEN }}        
       - name: Run cargo clippy
         uses: actions-rs/cargo@9e120dd99b0fbad1c065f686657e914e76bd7b72  # Version 1.0.1
@@ -103,7 +116,7 @@ jobs:
         if: success() || failure()
         uses: ./.github/actions/update-cargo-cache
         with:
-          key: ${{ github.ref }}->${{ github.workflow }}->${{ github.job }}
+          key: ${{ github.ref }}->${{ github.workflow }}->${{ github.job }}->${{ matrix.os }}
 
   tests:
     name: Run test suite
@@ -129,4 +142,4 @@ jobs:
         if: success() || failure()
         uses: ./.github/actions/update-cargo-cache
         with:
-          key: ${{ github.ref }}->${{ github.workflow }}->${{ github.job }}->${{ matrix.os }}          
+          key: ${{ github.ref }}->${{ github.workflow }}->${{ github.job }}->${{ matrix.os }}
