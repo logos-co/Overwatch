@@ -224,14 +224,6 @@ where
                         .send(())
                         .expect("Failed sending the Shutdown FinishedSignal.");
                 }
-                LifecycleMessage::Kill => {
-                    // TODO: Remove branch
-                    Self::stop_service(&mut service_task_handle, &mut state_handle_task_handle);
-                    service_resources
-                        .status_handle
-                        .updater()
-                        .update(ServiceStatus::Stopped);
-                }
             }
         }
     }

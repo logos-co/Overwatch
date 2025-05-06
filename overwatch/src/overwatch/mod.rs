@@ -231,17 +231,6 @@ where
                     }
                     ServiceLifeCycleCommand {
                         service_id,
-                        msg: kill_msg @ LifecycleMessage::Kill,
-                    } => {
-                        if let Err(e) = services
-                            .get_service_lifecycle_handle(&service_id)
-                            .send(kill_msg)
-                        {
-                            error!(e);
-                        }
-                    }
-                    ServiceLifeCycleCommand {
-                        service_id,
                         msg: start_msg @ LifecycleMessage::Start(_),
                     } => {
                         if let Err(e) = services
