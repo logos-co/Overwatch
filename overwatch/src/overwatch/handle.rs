@@ -83,7 +83,7 @@ where
         };
         let message = receiver
             .await
-            .map_err(|e| RelayError::Receiver(Box::new(e)))??;
+            .map_err(|e| RelayError::Receiver(Box::new(e)))?;
         let Ok(downcasted_message) = message.downcast::<OutboundRelay<Service::Message>>() else {
             unreachable!("Statically should always be of the correct type");
         };
