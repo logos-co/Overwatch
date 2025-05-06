@@ -26,7 +26,7 @@ use proc_macro_error2::{abort_call_site, proc_macro_error};
 use quote::{format_ident, quote};
 use syn::{
     parse, parse_macro_input, parse_str, punctuated::Punctuated, token::Comma, Data, DeriveInput,
-    Field, Fields, GenericArgument, Generics, Ident, ItemStruct, PathArguments, Type,
+    Field, Fields, GenericArgument, Generics, ItemStruct, PathArguments, Type,
 };
 
 mod utils;
@@ -52,6 +52,7 @@ mod utils;
 ///     cache: OpaqueServiceHandle<CacheService, RuntimeServiceId>,
 /// }
 ///
+/// #[async_trait]
 /// impl Services for MyServices { /* service lifecycle methods */ }
 /// ```
 #[expect(
@@ -360,6 +361,7 @@ fn generate_services_impl(
 
     let runtime_service_id_type_name = get_runtime_service_id_type_name();
     quote! {
+        #[::async_trait::async_trait]
         impl #impl_generics ::overwatch::overwatch::Services for #services_identifier #ty_generics #where_clause {
             type Settings = #services_settings_identifier #ty_generics;
             type RuntimeServiceId = #runtime_service_id_type_name;
@@ -467,27 +469,26 @@ fn generate_start_all_impl(fields: &Punctuated<Field, Comma>) -> proc_macro2::To
         }
     });
 
-    let call_blocking_recv = quote! {
-        ::futures::executor::block_on(async {
-            for mut receiver in receivers {
-                receiver.recv().await.map_err(|error| {
-                    let dyn_error: ::overwatch::DynError = Box::new(error);
-                    ::overwatch::overwatch::Error::from(dyn_error)
-                })?;
-            }
-            Ok::<(), ::overwatch::overwatch::Error>(())
-        })
+    let call_recv_finished_signals = quote! {
+        for mut receiver in receivers {
+            receiver.recv().await.map_err(|error| {
+                let dyn_error: ::overwatch::DynError = Box::new(error);
+                ::overwatch::overwatch::Error::from(dyn_error)
+            })?;
+        }
+
+        Ok::<(), ::overwatch::overwatch::Error>(())
     };
 
     let instrumentation = get_default_instrumentation();
     quote! {
         #instrumentation
-        fn start_all(&mut self) -> ::core::result::Result<(), ::overwatch::overwatch::Error> {
+        async fn start_all(&mut self) -> ::core::result::Result<(), ::overwatch::overwatch::Error> {
             #call_create_channels
 
             #( #call_send_start_message )*
 
-            #call_blocking_recv
+            #call_recv_finished_signals
         }
     }
 }
@@ -521,12 +522,12 @@ fn generate_start_impl(fields: &Punctuated<Field, Comma>) -> proc_macro2::TokenS
     let instrumentation = get_default_instrumentation_for_result();
     quote! {
         #instrumentation
-        fn start(&mut self, service_id: &Self::RuntimeServiceId) -> ::core::result::Result<(), ::overwatch::overwatch::Error> {
+        async fn start(&mut self, service_id: &Self::RuntimeServiceId) -> ::core::result::Result<(), ::overwatch::overwatch::Error> {
             let (sender, mut receiver) = ::tokio::sync::broadcast::channel::<::overwatch::services::life_cycle::FinishedSignal>(1);
             match service_id {
                 #( #cases ),*
             };
-            receiver.blocking_recv().map_err(|error| {
+            receiver.recv().await.map_err(|error| {
                 let dyn_error: ::overwatch::DynError = Box::new(error);
                 ::overwatch::overwatch::Error::from(dyn_error)
             })
@@ -563,12 +564,12 @@ fn generate_stop_impl(fields: &Punctuated<Field, Comma>) -> proc_macro2::TokenSt
     let instrumentation = get_default_instrumentation();
     quote! {
         #instrumentation
-        fn stop(&mut self, service_id: &Self::RuntimeServiceId) -> ::core::result::Result<(), ::overwatch::overwatch::Error> {
+        async fn stop(&mut self, service_id: &Self::RuntimeServiceId) -> ::core::result::Result<(), ::overwatch::overwatch::Error> {
             let (sender, mut receiver) = ::tokio::sync::broadcast::channel::<::overwatch::services::life_cycle::FinishedSignal>(1);
             match service_id {
                 #( #cases ),*
             };
-            receiver.blocking_recv().map_err(|error| {
+            receiver.recv().await.map_err(|error| {
                 let dyn_error: ::overwatch::DynError = Box::new(error);
                 ::overwatch::overwatch::Error::from(dyn_error)
             })
@@ -589,6 +590,7 @@ fn generate_stop_impl(fields: &Punctuated<Field, Comma>) -> proc_macro2::TokenSt
 /// A token stream containing the `stop_all` method implementation.
 fn generate_stop_all_impl(fields: &Punctuated<Field, Comma>) -> proc_macro2::TokenStream {
     let fields_len = fields.len();
+    // TODO: Use one channel with fields_len capacity?
     let call_create_channels = quote! {
         let channels: Vec<_> = (0..#fields_len).map(|_| {
             ::tokio::sync::broadcast::channel::<::overwatch::services::life_cycle::FinishedSignal>(1)
@@ -605,27 +607,26 @@ fn generate_stop_all_impl(fields: &Punctuated<Field, Comma>) -> proc_macro2::Tok
         }
     });
 
-    let call_blocking_recv = quote! {
-        ::futures::executor::block_on(async {
-            for mut receiver in receivers {
-                receiver.recv().await.map_err(|error| {
-                    let dyn_error: ::overwatch::DynError = Box::new(error);
-                    ::overwatch::overwatch::Error::from(dyn_error)
-                })?;
-            }
-            Ok::<(), ::overwatch::overwatch::Error>(())
-        })
+    let call_recv_finished_signals = quote! {
+        for mut receiver in receivers {
+            receiver.recv().await.map_err(|error| {
+                let dyn_error: ::overwatch::DynError = Box::new(error);
+                ::overwatch::overwatch::Error::from(dyn_error)
+            })?;
+        }
+
+        Ok::<(), ::overwatch::overwatch::Error>(())
     };
 
     let instrumentation = get_default_instrumentation();
     quote! {
         #instrumentation
-        fn stop_all(&mut self) -> ::core::result::Result<(), ::overwatch::overwatch::Error> {
+        async fn stop_all(&mut self) -> Result<(), ::overwatch::overwatch::Error> {
             #call_create_channels
 
             #( #call_send_shutdown_message )*
 
-            #call_blocking_recv
+            #call_recv_finished_signals
         }
     }
 }

@@ -5,14 +5,12 @@ use overwatch::{
     derive_services,
     overwatch::OverwatchRunner,
     services::{
-        life_cycle::LifecycleMessage,
         state::{NoOperator, NoState},
         ServiceCore, ServiceData,
     },
     OpaqueServiceResourcesHandle,
 };
 use tokio::time::sleep;
-use tokio_stream::StreamExt as _;
 
 pub struct SettingsService {
     service_resources_handle: OpaqueServiceResourcesHandle<Self, RuntimeServiceId>,
@@ -42,35 +40,7 @@ impl ServiceCore<RuntimeServiceId> for SettingsService {
     }
 
     async fn run(mut self) -> Result<(), overwatch::DynError> {
-        let Self {
-            service_resources_handle:
-                OpaqueServiceResourcesHandle::<Self, RuntimeServiceId> {
-                    settings_updater,
-                    lifecycle_handle,
-                    ..
-                },
-        } = self;
-
-        let mut lifecycle_stream = lifecycle_handle.message_stream();
-
-        let lifecycle_message = lifecycle_stream
-            .next()
-            .await
-            .expect("first received message to be a lifecycle message.");
-
-        let sender = match lifecycle_message {
-            LifecycleMessage::Shutdown(sender) => {
-                sender.send(()).unwrap();
-                return Ok(());
-            }
-            LifecycleMessage::Kill => return Ok(()),
-            // Continue below if a `Start` message is received.
-            LifecycleMessage::Start(sender) => sender,
-        };
-
-        sender.send(()).unwrap();
-
-        let settings_reader = settings_updater.notifier();
+        let settings_reader = self.service_resources_handle.settings_updater.notifier();
         let print = async move {
             let mut asserted = false;
             for _ in 0..10 {

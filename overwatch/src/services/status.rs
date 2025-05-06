@@ -1,6 +1,6 @@
 use std::{default::Default, sync::Arc, time::Duration};
 
-use tokio::sync::watch;
+use tokio::sync::{watch, watch::Ref};
 
 #[derive(Copy, Clone, Eq, PartialEq, Debug)]
 pub enum ServiceStatus {
@@ -74,13 +74,24 @@ impl StatusHandle {
         let watcher = StatusWatcher(watcher);
         Self { updater, watcher }
     }
+
+    #[expect(
+        clippy::missing_const_for_fn,
+        reason = "We dereference an `Arc`, which is not const"
+    )]
     #[must_use]
     pub fn updater(&self) -> &StatusUpdater {
         &self.updater
     }
+
     #[must_use]
     pub fn watcher(&self) -> StatusWatcher {
         self.watcher.clone()
+    }
+
+    #[must_use]
+    pub fn borrow(&self) -> Ref<'_, ServiceStatus> {
+        self.watcher.0.borrow()
     }
 }
 
