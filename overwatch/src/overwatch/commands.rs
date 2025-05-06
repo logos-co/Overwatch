@@ -52,7 +52,6 @@ pub struct ServiceLifeCycleCommand<RuntimeServiceId> {
 pub enum OverwatchLifeCycleCommand {
     Start,
     Shutdown,
-    Kill,
 }
 
 /// [`Overwatch`](crate::overwatch::Overwatch) settings update command.

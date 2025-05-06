@@ -247,7 +247,7 @@ where
                             error!(error=?e, "Error starting all services");
                         }
                     }
-                    OverwatchLifeCycleCommand::Shutdown | OverwatchLifeCycleCommand::Kill => {
+                    OverwatchLifeCycleCommand::Shutdown => {
                         if let Err(e) = services.stop_all().await {
                             error!(error=?e, "Error stopping all services");
                         }
@@ -421,13 +421,13 @@ mod test {
     }
 
     #[test]
-    fn run_overwatch_then_kill() {
+    fn run_overwatch_then_shutdown() {
         let overwatch = OverwatchRunner::<EmptyServices>::run((), None).unwrap();
         let handle = overwatch.handle().clone();
 
         overwatch.spawn(async move {
             sleep(Duration::from_millis(500)).await;
-            handle.kill().await;
+            handle.shutdown().await;
         });
 
         overwatch.wait_finished();
