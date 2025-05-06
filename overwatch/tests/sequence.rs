@@ -5,14 +5,12 @@ use overwatch::{
     derive_services,
     overwatch::OverwatchRunner,
     services::{
-        life_cycle::LifecycleMessage,
         state::{NoOperator, NoState},
         status::{ServiceStatus, StatusWatcher},
         ServiceCore, ServiceData,
     },
     DynError, OpaqueServiceResourcesHandle,
 };
-use tokio_stream::StreamExt as _;
 
 pub struct AwaitService1 {
     service_resources_handle: OpaqueServiceResourcesHandle<Self, RuntimeServiceId>,
@@ -60,28 +58,6 @@ impl ServiceCore<RuntimeServiceId> for AwaitService1 {
 
     async fn run(self) -> Result<(), DynError> {
         println!("Initialized 1");
-        let mut lifecycle_stream = self
-            .service_resources_handle
-            .lifecycle_handle
-            .message_stream();
-
-        let lifecycle_message = lifecycle_stream
-            .next()
-            .await
-            .expect("first received message to be a lifecycle message.");
-
-        let sender = match lifecycle_message {
-            LifecycleMessage::Shutdown(sender) => {
-                sender.send(()).unwrap();
-                return Ok(());
-            }
-            LifecycleMessage::Kill => return Ok(()),
-            // Continue below if a `Start` message is received.
-            LifecycleMessage::Start(sender) => sender,
-        };
-
-        sender.send(()).unwrap();
-
         self.service_resources_handle
             .status_handle
             .updater()
@@ -107,28 +83,6 @@ impl ServiceCore<RuntimeServiceId> for AwaitService2 {
     }
 
     async fn run(self) -> Result<(), DynError> {
-        let mut lifecycle_stream = self
-            .service_resources_handle
-            .lifecycle_handle
-            .message_stream();
-
-        let lifecycle_message = lifecycle_stream
-            .next()
-            .await
-            .expect("first received message to be a lifecycle message.");
-
-        let sender = match lifecycle_message {
-            LifecycleMessage::Shutdown(sender) => {
-                sender.send(()).unwrap();
-                return Ok(());
-            }
-            LifecycleMessage::Kill => return Ok(()),
-            // Continue below if a `Start` message is received.
-            LifecycleMessage::Start(sender) => sender,
-        };
-
-        sender.send(()).unwrap();
-
         self.service_resources_handle
             .status_handle
             .updater()
@@ -171,28 +125,6 @@ impl ServiceCore<RuntimeServiceId> for AwaitService3 {
     }
 
     async fn run(self) -> Result<(), DynError> {
-        let mut lifecycle_stream = self
-            .service_resources_handle
-            .lifecycle_handle
-            .message_stream();
-
-        let lifecycle_message = lifecycle_stream
-            .next()
-            .await
-            .expect("first received message to be a lifecycle message.");
-
-        let sender = match lifecycle_message {
-            LifecycleMessage::Shutdown(sender) => {
-                sender.send(()).unwrap();
-                return Ok(());
-            }
-            LifecycleMessage::Kill => return Ok(()),
-            // Continue below if a `Start` message is received.
-            LifecycleMessage::Start(sender) => sender,
-        };
-
-        sender.send(()).unwrap();
-
         self.service_resources_handle
             .status_handle
             .updater()
