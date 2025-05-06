@@ -178,18 +178,6 @@ where
             .map_err(|e| dbg!(e));
     }
 
-    /// Send a kill signal to the
-    /// [`OverwatchRunner`](crate::overwatch::OverwatchRunner)
-    pub async fn kill(&self) {
-        info!("Killing Overwatch");
-        let _: Result<(), _> = self
-            .send(OverwatchCommand::OverwatchLifeCycle(
-                OverwatchLifeCycleCommand::Kill,
-            ))
-            .await
-            .map_err(|e| dbg!(e));
-    }
-
     /// Send an overwatch command to the
     /// [`OverwatchRunner`](crate::overwatch::OverwatchRunner).
     ///
