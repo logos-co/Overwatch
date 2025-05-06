@@ -12,11 +12,12 @@ pub type FinishedSignal = ();
 #[derive(Clone, Debug)]
 /// Message type for lifecycle events.
 ///
-/// Variants hold a sender from a broadcast channel. This is used to signal when the
-/// service has finished handling the shutdown process.
+/// Variants hold a sender from a broadcast channel. This is used to signal when
+/// the service has finished handling the shutdown process.
 pub enum LifecycleMessage {
     Start(Sender<FinishedSignal>),
-    Shutdown(Sender<FinishedSignal>),
+    Shutdown(Sender<FinishedSignal>), /* TODO: Probably Stop is a better fit, because services
+                                       * can be restarted. */
 }
 
 /// Handle for lifecycle communications with a `Service`.
