@@ -152,8 +152,22 @@ where
         Ok(())
     }
 
+    /// Send a start signal to the
+    /// [`OverwatchRunner`](crate::overwatch::OverwatchRunner) signaling it
+    /// to start all services.
+    pub async fn start(&self) {
+        info!("Starting all services");
+        let _: Result<(), _> = self
+            .send(OverwatchCommand::OverwatchLifeCycle(
+                OverwatchLifeCycleCommand::Start,
+            ))
+            .await
+            .map_err(|e| dbg!(e));
+    }
+
     /// Send a shutdown signal to the
-    /// [`OverwatchRunner`](crate::overwatch::OverwatchRunner)
+    /// [`OverwatchRunner`](crate::overwatch::OverwatchRunner) signaling it
+    /// to stop all services.
     pub async fn shutdown(&self) {
         info!("Shutting down Overwatch");
         let _: Result<(), _> = self

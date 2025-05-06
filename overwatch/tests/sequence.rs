@@ -1,6 +1,5 @@
 use std::time::Duration;
 
-use futures::future::join3;
 use overwatch::{
     derive_services,
     overwatch::OverwatchRunner,
@@ -172,11 +171,7 @@ fn sequenced_services_startup() {
     let overwatch = OverwatchRunner::<SequenceServices>::run(settings, None).unwrap();
     let handle = overwatch.handle().clone();
 
-    let _ = handle.runtime().block_on(join3(
-        handle.start_service::<AwaitService1>(),
-        handle.start_service::<AwaitService2>(),
-        handle.start_service::<AwaitService3>(),
-    ));
+    handle.runtime().block_on(handle.start());
 
     overwatch.spawn(async move {
         tokio::time::sleep(Duration::from_secs(1)).await;
