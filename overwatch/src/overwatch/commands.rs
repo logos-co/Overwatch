@@ -2,7 +2,7 @@ use tokio::sync::oneshot;
 
 use crate::{
     overwatch::AnySettings,
-    services::{life_cycle::LifecycleMessage, relay::RelayResult, status::StatusWatcher},
+    services::{life_cycle::LifecycleMessage, relay::AnyMessage, status::StatusWatcher},
 };
 
 #[derive(Debug)]
@@ -27,7 +27,7 @@ impl<Message> ReplyChannel<Message> {
 #[derive(Debug)]
 pub struct RelayCommand<RuntimeServiceId> {
     pub(crate) service_id: RuntimeServiceId,
-    pub(crate) reply_channel: ReplyChannel<RelayResult>,
+    pub(crate) reply_channel: ReplyChannel<AnyMessage>,
 }
 
 /// Command for requesting

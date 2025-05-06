@@ -650,9 +650,7 @@ fn generate_request_relay_impl(fields: &Punctuated<Field, Comma>) -> proc_macro2
         let type_id = utils::extract_type_from(&field.ty);
         quote! {
             &<Self::RuntimeServiceId as ::overwatch::services::AsServiceId<#type_id>>::SERVICE_ID => {
-                ::core::result::Result::Ok(::std::boxed::Box::new(
-                    self.#field_identifier.relay_with()
-                ) as ::overwatch::services::relay::AnyMessage)
+                ::std::boxed::Box::new(self.#field_identifier.relay_with())
             }
         }
     });
@@ -660,7 +658,7 @@ fn generate_request_relay_impl(fields: &Punctuated<Field, Comma>) -> proc_macro2
     let instrumentation = get_default_instrumentation_for_result();
     quote! {
         #instrumentation
-        fn request_relay(&mut self, service_id: &Self::RuntimeServiceId) -> ::overwatch::services::relay::RelayResult {
+        fn request_relay(&mut self, service_id: &Self::RuntimeServiceId) -> ::overwatch::services::relay::AnyMessage {
             match service_id {
                 #( #cases )*
             }
