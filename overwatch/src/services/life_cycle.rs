@@ -10,10 +10,12 @@ use crate::DynError;
 pub type FinishedSignal = ();
 
 #[derive(Clone, Debug)]
+/// Message type for lifecycle events.
+///
+/// Variants hold a sender from a broadcast channel. This is used to signal when the
+/// service has finished handling the shutdown process.
 pub enum LifecycleMessage {
     Start(Sender<FinishedSignal>),
-    /// Holds a sender from a broadcast channel. This is used to signal when the
-    /// service has finished handling the shutdown process.
     Shutdown(Sender<FinishedSignal>),
 }
 
