@@ -1,6 +1,5 @@
 pub mod commands;
 pub mod handle;
-pub mod life_cycle;
 
 use std::{any::Any, fmt::Debug, future::Future};
 
@@ -364,10 +363,7 @@ mod test {
     use tokio::{sync::broadcast::Sender, time::sleep};
 
     use crate::{
-        overwatch::{
-            handle::OverwatchHandle, life_cycle::ServicesLifeCycleHandle, Error, OverwatchRunner,
-            Services,
-        },
+        overwatch::{handle::OverwatchHandle, Error, OverwatchRunner, Services},
         services::{
             life_cycle::{FinishedSignal, LifecycleHandle},
             relay::RelayResult,
@@ -376,36 +372,6 @@ mod test {
     };
 
     struct EmptyServices;
-
-    struct EmptyLifeCycleHandle;
-
-    impl ServicesLifeCycleHandle<String> for EmptyLifeCycleHandle {
-        type Error = &'static str;
-
-        fn start(
-            &self,
-            _service: &String,
-            _sender: Sender<FinishedSignal>,
-        ) -> Result<(), Self::Error> {
-            Ok(())
-        }
-
-        fn kill(&self, _service: &String) -> Result<(), Self::Error> {
-            Ok(())
-        }
-
-        fn kill_all(&self) -> Result<(), Self::Error> {
-            Ok(())
-        }
-
-        fn shutdown(
-            &self,
-            _service: &String,
-            _sender: Sender<FinishedSignal>,
-        ) -> Result<(), Self::Error> {
-            Ok(())
-        }
-    }
 
     impl Services for EmptyServices {
         type Settings = ();
