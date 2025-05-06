@@ -51,7 +51,9 @@ pub struct ServiceLifeCycleCommand<RuntimeServiceId> {
 #[derive(Debug)]
 pub enum OverwatchLifeCycleCommand {
     Start,
-    Shutdown,
+    Shutdown, /* TODO: Is this action final? If it's not, we should probably rename it to Stop.
+               * In addition, some Overwatch functions send this message
+               *  so we probably should align the naming. */
 }
 
 /// [`Overwatch`](crate::overwatch::Overwatch) settings update command.
