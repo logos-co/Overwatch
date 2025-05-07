@@ -25,10 +25,10 @@ pub enum RelayError {
 
 #[derive(Error, Debug)]
 pub enum ServiceError {
-    #[error("couldn't start service")]
+    #[error("Couldn't start service")]
     Start,
-    #[error("couldn't shutdown service")]
-    Shutdown,
+    #[error("Couldn't stop service")]
+    Stop,
 }
 
 /// Message wrapper type.

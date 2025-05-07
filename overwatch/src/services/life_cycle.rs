@@ -16,8 +16,7 @@ pub type FinishedSignal = ();
 /// the service has finished handling the shutdown process.
 pub enum LifecycleMessage {
     Start(Sender<FinishedSignal>),
-    Shutdown(Sender<FinishedSignal>), /* TODO: Probably Stop is a better fit, because services
-                                       * can be restarted. */
+    Stop(Sender<FinishedSignal>),
 }
 
 /// Handle for lifecycle communications with a `Service`.
