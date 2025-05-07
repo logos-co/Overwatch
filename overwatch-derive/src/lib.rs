@@ -598,7 +598,7 @@ fn generate_stop_all_impl(fields: &Punctuated<Field, Comma>) -> proc_macro2::Tok
         let (mut senders, receivers): (Vec<_>, Vec<_>) = channels.into_iter().unzip();
     };
 
-    let call_send_shutdown_message = fields.iter().map(|field| {
+    let call_send_stop_message_to_services = fields.iter().map(|field| {
         let field_identifier = field.ident.as_ref().expect("A struct attribute identifier");
         quote! {
             self.#field_identifier.service_handle().lifecycle_handle().send(
@@ -614,9 +614,15 @@ fn generate_stop_all_impl(fields: &Punctuated<Field, Comma>) -> proc_macro2::Tok
                 ::overwatch::overwatch::Error::from(dyn_error)
             })?;
         }
-
-        Ok::<(), ::overwatch::overwatch::Error>(())
     };
+
+    let call_abort_service_runner_join_handles = fields.iter().map(|field| {
+        let field_identifier = field.ident.as_ref().expect("A struct attribute identifier");
+        quote! {
+            // TODO: Ideally await, so it's a graceful shutdown.
+            self.#field_identifier.runner_join_handle().abort();
+        }
+    });
 
     let instrumentation = get_default_instrumentation();
     quote! {
@@ -624,9 +630,13 @@ fn generate_stop_all_impl(fields: &Punctuated<Field, Comma>) -> proc_macro2::Tok
         async fn stop_all(&mut self) -> Result<(), ::overwatch::overwatch::Error> {
             #call_create_channels
 
-            #( #call_send_shutdown_message )*
+            #( #call_send_stop_message_to_services )*
 
             #call_recv_finished_signals
+
+            # (#call_abort_service_runner_join_handles)*
+
+            Ok::<(), ::overwatch::overwatch::Error>(())
         }
     }
 }
