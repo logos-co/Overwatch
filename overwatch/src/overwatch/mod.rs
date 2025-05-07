@@ -118,7 +118,6 @@ pub trait Services: Sized {
     /// # Errors
     ///
     /// The generated [`Error`].
-    /// TODO: No result
     fn request_relay(&mut self, service_id: &Self::RuntimeServiceId) -> AnyMessage;
 
     /// Request a status watcher for a service attached to the trait
