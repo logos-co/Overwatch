@@ -78,7 +78,7 @@ pub fn derive_services(_attr: TokenStream, item: TokenStream) -> TokenStream {
 
         let runtime_service_id_type_name = get_runtime_service_id_type_name();
         let new_field_type = quote! {
-            ::overwatch::OpaqueServiceHandle<#field_type, #runtime_service_id_type_name>
+            ::overwatch::OpaqueServiceRunnerHandle<#field_type, #runtime_service_id_type_name>
         };
 
         quote! {
@@ -418,8 +418,8 @@ fn generate_new_impl(fields: &Punctuated<Field, Comma>) -> proc_macro2::TokenStr
                     ::overwatch::OpaqueServiceRunner::<#service_type, Self::RuntimeServiceId>::new(
                         #settings_field_identifier, overwatch_handle.clone(), <#service_type as ::overwatch::services::ServiceData>::SERVICE_RELAY_BUFFER_SIZE
                 );
-                let service_handle = runner.run::<#service_type>();
-                service_handle
+                let service_runner_handle = runner.run::<#service_type>();
+                service_runner_handle
             }
         }
     });
@@ -463,7 +463,7 @@ fn generate_start_all_impl(fields: &Punctuated<Field, Comma>) -> proc_macro2::To
     let call_send_start_message = fields.iter().map(|field| {
         let field_identifier = field.ident.as_ref().expect("A struct attribute identifier");
         quote! {
-            self.#field_identifier.lifecycle_handle().send(
+            self.#field_identifier.service_handle().lifecycle_handle().send(
                 ::overwatch::services::life_cycle::LifecycleMessage::Start(senders.remove(0))
             )?;
         }
@@ -512,7 +512,7 @@ fn generate_start_impl(fields: &Punctuated<Field, Comma>) -> proc_macro2::TokenS
         let type_id = utils::extract_type_from(&field.ty);
         quote! {
             &<Self::RuntimeServiceId as ::overwatch::services::AsServiceId<#type_id>>::SERVICE_ID => {
-                self.#field_identifier.lifecycle_handle().send(
+                self.#field_identifier.service_handle().lifecycle_handle().send(
                     ::overwatch::services::life_cycle::LifecycleMessage::Start(sender)
                 )?;
             }
@@ -554,7 +554,7 @@ fn generate_stop_impl(fields: &Punctuated<Field, Comma>) -> proc_macro2::TokenSt
         let type_id = utils::extract_type_from(&field.ty);
         quote! {
             &<Self::RuntimeServiceId as ::overwatch::services::AsServiceId<#type_id>>::SERVICE_ID => {
-                self.#field_identifier.lifecycle_handle().send(
+                self.#field_identifier.service_handle().lifecycle_handle().send(
                     ::overwatch::services::life_cycle::LifecycleMessage::Stop(sender)
                 )?;
             }
@@ -601,7 +601,7 @@ fn generate_stop_all_impl(fields: &Punctuated<Field, Comma>) -> proc_macro2::Tok
     let call_send_shutdown_message = fields.iter().map(|field| {
         let field_identifier = field.ident.as_ref().expect("A struct attribute identifier");
         quote! {
-            self.#field_identifier.lifecycle_handle().send(
+            self.#field_identifier.service_handle().lifecycle_handle().send(
                 ::overwatch::services::life_cycle::LifecycleMessage::Stop(senders.remove(0))
             )?;
         }
@@ -650,7 +650,7 @@ fn generate_request_relay_impl(fields: &Punctuated<Field, Comma>) -> proc_macro2
         let type_id = utils::extract_type_from(&field.ty);
         quote! {
             &<Self::RuntimeServiceId as ::overwatch::services::AsServiceId<#type_id>>::SERVICE_ID => {
-                ::std::boxed::Box::new(self.#field_identifier.relay_with())
+                ::std::boxed::Box::new(self.#field_identifier.service_handle().relay_with())
             }
         }
     });
@@ -689,7 +689,7 @@ fn generate_request_status_watcher_impl(
         let type_id = utils::extract_type_from(&field.ty);
         quote! {
             &<Self::RuntimeServiceId as ::overwatch::services::AsServiceId<#type_id>>::SERVICE_ID => {
-                self.#field_identifier.status_watcher()
+                self.#field_identifier.service_handle().status_watcher()
             }
         }
     });
@@ -732,7 +732,7 @@ fn generate_update_settings_impl(fields: &Punctuated<Field, Comma>) -> proc_macr
         let field_identifier = field.ident.as_ref().expect("A struct attribute identifier");
         let settings_field_identifier = service_settings_field_identifier_from(field_identifier);
         quote! {
-            self.#field_identifier.update_settings(#settings_field_identifier);
+            self.#field_identifier.service_handle().update_settings(#settings_field_identifier);
         }
     });
 
@@ -772,7 +772,7 @@ fn generate_get_service_lifecycle_handle_impl(
         let type_id = utils::extract_type_from(&field.ty);
         quote! {
             &<Self::RuntimeServiceId as ::overwatch::services::AsServiceId<#type_id>>::SERVICE_ID => {
-                self.#field_identifier.lifecycle_handle()
+                self.#field_identifier.service_handle().lifecycle_handle()
             }
         }
     });

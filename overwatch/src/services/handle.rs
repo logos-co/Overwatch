@@ -15,6 +15,9 @@ use crate::{
 ///
 /// This is used to access the different components of the `Service`.
 // TODO: Abstract handle over state to differentiate when the service is running
+// TODO: If this entity is only used by Overwatch, we could get rid of `ServiceRunnerHandle`
+//  by storing the Runner's `JoinHandle` here. Currently it's split in two entities to not give
+//  access to the `JoinHandle` to unwanted entities.
 // and when it is not. That way we could expose a better API depending on what
 // is happening and it would get rid of the probably unnecessary Option and
 // cloning.
