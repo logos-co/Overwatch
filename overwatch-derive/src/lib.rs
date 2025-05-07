@@ -476,8 +476,6 @@ fn generate_start_all_impl(fields: &Punctuated<Field, Comma>) -> proc_macro2::To
                 ::overwatch::overwatch::Error::from(dyn_error)
             })?;
         }
-
-        Ok::<(), ::overwatch::overwatch::Error>(())
     };
 
     let instrumentation = get_default_instrumentation();
@@ -489,6 +487,8 @@ fn generate_start_all_impl(fields: &Punctuated<Field, Comma>) -> proc_macro2::To
             #( #call_send_start_message )*
 
             #call_recv_finished_signals
+
+            Ok::<(), ::overwatch::overwatch::Error>(())
         }
     }
 }

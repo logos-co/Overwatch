@@ -47,13 +47,17 @@ pub struct ServiceLifeCycleCommand<RuntimeServiceId> {
     pub msg: LifecycleMessage,
 }
 
-/// [`Overwatch`](crate::overwatch::Overwatch) lifecycle related commands.
+/// Command for managing [`Overwatch`](crate::overwatch::Overwatch)
+/// lifecycle.
 #[derive(Debug)]
 pub enum OverwatchLifeCycleCommand {
+    /// Starts all `Service`s associated to an [`Overwatch`](crate::overwatch::Overwatch) instance.
     Start,
-    Shutdown, /* TODO: Is this action final? If it's not, we should probably rename it to Stop.
-               * In addition, some Overwatch functions send this message
-               *  so we probably should align the naming. */
+    /// Stops all `Service`s (and their respective
+    /// [`ServiceRunner`](crate::services::runner::ServiceRunner)s).
+    ///
+    /// This message is final: Once it's sent `Service`s can't be started again.
+    Shutdown,
 }
 
 /// [`Overwatch`](crate::overwatch::Overwatch) settings update command.
