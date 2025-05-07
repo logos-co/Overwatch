@@ -9,13 +9,29 @@ use crate::DynError;
 /// Type alias for an empty signal.
 pub type FinishedSignal = ();
 
+/// Message type for `Service` lifecycle events.
 #[derive(Clone, Debug)]
-/// Message type for lifecycle events.
-///
-/// Variants hold a sender from a broadcast channel. This is used to signal when
-/// the service has finished handling the shutdown process.
 pub enum LifecycleMessage {
+    /// Starts the `Service`.
+    ///
+    /// If the `Service` has been stopped with [`LifecycleMessage::Stop`], it can be restarted.
+    ///
+    /// # Arguments
+    ///
+    /// - [`Sender<FinishedSignal>`]: A [`FinishedSignal`] will be sent through the associated
+    ///   channel upon completion of the task.
     Start(Sender<FinishedSignal>),
+
+    /// Stops the `Service`.
+    ///
+    /// Inner `Service` operations are not guaranteed to be completed.
+    /// Despite that, `Service`s stopped this way can be restarted (from a previously saved point
+    /// or from the default initial state) by sending a [`LifecycleMessage::Start`].   
+    ///
+    /// # Arguments
+    ///
+    /// - [`Sender<FinishedSignal>`]: A [`FinishedSignal`] will be sent through the associated
+    ///   channel upon completion of the task.
     Stop(Sender<FinishedSignal>),
 }
 
