@@ -19,6 +19,25 @@ use crate::{
     DynError,
 };
 
+pub struct ServiceRunnerHandle<Message, Settings, State, StateOperator, RuntimeServiceId> {
+    service_handle: ServiceHandle<Message, Settings, State, StateOperator, RuntimeServiceId>,
+    runner_join_handle: JoinHandle<()>,
+}
+
+impl<Message, Settings, State, StateOperator, RuntimeServiceId>
+    ServiceRunnerHandle<Message, Settings, State, StateOperator, RuntimeServiceId>
+{
+    pub const fn service_handle(
+        &self,
+    ) -> &ServiceHandle<Message, Settings, State, StateOperator, RuntimeServiceId> {
+        &self.service_handle
+    }
+
+    pub const fn runner_join_handle(&self) -> &JoinHandle<()> {
+        &self.runner_join_handle
+    }
+}
+
 /// Executor for a `Service`.
 ///
 /// Contains all the necessary information to run a `Service`.
@@ -104,7 +123,9 @@ where
     /// # Errors
     ///
     /// If the service cannot be initialized properly with the retrieved state.
-    pub fn run<Service>(self) -> ServiceHandle<Message, Settings, State, StateOp, RuntimeServiceId>
+    pub fn run<Service>(
+        self,
+    ) -> ServiceRunnerHandle<Message, Settings, State, StateOp, RuntimeServiceId>
     where
         Service: ServiceCore<RuntimeServiceId, Settings = Settings, State = State, Message = Message>
             + 'static,
@@ -113,9 +134,12 @@ where
     {
         let service_handle = ServiceHandle::from(&self);
         let runtime = self.service_resources.overwatch_handle.runtime().clone();
-        let _lifecycle_task_handle = runtime.spawn(self.run_::<Service>());
+        let runner_join_handle = runtime.spawn(self.run_::<Service>());
 
-        service_handle
+        ServiceRunnerHandle {
+            service_handle,
+            runner_join_handle,
+        }
     }
 
     async fn run_<Service>(self)
