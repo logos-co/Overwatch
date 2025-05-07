@@ -1,4 +1,4 @@
-use std::fmt::{Debug, Display};
+use std::fmt::Display;
 
 use tokio::{runtime::Handle, sync::broadcast::Sender, task::JoinHandle};
 use tokio_stream::StreamExt;
@@ -14,7 +14,7 @@ use crate::{
         settings::SettingsUpdater,
         state::{ServiceState, StateHandle, StateOperator},
         status::{ServiceStatus, StatusHandle},
-        AsServiceId, ServiceCore,
+        ServiceCore,
     },
     DynError,
 };
@@ -57,8 +57,7 @@ impl<Message, Settings, State, StateOp, RuntimeServiceId>
 where
     Settings: Clone,
     State: ServiceState<Settings = Settings> + Clone,
-    <State as ServiceState>::Error: Display + Debug,
-    StateOp: StateOperator<State = State> + Clone,
+    StateOp: StateOperator<State = State>,
     RuntimeServiceId: Clone,
 {
     /// Creates a new `ServiceRunner`.
@@ -104,14 +103,12 @@ where
 impl<Message, Settings, State, StateOp, RuntimeServiceId>
     ServiceRunner<Message, Settings, State, StateOp, RuntimeServiceId>
 where
-    State: Clone + Send + Sync + 'static,
-    StateOp: StateOperator<State = State> + Send + 'static,
-    // New stuff
-    State: ServiceState<Settings = Settings>,
-    Message: 'static + Send + Sync,
+    Message: 'static + Send,
     Settings: Clone + 'static + Sync + Send,
+    State: ServiceState<Settings = Settings> + Clone + Send + Sync + 'static,
+    <State as ServiceState>::Error: Display,
+    StateOp: StateOperator<State = State> + Send + 'static,
     RuntimeServiceId: 'static + Clone + Send,
-    <State as ServiceState>::Error: Display + Debug,
 {
     /// Spawn the service main loop and handle its lifecycle.
     ///
@@ -129,8 +126,7 @@ where
     where
         Service: ServiceCore<RuntimeServiceId, Settings = Settings, State = State, Message = Message>
             + 'static,
-        RuntimeServiceId: AsServiceId<Service>,
-        StateOp: Clone, // For StateHandle::clone
+        StateOp: Clone,
     {
         let service_handle = ServiceHandle::from(&self);
         let runtime = self.service_resources.overwatch_handle.runtime().clone();
@@ -239,15 +235,14 @@ where
         };
 
         let services_resources_handle = service_resources.to_handle(inbound_relay);
-        let service = Service::init(services_resources_handle, initial_state.clone());
+        let service = Service::init(services_resources_handle, initial_state);
 
         match service {
             Ok(service) => {
-                Self::handle_service_init(
+                Self::handle_service_run(
                     service,
                     runtime,
                     service_resources,
-                    initial_state,
                     state_handle,
                     service_task_handle,
                     state_handle_task_handle,
@@ -260,15 +255,10 @@ where
         }
     }
 
-    #[expect(
-        clippy::too_many_arguments,
-        reason = "No simple way to group arguments."
-    )]
-    fn handle_service_init<Service>(
+    fn handle_service_run<Service>(
         service: Service,
         runtime: &Handle,
         service_resources: &ServiceResources<Message, Settings, State, RuntimeServiceId>,
-        initial_state: State,
         state_handle: StateHandle<State, StateOp>,
         service_task_handle: &mut Option<JoinHandle<Result<(), DynError>>>,
         state_handle_task_handle: &mut Option<JoinHandle<()>>,
@@ -278,8 +268,6 @@ where
             + 'static,
         StateOp: Clone,
     {
-        service_resources.state_updater.update(initial_state);
-
         *service_task_handle = Some(runtime.spawn(service.run()));
         *state_handle_task_handle = Some(runtime.spawn(state_handle.run()));
 
@@ -310,10 +298,11 @@ where
         let consumer = consumer_receiver
             .recv()
             .expect("Consumer must be retrieved.");
+        let inbound_relay = InboundRelay::new(consumer, consumer_sender, relay_buffer_size);
         stop_finished_signal_sender
             .send(())
             .expect("Failed sending the Stop FinishedSignal.");
-        InboundRelay::new(consumer, consumer_sender, relay_buffer_size)
+        inbound_relay
     }
 
     /// Retrieves the initial state for the service.
