@@ -70,7 +70,7 @@ fn run_overwatch_then_shutdown_service_and_kill() {
             .send(OverwatchCommand::ServiceLifeCycle(
                 ServiceLifeCycleCommand {
                     service_id: RuntimeServiceId::SERVICE_ID,
-                    msg: LifecycleMessage::Shutdown(sender),
+                    msg: LifecycleMessage::Stop(sender),
                 },
             ))
             .await;

@@ -185,17 +185,17 @@ where
         self.send(OverwatchCommand::ServiceLifeCycle(
             ServiceLifeCycleCommand {
                 service_id: RuntimeServiceId::SERVICE_ID,
-                msg: LifecycleMessage::Shutdown(sender),
+                msg: LifecycleMessage::Stop(sender),
             },
         ))
         .await
         .map_err(|e| {
             dbg!(e);
-            ServiceError::Shutdown
+            ServiceError::Stop
         })?;
         receiver.recv().await.map_err(|e| {
             dbg!(e);
-            ServiceError::Shutdown
+            ServiceError::Stop
         })?;
         Ok(())
     }

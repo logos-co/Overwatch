@@ -296,11 +296,11 @@ where
             }
             ServiceLifeCycleCommand {
                 service_id,
-                msg: shutdown_msg @ LifecycleMessage::Shutdown(_),
+                msg: stop_msg @ LifecycleMessage::Stop(_),
             } => {
                 if let Err(e) = services
                     .get_service_lifecycle_handle(&service_id)
-                    .send(shutdown_msg)
+                    .send(stop_msg)
                 {
                     error!(e);
                 }
