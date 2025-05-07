@@ -555,7 +555,7 @@ fn generate_stop_impl(fields: &Punctuated<Field, Comma>) -> proc_macro2::TokenSt
         quote! {
             &<Self::RuntimeServiceId as ::overwatch::services::AsServiceId<#type_id>>::SERVICE_ID => {
                 self.#field_identifier.lifecycle_handle().send(
-                    ::overwatch::services::life_cycle::LifecycleMessage::Shutdown(sender)
+                    ::overwatch::services::life_cycle::LifecycleMessage::Stop(sender)
                 )?;
             }
         }
@@ -602,7 +602,7 @@ fn generate_stop_all_impl(fields: &Punctuated<Field, Comma>) -> proc_macro2::Tok
         let field_identifier = field.ident.as_ref().expect("A struct attribute identifier");
         quote! {
             self.#field_identifier.lifecycle_handle().send(
-                ::overwatch::services::life_cycle::LifecycleMessage::Shutdown(senders.remove(0))
+                ::overwatch::services::life_cycle::LifecycleMessage::Stop(senders.remove(0))
             )?;
         }
     });

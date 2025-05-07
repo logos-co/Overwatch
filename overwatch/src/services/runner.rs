@@ -168,7 +168,7 @@ where
                         &sender,
                     );
                 }
-                LifecycleMessage::Shutdown(sender) => {
+                LifecycleMessage::Stop(sender) => {
                     if matches!(
                         *status_handle.borrow(),
                         ServiceStatus::Stopped | ServiceStatus::Uninitialized
@@ -176,10 +176,10 @@ where
                         info!("Service is already stopped.");
                         sender
                             .send(())
-                            .expect("Failed sending the Shutdown FinishedSignal.");
+                            .expect("Failed sending the Stop FinishedSignal.");
                         continue;
                     }
-                    let received_inbound_relay = Self::handle_shutdown(
+                    let received_inbound_relay = Self::handle_stop(
                         &mut service_task_handle,
                         &mut state_handle_task_handle,
                         &service_resources,
@@ -269,13 +269,13 @@ where
             .update(ServiceStatus::Running);
     }
 
-    fn handle_shutdown(
+    fn handle_stop(
         service_task_handle: &mut Option<JoinHandle<Result<(), DynError>>>,
         state_handle_task_handle: &mut Option<JoinHandle<()>>,
         service_resources: &ServiceResources<Message, Settings, State, RuntimeServiceId>,
         consumer_receiver: &ConsumerReceiver<Message>,
         consumer_sender: ConsumerSender<Message>,
-        shutdown_finished_signal_sender: &Sender<FinishedSignal>,
+        stop_finished_signal_sender: &Sender<FinishedSignal>,
         relay_buffer_size: usize,
     ) -> InboundRelay<Message> {
         Self::stop_service(service_task_handle, state_handle_task_handle);
@@ -286,9 +286,9 @@ where
         let consumer = consumer_receiver
             .recv()
             .expect("Consumer must be retrieved.");
-        shutdown_finished_signal_sender
+        stop_finished_signal_sender
             .send(())
-            .expect("Failed sending the Shutdown FinishedSignal.");
+            .expect("Failed sending the Stop FinishedSignal.");
         InboundRelay::new(consumer, consumer_sender, relay_buffer_size)
     }
 

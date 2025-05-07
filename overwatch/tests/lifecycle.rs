@@ -185,7 +185,7 @@ fn test_lifecycle() {
     send_lifecycle_message(
         runtime,
         handle,
-        LifecycleMessage::Shutdown(lifecycle_sender.clone()),
+        LifecycleMessage::Stop(lifecycle_sender.clone()),
     );
     runtime.block_on(lifecycle_receiver.recv()).unwrap();
     service_receiver.try_recv().unwrap_err();
@@ -201,11 +201,7 @@ fn test_lifecycle() {
     assert_eq!(service_value, "1");
 
     // Shutdown Service again
-    send_lifecycle_message(
-        runtime,
-        handle,
-        LifecycleMessage::Shutdown(lifecycle_sender),
-    );
+    send_lifecycle_message(runtime, handle, LifecycleMessage::Stop(lifecycle_sender));
     runtime.block_on(lifecycle_receiver.recv()).unwrap();
     service_receiver.try_recv().unwrap_err();
 }
