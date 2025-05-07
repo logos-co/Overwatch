@@ -1,6 +1,6 @@
 use std::fmt::{Debug, Display};
 
-use tokio::task::JoinHandle;
+use tokio::{runtime::Handle, sync::broadcast::Sender, task::JoinHandle};
 use tokio_stream::StreamExt;
 use tracing::info;
 
@@ -8,8 +8,8 @@ use crate::{
     overwatch::handle::OverwatchHandle,
     services::{
         handle::ServiceHandle,
-        life_cycle::{LifecycleHandle, LifecycleMessage},
-        relay::{InboundRelay, Relay},
+        life_cycle::{FinishedSignal, LifecycleHandle, LifecycleMessage},
+        relay::{ConsumerReceiver, ConsumerSender, InboundRelay, Relay},
         resources::ServiceResources,
         settings::SettingsUpdater,
         state::{ServiceState, StateHandle, StateOperator},
@@ -122,8 +122,7 @@ where
     where
         Service: ServiceCore<RuntimeServiceId, Settings = Settings, State = State, Message = Message>
             + 'static,
-        StateOp: Clone,          // For StateHandle::clone
-        RuntimeServiceId: Clone, // For ServiceStateHandle::into
+        StateOp: Clone,
     {
         let Self {
             service_resources,
@@ -159,41 +158,15 @@ where
                             .expect("Failed sending the Start FinishedSignal.");
                         continue;
                     }
-
-                    let initial_state = match Self::get_service_initial_state(&service_resources) {
-                        Ok(initial_state) => initial_state,
-                        Err(error) => {
-                            panic!("Failed to create initial state from settings: {error}");
-                        }
-                    };
-                    let inbound_relay = inbound_relay.take().expect("Inbound relay must exist.");
-                    let services_resources_handle = service_resources.to_handle(inbound_relay);
-
-                    let service = Service::init(services_resources_handle, initial_state.clone());
-
-                    match service {
-                        Ok(service) => {
-                            service_resources
-                                .state_updater
-                                .update(initial_state.clone());
-
-                            let state_handle = state_handle.clone();
-                            service_task_handle = Some(runtime.spawn(service.run()));
-                            state_handle_task_handle = Some(runtime.spawn(state_handle.run()));
-
-                            sender
-                                .send(())
-                                .expect("Failed sending the Start FinishedSignal.");
-
-                            service_resources
-                                .status_handle
-                                .updater()
-                                .update(ServiceStatus::Running);
-                        }
-                        Err(error) => {
-                            panic!("Error while initialising service: {error}");
-                        }
-                    }
+                    Self::handle_start::<Service>(
+                        &runtime,
+                        &service_resources,
+                        inbound_relay.take().expect("Inbound relay must exist."),
+                        state_handle.clone(),
+                        &mut service_task_handle,
+                        &mut state_handle_task_handle,
+                        &sender,
+                    );
                 }
                 LifecycleMessage::Shutdown(sender) => {
                     if matches!(
@@ -206,26 +179,117 @@ where
                             .expect("Failed sending the Shutdown FinishedSignal.");
                         continue;
                     }
-
-                    Self::stop_service(&mut service_task_handle, &mut state_handle_task_handle);
-                    service_resources
-                        .status_handle
-                        .updater()
-                        .update(ServiceStatus::Stopped);
-                    let consumer = consumer_receiver
-                        .recv()
-                        .expect("Consumer must be retrieved.");
-                    inbound_relay = Some(InboundRelay::new(
-                        consumer,
+                    let received_inbound_relay = Self::handle_shutdown(
+                        &mut service_task_handle,
+                        &mut state_handle_task_handle,
+                        &service_resources,
+                        &consumer_receiver,
                         consumer_sender.clone(),
+                        &sender,
                         relay_buffer_size,
-                    ));
-                    sender
-                        .send(())
-                        .expect("Failed sending the Shutdown FinishedSignal.");
+                    );
+                    inbound_relay = Some(received_inbound_relay);
                 }
             }
         }
+    }
+
+    fn handle_start<Service>(
+        runtime: &Handle,
+        service_resources: &ServiceResources<Message, Settings, State, RuntimeServiceId>,
+        inbound_relay: InboundRelay<Message>,
+        state_handle: StateHandle<State, StateOp>,
+        service_task_handle: &mut Option<JoinHandle<Result<(), DynError>>>,
+        state_handle_task_handle: &mut Option<JoinHandle<()>>,
+        sender: &Sender<FinishedSignal>,
+    ) where
+        Service: ServiceCore<RuntimeServiceId, Settings = Settings, State = State, Message = Message>
+            + 'static,
+        StateOp: Clone,
+    {
+        let initial_state = match Self::get_service_initial_state(service_resources) {
+            Ok(initial_state) => initial_state,
+            Err(error) => {
+                panic!("Failed to create initial state from settings: {error}");
+            }
+        };
+
+        let services_resources_handle = service_resources.to_handle(inbound_relay);
+        let service = Service::init(services_resources_handle, initial_state.clone());
+
+        match service {
+            Ok(service) => {
+                Self::handle_service_init(
+                    service,
+                    runtime,
+                    service_resources,
+                    initial_state,
+                    state_handle,
+                    service_task_handle,
+                    state_handle_task_handle,
+                    sender,
+                );
+            }
+            Err(error) => {
+                panic!("Error while initialising service: {error}");
+            }
+        }
+    }
+
+    #[expect(
+        clippy::too_many_arguments,
+        reason = "No simple way to group arguments."
+    )]
+    fn handle_service_init<Service>(
+        service: Service,
+        runtime: &Handle,
+        service_resources: &ServiceResources<Message, Settings, State, RuntimeServiceId>,
+        initial_state: State,
+        state_handle: StateHandle<State, StateOp>,
+        service_task_handle: &mut Option<JoinHandle<Result<(), DynError>>>,
+        state_handle_task_handle: &mut Option<JoinHandle<()>>,
+        sender: &Sender<FinishedSignal>,
+    ) where
+        Service: ServiceCore<RuntimeServiceId, Settings = Settings, State = State, Message = Message>
+            + 'static,
+        StateOp: Clone,
+    {
+        service_resources.state_updater.update(initial_state);
+
+        *service_task_handle = Some(runtime.spawn(service.run()));
+        *state_handle_task_handle = Some(runtime.spawn(state_handle.run()));
+
+        sender
+            .send(())
+            .expect("Failed sending the Start FinishedSignal.");
+
+        service_resources
+            .status_handle
+            .updater()
+            .update(ServiceStatus::Running);
+    }
+
+    fn handle_shutdown(
+        service_task_handle: &mut Option<JoinHandle<Result<(), DynError>>>,
+        state_handle_task_handle: &mut Option<JoinHandle<()>>,
+        service_resources: &ServiceResources<Message, Settings, State, RuntimeServiceId>,
+        consumer_receiver: &ConsumerReceiver<Message>,
+        consumer_sender: ConsumerSender<Message>,
+        shutdown_finished_signal_sender: &Sender<FinishedSignal>,
+        relay_buffer_size: usize,
+    ) -> InboundRelay<Message> {
+        Self::stop_service(service_task_handle, state_handle_task_handle);
+        service_resources
+            .status_handle
+            .updater()
+            .update(ServiceStatus::Stopped);
+        let consumer = consumer_receiver
+            .recv()
+            .expect("Consumer must be retrieved.");
+        shutdown_finished_signal_sender
+            .send(())
+            .expect("Failed sending the Shutdown FinishedSignal.");
+        InboundRelay::new(consumer, consumer_sender, relay_buffer_size)
     }
 
     /// Retrieves the initial state for the service.
