@@ -163,7 +163,7 @@ where
         info!("Starting all services");
         let _: Result<(), _> = self
             .send(OverwatchCommand::OverwatchLifeCycle(
-                OverwatchLifeCycleCommand::Start,
+                OverwatchLifeCycleCommand::StartAllServices,
             ))
             .await
             .map_err(|e| dbg!(e));
