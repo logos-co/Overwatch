@@ -1,5 +1,3 @@
-use std::marker::PhantomData;
-
 use crate::{
     overwatch::handle::OverwatchHandle,
     services::{
@@ -12,18 +10,16 @@ use crate::{
 ///
 /// Contains everything required to start a new
 /// [`ServiceRunner`](crate::services::runner::ServiceRunner).
-pub struct ServiceResources<Message, Settings, State, RuntimeServiceId> {
+pub struct ServiceResources<Settings, State, RuntimeServiceId> {
     /// Message channel relay to receive messages from other services
     pub status_handle: StatusHandle,
     pub overwatch_handle: OverwatchHandle<RuntimeServiceId>,
     pub settings_updater: SettingsUpdater<Settings>,
     pub state_updater: StateUpdater<State>,
     pub lifecycle_handle: LifecycleHandle,
-    _message: PhantomData<Message>,
 }
 
-impl<Message, Settings, State, RuntimeServiceId>
-    ServiceResources<Message, Settings, State, RuntimeServiceId>
+impl<Settings, State, RuntimeServiceId> ServiceResources<Settings, State, RuntimeServiceId>
 where
     RuntimeServiceId: Clone,
     Settings: Clone,
@@ -42,7 +38,6 @@ where
             settings_updater,
             state_updater,
             lifecycle_handle,
-            _message: PhantomData,
         }
     }
 
@@ -53,12 +48,12 @@ where
     ///
     /// * `inbound_relay`: The relay the service will use to receive messages.
     ///   Due to the singleton nature of the inbound relay, if the recipient
-    ///   service is being restarted, then the relay should be same one returned
-    ///   by the previous instance when it was stopped. This ensures the new
-    ///   instance will maintain communication with other services who opened a
-    ///   relay to the previous instance.
+    ///   service is being restarted, then the relay should be the same one
+    ///   returned by the previous instance when it was stopped. This ensures
+    ///   the new instance will maintain communication with other services who
+    ///   opened a relay to the previous instance.
     #[must_use]
-    pub fn to_handle(
+    pub fn to_handle<Message>(
         &self,
         inbound_relay: InboundRelay<Message>,
     ) -> ServiceResourcesHandle<Message, Settings, State, RuntimeServiceId> {
