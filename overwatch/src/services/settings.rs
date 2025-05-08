@@ -4,7 +4,6 @@ use tracing::error;
 use tracing::instrument;
 
 /// Wrapper around [`Receiver`].
-#[derive(Clone)]
 pub struct SettingsNotifier<Settings> {
     notifier_channel: Receiver<Settings>,
 }
