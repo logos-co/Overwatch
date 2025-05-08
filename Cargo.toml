@@ -1,16 +1,16 @@
 [workspace]
-members = ["examples/ping_pong", "overwatch", "overwatch-derive"]
+members  = ["examples/ping_pong", "overwatch", "overwatch-derive"]
 resolver = "2"
 
 [workspace.package]
-homepage = "https://github.com/logos-co/Overwatch"
-license = "MIT or Apache-2.0"
+homepage   = "https://github.com/logos-co/Overwatch"
+license    = "MIT or Apache-2.0"
 repository = "https://github.com/logos-co/Overwatch"
 
 [workspace.dependencies]
-overwatch = { path = "./overwatch" }
+overwatch        = { path = "./overwatch" }
 overwatch-derive = { path = "./overwatch-derive" }
 
 [profile.release-opt]
 inherits = "release"
-lto = true
+lto      = true
