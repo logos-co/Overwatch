@@ -171,7 +171,7 @@ where
         while let Some(lifecycle_message) = lifecycle_stream.next().await {
             match lifecycle_message {
                 LifecycleMessage::Start(sender) => {
-                    if *status_handle.borrow() == ServiceStatus::Running {
+                    if !status_handle.borrow().is_startable() {
                         info!("Service is already running.");
                         // TODO: Sending a different signal could be very handy to
                         //  indicate that the service is already running.
@@ -191,10 +191,7 @@ where
                     );
                 }
                 LifecycleMessage::Stop(sender) => {
-                    if matches!(
-                        *status_handle.borrow(),
-                        ServiceStatus::Stopped | ServiceStatus::Uninitialized
-                    ) {
+                    if !status_handle.borrow().is_stoppable() {
                         info!("Service is already stopped.");
                         // TODO: Sending a different signal could be very handy to
                         //  indicate that the service is already stopped.
