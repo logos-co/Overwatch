@@ -112,16 +112,29 @@ pub trait Services: Sized {
     /// The generated [`Error`].
     async fn stop_all(&mut self) -> Result<(), Error>;
 
-    /// Shuts down the `Service`s
-    /// [`ServiceRunner`](crate::services::runner::ServiceRunner)s.
+    /// Shuts down the `Service`'s
+    /// [`ServiceRunner`](crate::services::runner::ServiceRunner)s attached to
+    /// the trait implementer.
     ///
-    /// TODO: This should run stop_all? Verify.
-    /// TODO: This is necessary here because of how we're implementing it,
-    ///  but at trait level it doesn't make sense as this should be agnostic of
-    /// how `Services` are  implemented.
+    /// This is the opposite operation of [`Self::new`]: It's _final_.
+    /// `Service`s won't be able to be started again after calling it.
     ///
-    /// This action is final, `Service`s won't be able to be started again after
-    /// calling it. It's the opposite operation of [`Self::new`].
+    /// # Note
+    ///
+    /// The current implementation of this function (when derived via the
+    /// [`#[derive_services]`](overwatch_derive::derive_services) macro)
+    /// cleans up attached `Service`s by calling [`Self::stop_all`] before
+    /// terminating the [`Runner`]s, preventing resource leaks.
+    ///
+    /// For improved SRP, an alternative to consider would be restricting this
+    /// function's role to just killing the
+    /// [`ServiceRunner`](crate::services::runner::ServiceRunner)s, while
+    /// composing the full cleanup within a
+    /// [`OverwatchLifecycleCommand`](crate::overwatch::OverwatchLifeCycleCommand).
+    ///
+    /// # Errors
+    ///
+    /// The generated [`Error`].
     async fn shutdown(&mut self) -> Result<(), Error>;
 
     /// Request a communication relay for a service attached to the trait
@@ -243,7 +256,6 @@ where
                         }
                     }
                     OverwatchLifeCycleCommand::Shutdown => {
-                        // TODO: Does this need to call stop all first or is cleanup a user issue?
                         if let Err(e) = services.shutdown().await {
                             error!(error=?e, "Error stopping all services");
                         }

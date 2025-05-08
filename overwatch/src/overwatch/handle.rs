@@ -159,7 +159,7 @@ where
     /// # Errors
     ///
     /// Fails silently if the start signal cannot be sent.
-    pub async fn start(&self) {
+    pub async fn start_all_services(&self) {
         info!("Starting all services");
         let _: Result<(), _> = self
             .send(OverwatchCommand::OverwatchLifeCycle(
@@ -198,6 +198,16 @@ where
             ServiceError::Stop
         })?;
         Ok(())
+    }
+
+    pub async fn stop_all_services(&self) {
+        info!("Stopping all services");
+        let _: Result<(), _> = self
+            .send(OverwatchCommand::OverwatchLifeCycle(
+                OverwatchLifeCycleCommand::StopAllServices,
+            ))
+            .await
+            .map_err(|e| dbg!(e));
     }
 
     /// Send a shutdown signal to the
