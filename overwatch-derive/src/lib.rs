@@ -352,6 +352,7 @@ fn generate_services_impl(
     let impl_start_all = generate_start_all_impl(fields);
     let impl_stop = generate_stop_impl(fields);
     let impl_stop_all = generate_stop_all_impl(fields);
+    let impl_shutdown = generate_shutdown_impl(fields);
     let impl_relay = generate_request_relay_impl(fields);
     let impl_status = generate_request_status_watcher_impl(fields);
     let impl_update_settings = generate_update_settings_impl(fields);
@@ -375,6 +376,8 @@ fn generate_services_impl(
             #impl_stop
 
             #impl_stop_all
+
+            #impl_shutdown
 
             #impl_relay
 
@@ -616,6 +619,33 @@ fn generate_stop_all_impl(fields: &Punctuated<Field, Comma>) -> proc_macro2::Tok
         }
     };
 
+    let instrumentation = get_default_instrumentation();
+    quote! {
+        #instrumentation
+        async fn stop_all(&mut self) -> Result<(), ::overwatch::overwatch::Error> {
+            #call_create_channels
+
+            #( #call_send_stop_message_to_services )*
+
+            #call_recv_finished_signals
+
+            Ok::<(), ::overwatch::overwatch::Error>(())
+        }
+    }
+}
+
+/// Generates the `shutdown` method implementation for the `Services` trait.
+///
+/// This function creates code to shutdown the service runners.
+///
+/// # Arguments
+///
+/// * `fields` - The fields of the services struct
+///
+/// # Returns
+///
+/// A token stream containing the `shutdown` method implementation.
+fn generate_shutdown_impl(fields: &Punctuated<Field, Comma>) -> proc_macro2::TokenStream {
     let call_abort_service_runner_join_handles = fields.iter().map(|field| {
         let field_identifier = field.ident.as_ref().expect("A struct attribute identifier");
         quote! {
@@ -627,13 +657,7 @@ fn generate_stop_all_impl(fields: &Punctuated<Field, Comma>) -> proc_macro2::Tok
     let instrumentation = get_default_instrumentation();
     quote! {
         #instrumentation
-        async fn stop_all(&mut self) -> Result<(), ::overwatch::overwatch::Error> {
-            #call_create_channels
-
-            #( #call_send_stop_message_to_services )*
-
-            #call_recv_finished_signals
-
+        async fn shutdown(&mut self) -> Result<(), ::overwatch::overwatch::Error> {
             # (#call_abort_service_runner_join_handles)*
 
             Ok::<(), ::overwatch::overwatch::Error>(())
