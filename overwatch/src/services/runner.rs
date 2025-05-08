@@ -173,6 +173,8 @@ where
                 LifecycleMessage::Start(sender) => {
                     if *status_handle.borrow() == ServiceStatus::Running {
                         info!("Service is already running.");
+                        // TODO: Sending a different signal could be very handy to
+                        //  indicate that the service is already running.
                         sender
                             .send(())
                             .expect("Failed sending the Start FinishedSignal.");
@@ -194,6 +196,8 @@ where
                         ServiceStatus::Stopped | ServiceStatus::Uninitialized
                     ) {
                         info!("Service is already stopped.");
+                        // TODO: Sending a different signal could be very handy to
+                        //  indicate that the service is already stopped.
                         sender
                             .send(())
                             .expect("Failed sending the Stop FinishedSignal.");
