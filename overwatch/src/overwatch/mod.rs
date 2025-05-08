@@ -112,6 +112,18 @@ pub trait Services: Sized {
     /// The generated [`Error`].
     async fn stop_all(&mut self) -> Result<(), Error>;
 
+    /// Shuts down the `Service`s
+    /// [`ServiceRunner`](crate::services::runner::ServiceRunner)s.
+    ///
+    /// TODO: This should run stop_all? Verify.
+    /// TODO: This is necessary here because of how we're implementing it,
+    ///  but at trait level it doesn't make sense as this should be agnostic of
+    /// how `Services` are  implemented.
+    ///
+    /// This action is final, `Service`s won't be able to be started again after
+    /// calling it. It's the opposite operation of [`Self::new`].
+    async fn shutdown(&mut self) -> Result<(), Error>;
+
     /// Request a communication relay for a service attached to the trait
     /// implementer.
     ///
@@ -220,13 +232,19 @@ where
                     Self::handle_service_service_lifecycle(&services, msg);
                 }
                 OverwatchCommand::OverwatchLifeCycle(command) => match command {
-                    OverwatchLifeCycleCommand::Start => {
+                    OverwatchLifeCycleCommand::StartAllServices => {
                         if let Err(e) = services.start_all().await {
                             error!(error=?e, "Error starting all services");
                         }
                     }
-                    OverwatchLifeCycleCommand::Shutdown => {
+                    OverwatchLifeCycleCommand::StopAllServices => {
                         if let Err(e) = services.stop_all().await {
+                            error!(error=?e, "Error stopping all services");
+                        }
+                    }
+                    OverwatchLifeCycleCommand::Shutdown => {
+                        // TODO: Does this need to call stop all first or is cleanup a user issue?
+                        if let Err(e) = services.shutdown().await {
                             error!(error=?e, "Error stopping all services");
                         }
                         break;
@@ -397,6 +415,10 @@ mod test {
         }
 
         async fn stop_all(&mut self) -> Result<(), Error> {
+            Ok(())
+        }
+
+        async fn shutdown(&mut self) -> Result<(), Error> {
             Ok(())
         }
 

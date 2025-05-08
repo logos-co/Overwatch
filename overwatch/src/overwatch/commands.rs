@@ -51,12 +51,21 @@ pub struct ServiceLifeCycleCommand<RuntimeServiceId> {
 /// lifecycle.
 #[derive(Debug)]
 pub enum OverwatchLifeCycleCommand {
-    /// Starts all `Service`s associated to an [`Overwatch`](crate::overwatch::Overwatch) instance.
-    Start,
-    /// Stops all `Service`s (and their respective
-    /// [`ServiceRunner`](crate::services::runner::ServiceRunner)s).
+    /// Starts all `Service`s associated to an
+    /// [`Overwatch`](crate::overwatch::Overwatch) instance.
+    StartAllServices,
+    /// Stops all `Service`s associated to an
+    /// [`Overwatch`](crate::overwatch::Overwatch) instance.
+    StopAllServices,
+    /// Shuts down [`Overwatch`](crate::overwatch::Overwatch), sending the
+    /// `finish_runner_signal`
+    /// to [`Overwatch`](crate::overwatch::Overwatch). It's the signal which
+    /// [`Overwatch::wait_finished`](crate::overwatch::Overwatch::wait_finished)
+    /// awaits.
     ///
-    /// This message is final: Once it's sent `Service`s can't be started again.
+    /// This message is final: It stops all `Service`s (and their respective
+    /// [`ServiceRunner`](crate::services::runner::ServiceRunner)s) so
+    /// `Service`s can't be started again.
     Shutdown,
 }
 
