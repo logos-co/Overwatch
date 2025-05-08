@@ -15,7 +15,7 @@ pub enum LifecycleMessage {
     /// Starts the `Service`.
     ///
     /// If the `Service` has been stopped with [`LifecycleMessage::Stop`], it
-    /// can be restarted.
+    /// will be restarted.
     ///
     /// # Arguments
     ///
