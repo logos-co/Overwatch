@@ -7,6 +7,19 @@ pub enum ServiceStatus {
     Uninitialized,
     Running,
     Stopped,
+    Killed,
+}
+
+impl ServiceStatus {
+    #[must_use]
+    pub const fn is_startable(&self) -> bool {
+        matches!(self, Self::Uninitialized | Self::Stopped)
+    }
+
+    #[must_use]
+    pub const fn is_stoppable(&self) -> bool {
+        matches!(self, Self::Running)
+    }
 }
 
 pub struct StatusUpdater(watch::Sender<ServiceStatus>);

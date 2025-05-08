@@ -103,7 +103,7 @@ impl<Message> Drop for InboundRelay<Message> {
         mem::swap(&mut swapped_consumer_sender, consumer_sender);
 
         if let Err(e) = swapped_consumer_sender.send(swapped_receiver) {
-            panic!("Failed returning receiver: {e:?}");
+            error!("Failed returning receiver: {e:?}. This is expected if the `ServiceRunner` has been killed.");
         }
     }
 }
