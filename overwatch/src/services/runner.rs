@@ -42,7 +42,7 @@ impl<Message, Settings, State, StateOperator, RuntimeServiceId>
 ///
 /// Contains all the necessary information to run a `Service`.
 pub struct ServiceRunner<Message, Settings, State, StateOperator, RuntimeServiceId> {
-    service_resources: ServiceResources<Message, Settings, State, RuntimeServiceId>,
+    service_resources: ServiceResources<Settings, State, RuntimeServiceId>,
     state_handle: StateHandle<State, StateOperator>,
     lifecycle_handle: LifecycleHandle,
     overwatch_handle: OverwatchHandle<RuntimeServiceId>,
@@ -217,7 +217,7 @@ where
 
     fn handle_start<Service>(
         runtime: &Handle,
-        service_resources: &ServiceResources<Message, Settings, State, RuntimeServiceId>,
+        service_resources: &ServiceResources<Settings, State, RuntimeServiceId>,
         inbound_relay: InboundRelay<Message>,
         state_handle: StateHandle<State, StateOp>,
         service_task_handle: &mut Option<JoinHandle<Result<(), DynError>>>,
@@ -259,7 +259,7 @@ where
     fn handle_service_run<Service>(
         service: Service,
         runtime: &Handle,
-        service_resources: &ServiceResources<Message, Settings, State, RuntimeServiceId>,
+        service_resources: &ServiceResources<Settings, State, RuntimeServiceId>,
         state_handle: StateHandle<State, StateOp>,
         service_task_handle: &mut Option<JoinHandle<Result<(), DynError>>>,
         state_handle_task_handle: &mut Option<JoinHandle<()>>,
@@ -285,7 +285,7 @@ where
     fn handle_stop(
         service_task_handle: &mut Option<JoinHandle<Result<(), DynError>>>,
         state_handle_task_handle: &mut Option<JoinHandle<()>>,
-        service_resources: &ServiceResources<Message, Settings, State, RuntimeServiceId>,
+        service_resources: &ServiceResources<Settings, State, RuntimeServiceId>,
         consumer_receiver: &ConsumerReceiver<Message>,
         consumer_sender: ConsumerSender<Message>,
         stop_finished_signal_sender: &Sender<FinishedSignal>,
@@ -312,7 +312,7 @@ where
     /// state). If it fails, it defaults to the initial state created from
     /// the settings.
     fn get_service_initial_state(
-        service_resources: &ServiceResources<Message, Settings, State, RuntimeServiceId>,
+        service_resources: &ServiceResources<Settings, State, RuntimeServiceId>,
     ) -> Result<State, State::Error> {
         let settings = service_resources
             .settings_updater
