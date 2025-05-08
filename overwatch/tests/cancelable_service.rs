@@ -38,9 +38,8 @@ impl ServiceCore<RuntimeServiceId> for CancellableService {
         let mut interval = tokio::time::interval(Duration::from_millis(200));
 
         loop {
-            let x = interval.tick().await;
             println!("Waiting to be killed 💀");
-            cumulative_time += x.elapsed();
+            cumulative_time += interval.tick().await.elapsed();
             assert!(
                 cumulative_time <= Duration::from_secs(2),
                 "Timeout while waiting to be killed."
