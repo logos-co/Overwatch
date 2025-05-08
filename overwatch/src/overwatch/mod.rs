@@ -129,12 +129,17 @@ pub trait Services: Sized {
     /// For improved SRP, an alternative to consider would be restricting this
     /// function's role to just killing the
     /// [`ServiceRunner`](crate::services::runner::ServiceRunner)s, while
-    /// composing the full cleanup within a
-    /// [`OverwatchLifecycleCommand`](crate::overwatch::OverwatchLifeCycleCommand).
+    /// composing the full cleanup within a [`OverwatchLifeCycleCommand`].
+    ///
     ///
     /// # Errors
     ///
     /// The generated [`Error`].
+    // TODO: This function might not fit here conceptually, as it implies there's
+    // something to  shutdown even though this trait should be agnostic. That
+    // being said, the alternative of  handling cleanup within
+    // [`Self::stop_all`] is not ideal: Mixes responsibilities and  disables the
+    // ability to stop `Service`s without shutting down.
     async fn shutdown(&mut self) -> Result<(), Error>;
 
     /// Request a communication relay for a service attached to the trait
