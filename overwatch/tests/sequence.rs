@@ -171,7 +171,7 @@ fn sequenced_services_startup() {
     let overwatch = OverwatchRunner::<SequenceServices>::run(settings, None).unwrap();
     let handle = overwatch.handle().clone();
 
-    handle.runtime().block_on(handle.start());
+    handle.runtime().block_on(handle.start_all_services());
 
     overwatch.spawn(async move {
         tokio::time::sleep(Duration::from_secs(1)).await;

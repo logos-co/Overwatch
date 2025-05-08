@@ -649,7 +649,7 @@ fn generate_shutdown_impl(fields: &Punctuated<Field, Comma>) -> proc_macro2::Tok
     let call_abort_service_runner_join_handles = fields.iter().map(|field| {
         let field_identifier = field.ident.as_ref().expect("A struct attribute identifier");
         quote! {
-            // TODO: Ideally await, so it's a graceful shutdown.
+            // TODO: Ideally this would be a graceful shutdown by awaiting handles to be aborted.
             self.#field_identifier.runner_join_handle().abort();
         }
     });
@@ -658,6 +658,8 @@ fn generate_shutdown_impl(fields: &Punctuated<Field, Comma>) -> proc_macro2::Tok
     quote! {
         #instrumentation
         async fn shutdown(&mut self) -> Result<(), ::overwatch::overwatch::Error> {
+            self.stop_all().await?;
+
             # (#call_abort_service_runner_join_handles)*
 
             Ok::<(), ::overwatch::overwatch::Error>(())
