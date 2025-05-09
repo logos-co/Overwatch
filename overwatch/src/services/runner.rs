@@ -1,5 +1,5 @@
 use std::fmt::Display;
-
+use std::time::Duration;
 use tokio::{runtime::Handle, sync::broadcast::Sender, task::JoinHandle};
 use tokio_stream::StreamExt;
 use tracing::info;
@@ -168,48 +168,59 @@ where
 
         let mut inbound_relay = Some(inbound);
 
-        while let Some(lifecycle_message) = lifecycle_stream.next().await {
-            match lifecycle_message {
-                LifecycleMessage::Start(sender) => {
-                    if !status_handle.borrow().is_startable() {
-                        info!("Service is already running.");
-                        // TODO: Sending a different signal could be very handy to
-                        //  indicate that the service is already running.
-                        sender
-                            .send(())
-                            .expect("Failed sending the Start FinishedSignal.");
-                        continue;
-                    }
-                    Self::handle_start::<Service>(
-                        &runtime,
-                        &service_resources,
-                        inbound_relay.take().expect("Inbound relay must exist."),
-                        state_handle.clone(),
-                        &mut service_task_handle,
-                        &mut state_handle_task_handle,
-                        &sender,
-                    );
+        loop {
+            tokio::select! {
+                () = tokio::time::sleep(Duration::from_secs(2)) => {
+                    println!("[ServiceRunner] Timeout waiting for lifecycle message");
                 }
-                LifecycleMessage::Stop(sender) => {
-                    if !status_handle.borrow().is_stoppable() {
-                        info!("Service is already stopped.");
-                        // TODO: Sending a different signal could be very handy to
-                        //  indicate that the service is already stopped.
-                        sender
-                            .send(())
-                            .expect("Failed sending the Stop FinishedSignal.");
-                        continue;
+                Some(lifecycle_message) = async {
+                    println!("[ServiceRunner] Waiting for message");
+                    lifecycle_stream.next().await
+                } => {
+                    println!("[ServiceRunner::run_] received lifecycle message: {lifecycle_message:?}");
+                    match lifecycle_message {
+                        LifecycleMessage::Start(sender) => {
+                            if !status_handle.borrow().is_startable() {
+                                info!("Service is already running.");
+                                // TODO: Sending a different signal could be very handy to
+                                //  indicate that the service is already running.
+                                sender
+                                    .send(())
+                                    .expect("Failed sending the Start FinishedSignal.");
+                                continue;
+                            }
+                            Self::handle_start::<Service>(
+                                &runtime,
+                                &service_resources,
+                                inbound_relay.take().expect("Inbound relay must exist."),
+                                state_handle.clone(),
+                                &mut service_task_handle,
+                                &mut state_handle_task_handle,
+                                &sender,
+                            );
+                        }
+                        LifecycleMessage::Stop(sender) => {
+                            if !status_handle.borrow().is_stoppable() {
+                                info!("Service is already stopped.");
+                                // TODO: Sending a different signal could be very handy to
+                                //  indicate that the service is already stopped.
+                                sender
+                                    .send(())
+                                    .expect("Failed sending the Stop FinishedSignal.");
+                                continue;
+                            }
+                            let received_inbound_relay = Self::handle_stop(
+                                &mut service_task_handle,
+                                &mut state_handle_task_handle,
+                                &service_resources,
+                                &consumer_receiver,
+                                consumer_sender.clone(),
+                                &sender,
+                                relay_buffer_size,
+                            );
+                            inbound_relay = Some(received_inbound_relay);
+                        }
                     }
-                    let received_inbound_relay = Self::handle_stop(
-                        &mut service_task_handle,
-                        &mut state_handle_task_handle,
-                        &service_resources,
-                        &consumer_receiver,
-                        consumer_sender.clone(),
-                        &sender,
-                        relay_buffer_size,
-                    );
-                    inbound_relay = Some(received_inbound_relay);
                 }
             }
         }
@@ -236,7 +247,8 @@ where
         };
 
         let services_resources_handle = service_resources.to_handle(inbound_relay);
-        let service = Service::init(services_resources_handle, initial_state);
+        let service = Service::init(services_resources_handle, initial_state.clone());
+        service_resources.state_updater.update(initial_state);
 
         match service {
             Ok(service) => {

@@ -1,7 +1,6 @@
-use std::{convert::Infallible, marker::PhantomData, pin::Pin, sync::Arc};
-
 use async_trait::async_trait;
 use futures::StreamExt;
+use std::{convert::Infallible, marker::PhantomData, pin::Pin, sync::Arc};
 use tokio::sync::broadcast::{channel, Receiver, Sender};
 use tokio_stream::wrappers::BroadcastStream;
 use tracing::error;
@@ -83,7 +82,7 @@ pub struct NoOperator<StateInput>(PhantomData<*const StateInput>);
 /// `NoOperator` does not actually hold anything and is thus Sync.
 ///
 /// Note that we don't use `PhantomData<StateInput>` as that would suggest we
-/// indeed hold an instance of [`StateOperator::State`].    
+/// indeed hold an instance of [`StateOperator::State`].
 ///
 /// [Ownership and the drop check](https://doc.rust-lang.org/std/marker/struct.PhantomData.html#ownership-and-the-drop-check)
 unsafe impl<StateInput> Send for NoOperator<StateInput> {}
@@ -124,7 +123,7 @@ impl<StateInput: ServiceState> StateOperator for NoOperator<StateInput> {
 }
 
 /// Empty state.
-#[derive(Copy)]
+#[derive(Copy, Debug)]
 pub struct NoState<Settings>(PhantomData<Settings>);
 
 // Clone is implemented manually because auto deriving introduces an unnecessary
@@ -153,6 +152,8 @@ pub struct StateHandle<State, Operator> {
     operator: Operator,
 }
 
+// Clone must be used carefully. It's very likely `Operator` will be a `StateOperator`, which
+// are likely behaving in as if they were singletons.
 // Clone is implemented manually because auto deriving introduces an unnecessary
 // Clone bound on T.
 impl<State, Operator> Clone for StateHandle<State, Operator>
@@ -173,7 +174,7 @@ where
     State: Clone,
 {
     pub fn new(operator: Operator) -> (Self, StateUpdater<State>) {
-        let (sender, receiver) = channel(1);
+        let (sender, receiver) = channel(5);
         let watcher = StateWatcher { receiver };
         let updater = StateUpdater {
             sender: Arc::new(sender),

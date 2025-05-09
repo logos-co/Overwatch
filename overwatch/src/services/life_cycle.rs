@@ -45,6 +45,7 @@ pub struct LifecycleHandle {
 
 impl Clone for LifecycleHandle {
     fn clone(&self) -> Self {
+        println!("############## Cloned #############");
         Self {
             // `resubscribe` gives access only to newly produced events, not already enqueued ones.
             // This is acceptable for two reasons:

@@ -1,11 +1,3 @@
-use std::{
-    convert::Infallible,
-    sync::{
-        mpsc::{channel, Sender},
-        Mutex,
-    },
-};
-
 use async_trait::async_trait;
 use overwatch::{
     overwatch::{
@@ -22,6 +14,8 @@ use overwatch::{
     DynError, OpaqueServiceResourcesHandle,
 };
 use overwatch_derive::derive_services;
+use std::{convert::Infallible, sync::Mutex};
+use tokio::sync::mpsc::{channel, Sender};
 use tokio::{runtime::Handle, sync::broadcast};
 
 #[derive(Debug, Clone)]
@@ -71,10 +65,10 @@ impl StateOperator for LifecycleServiceStateOperator {
     async fn run(&mut self, state: Self::State) {
         if let Ok(mut lock) = self.saved_state.lock() {
             *lock = Some(state);
-            self.save_finished_signal_sender.send(()).unwrap();
         } else {
             panic!("Failed to lock saved state mutex.");
         }
+        self.save_finished_signal_sender.send(()).await.unwrap();
     }
 }
 
@@ -127,7 +121,10 @@ impl ServiceCore<RuntimeServiceId> for LifecycleService {
             .assert_sender;
 
         // Initial value
-        assert_sender.send(initial_state.value.to_string()).unwrap();
+        assert_sender
+            .send(initial_state.value.to_string())
+            .await
+            .unwrap();
 
         // Increment and save
         let value = initial_state.value + 1;
@@ -144,28 +141,35 @@ struct App {
     lifecycle_service: LifecycleService,
 }
 
-fn send_lifecycle_message(
+async fn send_lifecycle_message(
     runtime: &Handle,
     handle: &OverwatchHandle<RuntimeServiceId>,
     msg: LifecycleMessage,
 ) {
-    runtime
-        .block_on(handle.send(OverwatchCommand::ServiceLifeCycle(
+    handle
+        .send(OverwatchCommand::ServiceLifeCycle(
             ServiceLifeCycleCommand {
                 service_id: RuntimeServiceId::LifecycleService,
                 msg,
             },
-        )))
+        ))
+        .await
         .unwrap();
 }
 
 #[test]
 fn test_lifecycle() {
+    println!("[test_lifecycle] >>>");
     static SAVED_STATE: Mutex<Option<LifecycleServiceState>> = Mutex::new(None);
-    let (state_operator_save_finished_signal_sender, state_operator_save_finished_signal_receiver) =
-        channel();
+    println!("[test_lifecycle] static");
+    let (
+        state_operator_save_finished_signal_sender,
+        mut state_operator_save_finished_signal_receiver,
+    ) = channel(5);
+    println!("[test_lifecycle] finished signal channel");
 
-    let (assert_sender, assert_receiver) = channel();
+    let (assert_sender, mut assert_receiver) = channel(5);
+    println!("[test_lifecycle] assert channel");
     let settings = AppServiceSettings {
         lifecycle_service: LifecycleServiceSettings {
             assert_sender,
@@ -173,62 +177,99 @@ fn test_lifecycle() {
             state_operator_save_finished_signal_sender,
         },
     };
+    println!("[test_lifecycle] settings");
 
     let app = OverwatchRunner::<App>::run(settings, None).unwrap();
+    println!("[test_lifecycle] app");
     let handle = app.handle();
-    let runtime = handle.runtime();
-    let (lifecycle_sender, mut lifecycle_receiver) = broadcast::channel(1);
+    let test = async move {
+        println!("[test_lifecycle] handle");
+        let runtime = handle.runtime();
+        println!("[test_lifecycle] runtime");
+        let (lifecycle_sender, mut lifecycle_receiver) = broadcast::channel(5);
+        println!("[test_lifecycle] lifecycle channel");
 
-    // Start Service
-    send_lifecycle_message(
-        runtime,
-        handle,
-        LifecycleMessage::Start(lifecycle_sender.clone()),
-    );
-    runtime.block_on(lifecycle_receiver.recv()).unwrap();
-    let service_value = assert_receiver.recv().unwrap();
-    assert_eq!(service_value, "0");
+        // Start the Service
+        send_lifecycle_message(
+            runtime,
+            handle,
+            LifecycleMessage::Start(lifecycle_sender.clone()),
+        )
+        .await;
+        println!("[test_lifecycle] start lifecycle message");
+        lifecycle_receiver.recv().await.unwrap();
+        println!("[test_lifecycle] lifecycle message confirmation");
 
-    // In order to avoid test failures, wait until StateOperator has saved to send
-    // the Stop message
-    state_operator_save_finished_signal_receiver.recv().unwrap();
+        // To avoid test failures, wait until StateOperator has saved the initial state from the ServiceRunner
+        state_operator_save_finished_signal_receiver
+            .recv()
+            .await
+            .unwrap();
 
-    // Stop Service
-    send_lifecycle_message(
-        runtime,
-        handle,
-        LifecycleMessage::Stop(lifecycle_sender.clone()),
-    );
-    runtime.block_on(lifecycle_receiver.recv()).unwrap();
-    assert_receiver.try_recv().unwrap_err();
+        // Check the initial value is sent from within the Service
+        let service_value = assert_receiver.recv().await.unwrap();
+        assert_eq!(service_value, "0");
 
-    // Start Service again
-    send_lifecycle_message(
-        runtime,
-        handle,
-        LifecycleMessage::Start(lifecycle_sender.clone()),
-    );
-    runtime.block_on(lifecycle_receiver.recv()).unwrap();
-    let service_value = assert_receiver.recv().unwrap();
-    assert_eq!(service_value, "1");
+        // To avoid test failures, wait until StateOperator has saved the state from the Service
+        state_operator_save_finished_signal_receiver
+            .recv()
+            .await
+            .unwrap();
 
-    // In order to avoid test failures, wait until StateOperator has saved to send
-    // the Stop message
-    state_operator_save_finished_signal_receiver.recv().unwrap();
+        // Stop the Service
+        send_lifecycle_message(
+            runtime,
+            handle,
+            LifecycleMessage::Stop(lifecycle_sender.clone()),
+        )
+        .await;
+        lifecycle_receiver.recv().await.unwrap();
 
-    // Stop Service again
-    send_lifecycle_message(runtime, handle, LifecycleMessage::Stop(lifecycle_sender));
-    runtime.block_on(lifecycle_receiver.recv()).unwrap();
-    assert_receiver.try_recv().unwrap_err();
+        // Check that the Service hasn't sent any messages
+        assert_receiver.try_recv().unwrap_err();
 
-    // Check last saved value
-    let saved_state_guard = SAVED_STATE.lock().unwrap();
-    let state_value = saved_state_guard.as_ref().unwrap().value;
-    drop(saved_state_guard);
-    assert_eq!(state_value, 2);
+        // Start the Service again
+        send_lifecycle_message(
+            runtime,
+            handle,
+            LifecycleMessage::Start(lifecycle_sender.clone()),
+        )
+        .await;
+        lifecycle_receiver.recv().await.unwrap();
 
-    runtime.block_on(async {
-        app.handle().shutdown().await;
-    });
+        // To avoid test failures, wait until StateOperator has saved the initial state from the ServiceRunner
+        state_operator_save_finished_signal_receiver
+            .recv()
+            .await
+            .unwrap();
+
+        // Check the initial value is sent from within the Service
+        let service_value = assert_receiver.recv().await.unwrap();
+        assert_eq!(service_value, "1");
+
+        // To avoid test failures, wait until StateOperator has saved to send the state from the Service
+        state_operator_save_finished_signal_receiver
+            .recv()
+            .await
+            .unwrap();
+
+        // Stop the Service again
+        send_lifecycle_message(runtime, handle, LifecycleMessage::Stop(lifecycle_sender)).await;
+        lifecycle_receiver.recv().await.unwrap();
+
+        // Check that the Service hasn't sent any messages
+        assert_receiver.try_recv().unwrap_err();
+
+        // Check the last saved value
+        let state_value = {
+            let saved_state_guard = SAVED_STATE.lock().unwrap();
+            saved_state_guard.as_ref().unwrap().value
+        }; // MutexGuard is dropped here, before the .await
+        assert_eq!(state_value, 2);
+
+        handle.shutdown().await;
+    };
+
+    app.runtime().block_on(test);
     app.wait_finished();
 }

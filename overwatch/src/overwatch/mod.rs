@@ -247,6 +247,7 @@ where
                     Self::handle_status(&services, status_command);
                 }
                 OverwatchCommand::ServiceLifeCycle(msg) => {
+                    println!("[OverwatchRunner] ServiceLifeCycleCommand");
                     Self::handle_service_service_lifecycle(&services, msg);
                 }
                 OverwatchCommand::OverwatchLifeCycle(command) => match command {
@@ -322,12 +323,15 @@ where
                 service_id,
                 msg: start_msg @ LifecycleMessage::Start(_),
             } => {
+                println!("[OverwatchRunner] Start Msg");
                 if let Err(e) = services
                     .get_service_lifecycle_handle(&service_id)
                     .send(start_msg)
                 {
+                    println!("[OverwatchRunner] Error sending start message {e:?}");
                     error!(e);
                 }
+                println!("[OverwatchRunner] Start msg sent");
             }
             ServiceLifeCycleCommand {
                 service_id,
@@ -349,7 +353,7 @@ where
 pub struct Overwatch<RuntimeServiceId> {
     runtime: Runtime,
     handle: OverwatchHandle<RuntimeServiceId>,
-    finish_runner_signal: oneshot::Receiver<FinishOverwatchSignal>,
+    pub finish_runner_signal: oneshot::Receiver<FinishOverwatchSignal>,
 }
 
 impl<RuntimeServiceId> Overwatch<RuntimeServiceId> {
