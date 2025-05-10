@@ -1,6 +1,7 @@
+use std::{convert::Infallible, marker::PhantomData, pin::Pin, sync::Arc};
+
 use async_trait::async_trait;
 use futures::StreamExt;
-use std::{convert::Infallible, marker::PhantomData, pin::Pin, sync::Arc};
 use tokio::sync::broadcast::{channel, Receiver, Sender};
 use tokio_stream::wrappers::BroadcastStream;
 use tracing::error;
@@ -152,8 +153,8 @@ pub struct StateHandle<State, Operator> {
     operator: Operator,
 }
 
-// Clone must be used carefully. It's very likely `Operator` will be a `StateOperator`, which
-// are likely behaving in as if they were singletons.
+// Clone must be used carefully. It's very likely `Operator` will be a
+// `StateOperator`, which are likely behaving in as if they were singletons.
 // Clone is implemented manually because auto deriving introduces an unnecessary
 // Clone bound on T.
 impl<State, Operator> Clone for StateHandle<State, Operator>
