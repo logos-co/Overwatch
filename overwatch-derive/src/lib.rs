@@ -691,7 +691,7 @@ fn generate_request_relay_impl(fields: &Punctuated<Field, Comma>) -> proc_macro2
         }
     });
 
-    let instrumentation = get_default_instrumentation_for_result();
+    let instrumentation = get_default_instrumentation();
     quote! {
         #instrumentation
         fn request_relay(&mut self, service_id: &Self::RuntimeServiceId) -> ::overwatch::services::relay::AnyMessage {
