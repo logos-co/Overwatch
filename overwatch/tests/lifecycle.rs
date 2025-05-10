@@ -1,11 +1,3 @@
-use std::{
-    convert::Infallible,
-    sync::{
-        mpsc::{channel, Sender},
-        Mutex,
-    },
-};
-
 use async_trait::async_trait;
 use overwatch::{
     overwatch::{
@@ -22,6 +14,8 @@ use overwatch::{
     DynError, OpaqueServiceResourcesHandle,
 };
 use overwatch_derive::derive_services;
+use std::sync::mpsc::{channel, Sender};
+use std::{convert::Infallible, sync::Mutex};
 use tokio::{runtime::Handle, sync::broadcast};
 
 #[derive(Debug, Clone)]
@@ -71,10 +65,10 @@ impl StateOperator for LifecycleServiceStateOperator {
     async fn run(&mut self, state: Self::State) {
         if let Ok(mut lock) = self.saved_state.lock() {
             *lock = Some(state);
-            self.save_finished_signal_sender.send(()).unwrap();
         } else {
             panic!("Failed to lock saved state mutex.");
         }
+        self.save_finished_signal_sender.send(()).unwrap();
     }
 }
 
@@ -162,6 +156,11 @@ fn send_lifecycle_message(
 #[test]
 fn test_lifecycle() {
     static SAVED_STATE: Mutex<Option<LifecycleServiceState>> = Mutex::new(None);
+
+    // When a Service is stopped, its StateHandler is stopped as well, which includes the
+    // StateOperator.
+    // Due to this, and to achieve test idempotency, we wait until StateOperator finishes running
+    // before proceeding to the next step.
     let (state_operator_save_finished_signal_sender, state_operator_save_finished_signal_receiver) =
         channel();
 
@@ -177,58 +176,69 @@ fn test_lifecycle() {
     let app = OverwatchRunner::<App>::run(settings, None).unwrap();
     let handle = app.handle();
     let runtime = handle.runtime();
-    let (lifecycle_sender, mut lifecycle_receiver) = broadcast::channel(1);
+    let (lifecycle_sender, mut lifecycle_receiver) = broadcast::channel(5);
 
-    // Start Service
+    // Start the Service
     send_lifecycle_message(
         runtime,
         handle,
         LifecycleMessage::Start(lifecycle_sender.clone()),
     );
     runtime.block_on(lifecycle_receiver.recv()).unwrap();
+
+    // To avoid test failures, wait until StateOperator has saved the initial state from the ServiceRunner
+    state_operator_save_finished_signal_receiver.recv().unwrap();
+
+    // Check the initial value is sent from within the Service
     let service_value = assert_receiver.recv().unwrap();
     assert_eq!(service_value, "0");
 
-    // In order to avoid test failures, wait until StateOperator has saved to send
-    // the Stop message
+    // To avoid test failures, wait until StateOperator has saved the state from the Service
     state_operator_save_finished_signal_receiver.recv().unwrap();
 
-    // Stop Service
+    // Stop the Service
     send_lifecycle_message(
         runtime,
         handle,
         LifecycleMessage::Stop(lifecycle_sender.clone()),
     );
     runtime.block_on(lifecycle_receiver.recv()).unwrap();
+
+    // Check that the Service hasn't sent any messages
     assert_receiver.try_recv().unwrap_err();
 
-    // Start Service again
+    // Start the Service again
     send_lifecycle_message(
         runtime,
         handle,
         LifecycleMessage::Start(lifecycle_sender.clone()),
     );
     runtime.block_on(lifecycle_receiver.recv()).unwrap();
+
+    // To avoid test failures, wait until StateOperator has saved the initial state from the ServiceRunner
+    state_operator_save_finished_signal_receiver.recv().unwrap();
+
+    // Check the initial value is sent from within the Service
     let service_value = assert_receiver.recv().unwrap();
     assert_eq!(service_value, "1");
 
-    // In order to avoid test failures, wait until StateOperator has saved to send
-    // the Stop message
+    // To avoid test failures, wait until StateOperator has saved to send the state from the Service
     state_operator_save_finished_signal_receiver.recv().unwrap();
 
-    // Stop Service again
+    // Stop the Service again
     send_lifecycle_message(runtime, handle, LifecycleMessage::Stop(lifecycle_sender));
     runtime.block_on(lifecycle_receiver.recv()).unwrap();
+
+    // Check that the Service hasn't sent any messages
     assert_receiver.try_recv().unwrap_err();
 
-    // Check last saved value
-    let saved_state_guard = SAVED_STATE.lock().unwrap();
-    let state_value = saved_state_guard.as_ref().unwrap().value;
-    drop(saved_state_guard);
+    // Check the last saved value
+    let state_value = {
+        let saved_state_guard = SAVED_STATE.lock().unwrap();
+        saved_state_guard.as_ref().unwrap().value
+    }; // MutexGuard is dropped here, before the .await
     assert_eq!(state_value, 2);
 
-    runtime.block_on(async {
-        app.handle().shutdown().await;
-    });
+    runtime.block_on(handle.shutdown());
     app.wait_finished();
 }
