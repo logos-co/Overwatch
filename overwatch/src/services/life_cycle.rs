@@ -1,7 +1,11 @@
+use std::{
+    default::Default,
+    error::Error,
+    pin::Pin,
+    task::{Context, Poll},
+};
+
 use futures::Stream;
-use std::pin::Pin;
-use std::task::{Context, Poll};
-use std::{default::Default, error::Error};
 use tokio::sync::broadcast::{channel, error::TryRecvError, Receiver, Sender};
 use tokio_stream::StreamExt;
 
@@ -78,10 +82,12 @@ impl LifecycleHandle {
     ///
     ///
     /// # Notes:
-    /// 1. This creates a new [`Stream`] with a resubscribed receiver. This new receiver will only
-    ///    contain messages that are sent after the stream is created.
-    /// 2. Note that messages are not buffered: Different calls to this method could yield different
-    ///    messages depending on when the method is called.
+    /// 1. This creates a new [`Stream`] with a resubscribed receiver. This new
+    ///    receiver will only contain messages that are sent after the stream is
+    ///    created.
+    /// 2. Note that messages are not buffered: Different calls to this method
+    ///    could yield different messages depending on when the method is
+    ///    called.
     pub fn message_stream(&self) -> impl Stream<Item = LifecycleMessage> {
         tokio_stream::wrappers::BroadcastStream::new(self.message_channel.resubscribe())
             .filter_map(Result::ok)

@@ -1,3 +1,11 @@
+use std::{
+    convert::Infallible,
+    sync::{
+        mpsc::{channel, Sender},
+        Mutex,
+    },
+};
+
 use async_trait::async_trait;
 use overwatch::{
     overwatch::{
@@ -14,8 +22,6 @@ use overwatch::{
     DynError, OpaqueServiceResourcesHandle,
 };
 use overwatch_derive::derive_services;
-use std::sync::mpsc::{channel, Sender};
-use std::{convert::Infallible, sync::Mutex};
 use tokio::{runtime::Handle, sync::broadcast};
 
 #[derive(Debug, Clone)]
@@ -157,10 +163,10 @@ fn send_lifecycle_message(
 fn test_lifecycle() {
     static SAVED_STATE: Mutex<Option<LifecycleServiceState>> = Mutex::new(None);
 
-    // When a Service is stopped, its StateHandler is stopped as well, which includes the
-    // StateOperator.
-    // Due to this, and to achieve test idempotency, we wait until StateOperator finishes running
-    // before proceeding to the next step.
+    // When a Service is stopped, its StateHandler is stopped as well, which
+    // includes the StateOperator.
+    // Due to this, and to achieve test idempotency, we wait until StateOperator
+    // finishes running before proceeding to the next step.
     let (state_operator_save_finished_signal_sender, state_operator_save_finished_signal_receiver) =
         channel();
 
@@ -186,14 +192,16 @@ fn test_lifecycle() {
     );
     runtime.block_on(lifecycle_receiver.recv()).unwrap();
 
-    // To avoid test failures, wait until StateOperator has saved the initial state from the ServiceRunner
+    // To avoid test failures, wait until StateOperator has saved the initial state
+    // from the ServiceRunner
     state_operator_save_finished_signal_receiver.recv().unwrap();
 
     // Check the initial value is sent from within the Service
     let service_value = assert_receiver.recv().unwrap();
     assert_eq!(service_value, "0");
 
-    // To avoid test failures, wait until StateOperator has saved the state from the Service
+    // To avoid test failures, wait until StateOperator has saved the state from the
+    // Service
     state_operator_save_finished_signal_receiver.recv().unwrap();
 
     // Stop the Service
@@ -215,14 +223,16 @@ fn test_lifecycle() {
     );
     runtime.block_on(lifecycle_receiver.recv()).unwrap();
 
-    // To avoid test failures, wait until StateOperator has saved the initial state from the ServiceRunner
+    // To avoid test failures, wait until StateOperator has saved the initial state
+    // from the ServiceRunner
     state_operator_save_finished_signal_receiver.recv().unwrap();
 
     // Check the initial value is sent from within the Service
     let service_value = assert_receiver.recv().unwrap();
     assert_eq!(service_value, "1");
 
-    // To avoid test failures, wait until StateOperator has saved to send the state from the Service
+    // To avoid test failures, wait until StateOperator has saved to send the state
+    // from the Service
     state_operator_save_finished_signal_receiver.recv().unwrap();
 
     // Stop the Service again
