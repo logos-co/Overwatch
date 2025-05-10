@@ -147,7 +147,7 @@ where
         let Self {
             service_resources,
             state_handle,
-            lifecycle_handle,
+            mut lifecycle_handle,
             relay,
             relay_buffer_size,
             status_handle,
@@ -162,13 +162,12 @@ where
         } = relay;
 
         let runtime = service_resources.overwatch_handle.runtime().clone();
-        let mut lifecycle_stream = lifecycle_handle.message_stream();
         let mut service_task_handle: Option<_> = None;
         let mut state_handle_task_handle: Option<_> = None;
 
         let mut inbound_relay = Some(inbound);
 
-        while let Some(lifecycle_message) = lifecycle_stream.next().await {
+        while let Some(lifecycle_message) = lifecycle_handle.next().await {
             match lifecycle_message {
                 LifecycleMessage::Start(sender) => {
                     if !status_handle.borrow().is_startable() {
@@ -236,7 +235,8 @@ where
         };
 
         let services_resources_handle = service_resources.to_handle(inbound_relay);
-        let service = Service::init(services_resources_handle, initial_state);
+        let service = Service::init(services_resources_handle, initial_state.clone());
+        service_resources.state_updater.update(initial_state);
 
         match service {
             Ok(service) => {
