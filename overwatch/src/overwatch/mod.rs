@@ -1,9 +1,9 @@
 pub mod commands;
 pub mod handle;
-pub mod life_cycle;
 
 use std::{any::Any, fmt::Debug, future::Future};
 
+use async_trait::async_trait;
 use thiserror::Error;
 use tokio::{
     runtime::{Handle, Runtime},
@@ -21,9 +21,12 @@ use crate::{
             SettingsCommand, StatusCommand,
         },
         handle::OverwatchHandle,
-        life_cycle::ServicesLifeCycleHandle as ServicesLifeCycleHandleTrait,
     },
-    services::{life_cycle::LifecycleMessage, relay::RelayResult, status::StatusWatcher},
+    services::{
+        life_cycle::{LifecycleHandle, LifecycleMessage},
+        relay::AnyMessage,
+        status::StatusWatcher,
+    },
     utils::runtime::default_multithread_runtime,
 };
 
@@ -50,6 +53,7 @@ pub type AnySettings = Box<dyn Any + Send>;
 ///
 /// An implementor of this trait would have to handle the inner.
 /// [`ServiceCore`](crate::services::ServiceCore).
+#[async_trait]
 pub trait Services: Sized {
     /// Inner [`ServiceCore::Settings`](crate::services::ServiceCore) grouping
     /// type.
@@ -64,9 +68,6 @@ pub trait Services: Sized {
     /// This type is used by the services themselves to communicate with each
     /// other and to verify whether two services are part of the same runtime.
     type RuntimeServiceId;
-
-    /// A handler for handling services lifecycles once they are spawned.
-    type ServicesLifeCycleHandle;
 
     /// Spawn a new instance of the [`Services`] object.
     ///
@@ -88,19 +89,58 @@ pub trait Services: Sized {
     /// # Errors
     ///
     /// The generated [`Error`].
-    fn start(&mut self, service_id: &Self::RuntimeServiceId) -> Result<(), Error>;
+    async fn start(&mut self, service_id: &Self::RuntimeServiceId) -> Result<(), Error>;
 
-    // TODO: this probably will be removed once the services lifecycle is
-    // implemented
     /// Start all services attached to the trait implementer.
     ///
     /// # Errors
     ///
     /// The generated [`Error`].
-    fn start_all(&mut self) -> Result<Self::ServicesLifeCycleHandle, Error>;
+    async fn start_all(&mut self) -> Result<(), Error>;
 
     /// Stop a service attached to the trait implementer.
-    fn stop(&mut self, service_id: &Self::RuntimeServiceId);
+    ///
+    /// # Errors
+    ///
+    /// The generated [`Error`].
+    async fn stop(&mut self, service_id: &Self::RuntimeServiceId) -> Result<(), Error>;
+
+    /// Stop all services attached to the trait implementer.
+    ///
+    /// # Errors
+    ///
+    /// The generated [`Error`].
+    async fn stop_all(&mut self) -> Result<(), Error>;
+
+    /// Shuts down the `Service`'s
+    /// [`ServiceRunner`](crate::services::runner::ServiceRunner)s attached to
+    /// the trait implementer.
+    ///
+    /// This is the opposite operation of [`Self::new`]: It's _final_.
+    /// `Service`s won't be able to be started again after calling it.
+    ///
+    /// # Note
+    ///
+    /// The current implementation of this function (when derived via the
+    /// [`#[derive_services]`](overwatch_derive::derive_services) macro)
+    /// cleans up attached `Service`s by calling [`Self::stop_all`] before
+    /// terminating the [`Runner`]s, preventing resource leaks.
+    ///
+    /// For improved SRP, an alternative to consider would be restricting this
+    /// function's role to just killing the
+    /// [`ServiceRunner`](crate::services::runner::ServiceRunner)s, while
+    /// composing the full cleanup within a [`OverwatchLifeCycleCommand`].
+    ///
+    ///
+    /// # Errors
+    ///
+    /// The generated [`Error`].
+    // TODO: This function might not fit here conceptually, as it implies there's
+    // something to  shutdown even though this trait should be agnostic. That
+    // being said, the alternative of  handling cleanup within
+    // [`Self::stop_all`] is not ideal: Mixes responsibilities and  disables the
+    // ability to stop `Service`s without shutting down.
+    async fn shutdown(&mut self) -> Result<(), Error>;
 
     /// Request a communication relay for a service attached to the trait
     /// implementer.
@@ -108,7 +148,7 @@ pub trait Services: Sized {
     /// # Errors
     ///
     /// The generated [`Error`].
-    fn request_relay(&mut self, service_id: &Self::RuntimeServiceId) -> RelayResult;
+    fn request_relay(&mut self, service_id: &Self::RuntimeServiceId) -> AnyMessage;
 
     /// Request a status watcher for a service attached to the trait
     /// implementer.
@@ -117,6 +157,11 @@ pub trait Services: Sized {
     /// Update service settings for all services attached to the trait
     /// implementer.
     fn update_settings(&mut self, settings: Self::Settings);
+
+    /// Get the [`LifecycleHandle`] for a service attached to the trait
+    /// implementer.
+    fn get_service_lifecycle_handle(&self, service_id: &Self::RuntimeServiceId)
+        -> &LifecycleHandle;
 }
 
 /// Handle a running [`Overwatch`].
@@ -145,11 +190,6 @@ impl<ServicesImpl> OverwatchRunner<ServicesImpl>
 where
     ServicesImpl: Services + Send + 'static,
     ServicesImpl::RuntimeServiceId: Clone + Debug + Send,
-    ServicesImpl::ServicesLifeCycleHandle:
-        ServicesLifeCycleHandleTrait<ServicesImpl::RuntimeServiceId> + Send,
-    <ServicesImpl::ServicesLifeCycleHandle as ServicesLifeCycleHandleTrait<
-        ServicesImpl::RuntimeServiceId,
-    >>::Error: tracing::Value,
 {
     /// Start the Overwatch runner process.
     ///
@@ -171,6 +211,7 @@ where
         let (commands_sender, commands_receiver) = tokio::sync::mpsc::channel(16);
         let handle = OverwatchHandle::new(runtime.handle().clone(), commands_sender);
         let services = ServicesImpl::new(settings, handle.clone())?;
+
         let runner = Self {
             services,
             finish_signal_sender,
@@ -195,9 +236,7 @@ where
             mut services,
             finish_signal_sender,
             mut commands_receiver,
-            ..
         } = self;
-        let lifecycle_handlers = services.start_all().expect("Services to start running");
         while let Some(command) = commands_receiver.recv().await {
             info!(command = ?command, "Overwatch command received");
             match command {
@@ -207,35 +246,27 @@ where
                 OverwatchCommand::Status(status_command) => {
                     Self::handle_status(&services, status_command);
                 }
-                OverwatchCommand::ServiceLifeCycle(msg) => match msg {
-                    ServiceLifeCycleCommand {
-                        service_id,
-                        msg: LifecycleMessage::Shutdown(channel),
-                    } => {
-                        if let Err(e) = lifecycle_handlers.shutdown(&service_id, channel) {
-                            error!(e);
+                OverwatchCommand::ServiceLifeCycle(msg) => {
+                    Self::handle_service_service_lifecycle(&services, msg);
+                }
+                OverwatchCommand::OverwatchLifeCycle(command) => match command {
+                    OverwatchLifeCycleCommand::StartAllServices => {
+                        if let Err(e) = services.start_all().await {
+                            error!(error=?e, "Error starting all services");
                         }
                     }
-                    ServiceLifeCycleCommand {
-                        service_id,
-                        msg: LifecycleMessage::Kill,
-                    } => {
-                        if let Err(e) = lifecycle_handlers.kill(&service_id) {
-                            error!(e);
+                    OverwatchLifeCycleCommand::StopAllServices => {
+                        if let Err(e) = services.stop_all().await {
+                            error!(error=?e, "Error stopping all services");
                         }
                     }
-                },
-                OverwatchCommand::OverwatchLifeCycle(command) => {
-                    if matches!(
-                        command,
-                        OverwatchLifeCycleCommand::Kill | OverwatchLifeCycleCommand::Shutdown
-                    ) {
-                        if let Err(e) = lifecycle_handlers.kill_all() {
-                            error!(e);
+                    OverwatchLifeCycleCommand::Shutdown => {
+                        if let Err(e) = services.shutdown().await {
+                            error!(error=?e, "Error stopping all services");
                         }
                         break;
                     }
-                }
+                },
                 OverwatchCommand::Settings(settings) => {
                     Self::handle_settings_update(&mut services, settings);
                 }
@@ -256,7 +287,7 @@ where
             reply_channel,
         } = command;
         // Send the requested reply channel result to the requesting service
-        if let Err(Err(e)) = reply_channel.reply(services.request_relay(&service_id)) {
+        if let Err(e) = reply_channel.reply(services.request_relay(&service_id)) {
             info!(error=?e, "Error requesting relay for service {service_id:#?}");
         }
     }
@@ -279,6 +310,36 @@ where
         let watcher = services.request_status_watcher(&service_id);
         if reply_channel.reply(watcher).is_err() {
             error!("Error reporting back status watcher for service: {service_id:#?}");
+        }
+    }
+
+    fn handle_service_service_lifecycle(
+        services: &ServicesImpl,
+        msg: ServiceLifeCycleCommand<ServicesImpl::RuntimeServiceId>,
+    ) {
+        match msg {
+            ServiceLifeCycleCommand {
+                service_id,
+                msg: start_msg @ LifecycleMessage::Start(_),
+            } => {
+                if let Err(e) = services
+                    .get_service_lifecycle_handle(&service_id)
+                    .send(start_msg)
+                {
+                    error!(e);
+                }
+            }
+            ServiceLifeCycleCommand {
+                service_id,
+                msg: stop_msg @ LifecycleMessage::Stop(_),
+            } => {
+                if let Err(e) = services
+                    .get_service_lifecycle_handle(&service_id)
+                    .send(stop_msg)
+                {
+                    error!(e);
+                }
+            }
         }
     }
 }
@@ -324,6 +385,7 @@ impl<RuntimeServiceId> Overwatch<RuntimeServiceId> {
             finish_runner_signal,
             ..
         } = self;
+
         runtime.block_on(async move {
             let signal_result = finish_runner_signal.await;
             signal_result.expect("A finished signal arrived");
@@ -335,44 +397,20 @@ impl<RuntimeServiceId> Overwatch<RuntimeServiceId> {
 mod test {
     use std::time::Duration;
 
-    use tokio::{sync::broadcast::Sender, time::sleep};
+    use tokio::time::sleep;
 
+    use super::*;
     use crate::{
-        overwatch::{
-            handle::OverwatchHandle, life_cycle::ServicesLifeCycleHandle, Error, OverwatchRunner,
-            Services,
-        },
-        services::{life_cycle::FinishedSignal, relay::RelayResult, status::StatusWatcher},
+        overwatch::{handle::OverwatchHandle, Error, OverwatchRunner, Services},
+        services::{life_cycle::LifecycleHandle, status::StatusWatcher},
     };
 
     struct EmptyServices;
 
-    struct EmptyLifeCycleHandle;
-
-    impl ServicesLifeCycleHandle<String> for EmptyLifeCycleHandle {
-        type Error = &'static str;
-
-        fn kill(&self, _service: &String) -> Result<(), Self::Error> {
-            Ok(())
-        }
-
-        fn kill_all(&self) -> Result<(), Self::Error> {
-            Ok(())
-        }
-
-        fn shutdown(
-            &self,
-            _service: &String,
-            _sender: Sender<FinishedSignal>,
-        ) -> Result<(), Self::Error> {
-            Ok(())
-        }
-    }
-
+    #[async_trait]
     impl Services for EmptyServices {
         type Settings = ();
         type RuntimeServiceId = String;
-        type ServicesLifeCycleHandle = EmptyLifeCycleHandle;
 
         fn new(
             _settings: Self::Settings,
@@ -381,18 +419,28 @@ mod test {
             Ok(Self)
         }
 
-        fn start(&mut self, _service_id: &String) -> Result<(), Error> {
+        async fn start(&mut self, _service_id: &String) -> Result<(), Error> {
             Ok(())
         }
 
-        fn start_all(&mut self) -> Result<EmptyLifeCycleHandle, Error> {
-            Ok(EmptyLifeCycleHandle)
+        async fn start_all(&mut self) -> Result<(), Error> {
+            Ok(())
         }
 
-        fn stop(&mut self, _service_id: &String) {}
+        async fn stop(&mut self, _service_id: &String) -> Result<(), Error> {
+            Ok(())
+        }
 
-        fn request_relay(&mut self, _service_id: &String) -> RelayResult {
-            Ok(Box::new(()))
+        async fn stop_all(&mut self) -> Result<(), Error> {
+            Ok(())
+        }
+
+        async fn shutdown(&mut self) -> Result<(), Error> {
+            Ok(())
+        }
+
+        fn request_relay(&mut self, _service_id: &String) -> AnyMessage {
+            Box::new(())
         }
 
         fn request_status_watcher(&self, _service_id: &String) -> StatusWatcher {
@@ -400,6 +448,10 @@ mod test {
         }
 
         fn update_settings(&mut self, _settings: Self::Settings) {}
+
+        fn get_service_lifecycle_handle(&self, _service_id: &String) -> &LifecycleHandle {
+            unimplemented!("Not necessary for these tests.")
+        }
     }
 
     #[test]
@@ -416,13 +468,13 @@ mod test {
     }
 
     #[test]
-    fn run_overwatch_then_kill() {
+    fn run_overwatch_then_shutdown() {
         let overwatch = OverwatchRunner::<EmptyServices>::run((), None).unwrap();
         let handle = overwatch.handle().clone();
 
         overwatch.spawn(async move {
             sleep(Duration::from_millis(500)).await;
-            handle.kill().await;
+            handle.shutdown().await;
         });
 
         overwatch.wait_finished();

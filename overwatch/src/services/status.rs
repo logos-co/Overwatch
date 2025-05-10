@@ -1,12 +1,25 @@
 use std::{default::Default, sync::Arc, time::Duration};
 
-use tokio::sync::watch;
+use tokio::sync::{watch, watch::Ref};
 
 #[derive(Copy, Clone, Eq, PartialEq, Debug)]
 pub enum ServiceStatus {
     Uninitialized,
     Running,
     Stopped,
+    Killed,
+}
+
+impl ServiceStatus {
+    #[must_use]
+    pub const fn is_startable(&self) -> bool {
+        matches!(self, Self::Uninitialized | Self::Stopped)
+    }
+
+    #[must_use]
+    pub const fn is_stoppable(&self) -> bool {
+        matches!(self, Self::Running)
+    }
 }
 
 pub struct StatusUpdater(watch::Sender<ServiceStatus>);
@@ -74,6 +87,7 @@ impl StatusHandle {
         let watcher = StatusWatcher(watcher);
         Self { updater, watcher }
     }
+
     #[expect(
         clippy::missing_const_for_fn,
         reason = "We dereference an `Arc`, which is not const"
@@ -82,9 +96,15 @@ impl StatusHandle {
     pub fn updater(&self) -> &StatusUpdater {
         &self.updater
     }
+
     #[must_use]
     pub fn watcher(&self) -> StatusWatcher {
         self.watcher.clone()
+    }
+
+    #[must_use]
+    pub fn borrow(&self) -> Ref<'_, ServiceStatus> {
+        self.watcher.0.borrow()
     }
 }
 

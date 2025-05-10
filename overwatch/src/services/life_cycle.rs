@@ -1,7 +1,12 @@
-use std::{default::Default, error::Error};
+use std::{
+    default::Default,
+    error::Error,
+    pin::Pin,
+    task::{Context, Poll},
+};
 
 use futures::Stream;
-use tokio::sync::broadcast::{channel, Receiver, Sender};
+use tokio::sync::broadcast::{channel, error::TryRecvError, Receiver, Sender};
 use tokio_stream::StreamExt;
 
 use crate::DynError;
@@ -9,12 +14,32 @@ use crate::DynError;
 /// Type alias for an empty signal.
 pub type FinishedSignal = ();
 
+/// Message type for `Service` lifecycle events.
 #[derive(Clone, Debug)]
 pub enum LifecycleMessage {
-    /// Holds a sender from a broadcast channel. This is used to signal when the
-    /// service has finished handling the shutdown process.
-    Shutdown(Sender<FinishedSignal>),
-    Kill,
+    /// Starts the `Service`.
+    ///
+    /// If the `Service` has been stopped with [`LifecycleMessage::Stop`], it
+    /// will be restarted.
+    ///
+    /// # Arguments
+    ///
+    /// - [`Sender<FinishedSignal>`]: A [`FinishedSignal`] will be sent through
+    ///   the associated channel upon completion of the task.
+    Start(Sender<FinishedSignal>),
+
+    /// Stops the `Service`.
+    ///
+    /// Inner `Service` operations are not guaranteed to be completed.
+    /// Despite that, `Service`s stopped this way can be restarted (from a
+    /// previously saved point or from the default initial state) by sending
+    /// a [`LifecycleMessage::Start`].
+    ///
+    /// # Arguments
+    ///
+    /// - [`Sender<FinishedSignal>`]: A [`FinishedSignal`] will be sent through
+    ///   the associated channel upon completion of the task.
+    Stop(Sender<FinishedSignal>),
 }
 
 /// Handle for lifecycle communications with a `Service`.
@@ -55,9 +80,14 @@ impl LifecycleHandle {
 
     /// Incoming [`LifecycleMessage`] stream for the `Service`.
     ///
-    /// Note that messages are not buffered: Different calls to this method
-    /// could yield different messages depending on when the method is
-    /// called.
+    ///
+    /// # Notes:
+    /// 1. This creates a new [`Stream`] with a resubscribed receiver. This new
+    ///    receiver will only contain messages that are sent after the stream is
+    ///    created.
+    /// 2. Note that messages are not buffered: Different calls to this method
+    ///    could yield different messages depending on when the method is
+    ///    called.
     pub fn message_stream(&self) -> impl Stream<Item = LifecycleMessage> {
         tokio_stream::wrappers::BroadcastStream::new(self.message_channel.resubscribe())
             .filter_map(Result::ok)
@@ -73,6 +103,23 @@ impl LifecycleHandle {
             .send(msg)
             .map(|_| ())
             .map_err(|e| Box::new(e) as Box<dyn Error + Send + Sync + 'static>)
+    }
+}
+
+impl Stream for LifecycleHandle {
+    type Item = LifecycleMessage;
+
+    fn poll_next(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Option<Self::Item>> {
+        match self.get_mut().message_channel.try_recv() {
+            Ok(message) => Poll::Ready(Some(message)),
+            Err(error) => match error {
+                TryRecvError::Empty | TryRecvError::Lagged(_) => {
+                    cx.waker().wake_by_ref();
+                    Poll::Pending
+                }
+                TryRecvError::Closed => Poll::Ready(None),
+            },
+        }
     }
 }
 
