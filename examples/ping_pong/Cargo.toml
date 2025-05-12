@@ -21,6 +21,6 @@ tracing      = "0.1.41"
 [package.metadata.cargo-machete]
 # False positives.
 ignored = [
-    # Required by Overwatch's `#[derive(Services)]` macro.
-    "tracing",
+  # Required by Overwatch's `#[derive(Services)]` macro.
+  "tracing",
 ]
