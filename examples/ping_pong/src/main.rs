@@ -30,5 +30,12 @@ fn main() {
     };
     let ping_pong =
         OverwatchRunner::<PingPong>::run(ping_pong_settings, None).expect("OverwatchRunner failed");
+
+    let overwatch_handle = ping_pong.handle().clone();
+    println!("Starting overwatch service");
+    ping_pong
+        .runtime()
+        .block_on(overwatch_handle.start_all_services());
+
     ping_pong.wait_finished();
 }

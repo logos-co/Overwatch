@@ -2,8 +2,8 @@ use std::{convert::Infallible, marker::PhantomData, pin::Pin, sync::Arc};
 
 use async_trait::async_trait;
 use futures::StreamExt;
-use tokio::sync::watch::{channel, Receiver, Ref, Sender};
-use tokio_stream::wrappers::WatchStream;
+use tokio::sync::broadcast::{channel, Receiver, Sender};
+use tokio_stream::wrappers::BroadcastStream;
 use tracing::error;
 
 /// Service state initialization traits.
@@ -83,7 +83,7 @@ pub struct NoOperator<StateInput>(PhantomData<*const StateInput>);
 /// `NoOperator` does not actually hold anything and is thus Sync.
 ///
 /// Note that we don't use `PhantomData<StateInput>` as that would suggest we
-/// indeed hold an instance of [`StateOperator::State`].    
+/// indeed hold an instance of [`StateOperator::State`].
 ///
 /// [Ownership and the drop check](https://doc.rust-lang.org/std/marker/struct.PhantomData.html#ownership-and-the-drop-check)
 unsafe impl<StateInput> Send for NoOperator<StateInput> {}
@@ -153,10 +153,13 @@ pub struct StateHandle<State, Operator> {
     operator: Operator,
 }
 
+// Clone must be used carefully. It's very likely `Operator` will be a
+// `StateOperator`, which are likely behaving in as if they were singletons.
 // Clone is implemented manually because auto deriving introduces an unnecessary
 // Clone bound on T.
 impl<State, Operator> Clone for StateHandle<State, Operator>
 where
+    State: Clone,
     Operator: Clone,
 {
     fn clone(&self) -> Self {
@@ -167,9 +170,12 @@ where
     }
 }
 
-impl<State, Operator> StateHandle<State, Operator> {
-    pub fn new(initial_state: State, operator: Operator) -> (Self, StateUpdater<State>) {
-        let (sender, receiver) = channel(initial_state);
+impl<State, Operator> StateHandle<State, Operator>
+where
+    State: Clone,
+{
+    pub fn new(operator: Operator) -> (Self, StateUpdater<State>) {
+        let (sender, receiver) = channel(5);
         let watcher = StateWatcher { receiver };
         let updater = StateUpdater {
             sender: Arc::new(sender),
@@ -201,6 +207,7 @@ impl<State> StateUpdater<State> {
     pub fn update(&self, new_state: State) {
         self.sender.send(new_state).unwrap_or_else(|_e| {
             error!("Error updating state");
+            0
         });
     }
 }
@@ -212,33 +219,11 @@ pub struct StateWatcher<State> {
 
 // Clone is implemented manually because auto deriving introduces an unnecessary
 // Clone bound on T.
-impl<State> Clone for StateWatcher<State> {
+impl<State: Clone> Clone for StateWatcher<State> {
     fn clone(&self) -> Self {
         Self {
-            receiver: self.receiver.clone(),
+            receiver: self.receiver.resubscribe(),
         }
-    }
-}
-
-impl<State> StateWatcher<State>
-where
-    State: Clone,
-{
-    /// Get a copy of the most updated state.
-    #[must_use]
-    pub fn state_cloned(&self) -> State {
-        self.receiver.borrow().clone()
-    }
-}
-
-impl<State> StateWatcher<State> {
-    /// Get a [`Ref`] to the last state, this blocks incoming updates until the
-    /// `Ref` is dropped.
-    ///
-    /// Use with caution.
-    #[must_use]
-    pub fn state_ref(&self) -> Ref<State> {
-        self.receiver.borrow()
     }
 }
 
@@ -253,8 +238,15 @@ where
             watcher,
             mut operator,
         } = self;
-        let mut state_stream = WatchStream::new(watcher.receiver);
+        let mut state_stream = BroadcastStream::new(watcher.receiver);
         while let Some(state) = state_stream.next().await {
+            let state = match state {
+                Ok(state) => state,
+                Err(error) => {
+                    error!("Error receiving state: {error}");
+                    continue;
+                }
+            };
             operator.run(state).await;
         }
     }
@@ -314,10 +306,11 @@ mod test {
         let (handle, updater): (
             StateHandle<UsizeCounter, PanicOnGreaterThanTen>,
             StateUpdater<UsizeCounter>,
-        ) = StateHandle::new(
-            UsizeCounter::from_settings(&()).unwrap(),
-            PanicOnGreaterThanTen::from_settings(&()),
-        );
+        ) = StateHandle::new(PanicOnGreaterThanTen::from_settings(&()));
+
+        let initial_state = UsizeCounter::from_settings(&()).unwrap();
+        updater.update(initial_state);
+
         tokio::task::spawn(async move {
             sleep(Duration::from_millis(50)).await;
             for i in 0..15 {
