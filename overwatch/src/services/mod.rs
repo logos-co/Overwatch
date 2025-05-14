@@ -37,6 +37,10 @@ pub trait AsServiceId<T> {
 }
 
 /// Main trait for Services initialization and main loop hook.
+///
+/// # Note
+///
+/// The 'Drop' trait handles the `On Stop` behaviour.
 #[async_trait]
 pub trait ServiceCore<RuntimeServiceId>: Sized + ServiceData {
     /// Initialize the service with the given handle and initial state.
