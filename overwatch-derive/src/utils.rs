@@ -99,28 +99,3 @@ pub fn extract_type_from(ty: &Type) -> Type {
 pub fn field_name_to_type_name(name: &str) -> String {
     name.to_case(Case::Pascal)
 }
-
-/// Converts an enum variant name (typically in `PascalCase`) to a field name in
-/// `snake_case`.
-///
-/// # Behavior
-/// - Converts an enum variant name, usually in `PascalCase`, to `snake_case`.
-///
-/// # Examples
-/// ```
-/// use overwatch_derive::utils::enum_variant_name_to_field_name;
-///
-/// assert_eq!(enum_variant_name_to_field_name("MyVariant"), "my_variant");
-/// assert_eq!(enum_variant_name_to_field_name("SomeLongerVariantName"), "some_longer_variant_name");
-/// assert_eq!(enum_variant_name_to_field_name("UPPERCASEVARIANT"), "uppercasevariant");
-/// ```
-///
-/// # Notes
-/// - This function is useful when converting enum variant names to struct field
-///   names.
-/// - Assumes the input follows Rust naming conventions (e.g., `PascalCase` for
-///   enum variants).
-#[expect(dead_code)]
-pub fn enum_variant_name_to_field_name(name: &str) -> String {
-    name.to_case(Case::Snake)
-}
