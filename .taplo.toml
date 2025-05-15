@@ -1,10 +1,11 @@
 exclude = [".cargo/config.toml", "target/**"]
 
 [formatting]
-align_entries       = true
-allowed_blank_lines = 1
-reorder_arrays      = true
-reorder_keys        = true
+align_entries         = true
+allowed_blank_lines   = 1
+reorder_arrays        = true
+reorder_inline_tables = true
+reorder_keys          = true
 
 [[rule]]
 keys = ["build-dependencies", "dependencies", "dev-dependencies"]
