@@ -63,7 +63,6 @@ where
             overwatch_handle: self.overwatch_handle.clone(),
             settings_updater: self.settings_updater.clone(),
             state_updater: self.state_updater.clone(),
-            lifecycle_handle: self.lifecycle_handle.clone(),
         }
     }
 }
@@ -74,9 +73,4 @@ pub struct ServiceResourcesHandle<Message, Settings, State, RuntimeServiceId> {
     pub overwatch_handle: OverwatchHandle<RuntimeServiceId>,
     pub settings_updater: SettingsUpdater<Settings>,
     pub state_updater: StateUpdater<State>,
-    // TODO: It's probably not a good idea for `Service`s to have access to their
-    //  own `LifecycleHandle`.
-    //  Fetching data from here can lead to deadlocks, as it interferes with `ServiceRunner`
-    //  polling from it.
-    pub lifecycle_handle: LifecycleHandle,
 }
