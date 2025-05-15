@@ -8,8 +8,7 @@
 //! # Provided Macros
 //!
 //! - `#[derive_services]`: Modifies a struct by changing its fields to
-//!   `OpaqueServiceHandle<T, RuntimeServiceId>` and automatically derives the
-//!   `Services` trait.
+//!   `OpaqueServiceHandle<T>` and automatically derives the `Services` trait.
 //! - `#[derive(Services)]`: Implements the `Services` trait for a struct,
 //!   generating necessary service lifecycle methods and runtime service ID
 //!   management. **This derive macro is not meant to be used directly**.
@@ -34,7 +33,7 @@ mod utils;
 /// Procedural macro to derive service-related implementations for a struct.
 ///
 /// This macro modifies a struct by converting its fields from `T` to
-/// `OpaqueServiceHandle<T, RuntimeServiceId>` and deriving the `Services` trait
+/// `OpaqueServiceHandle<T>` and deriving the `Services` trait
 /// to manage service lifecycle operations.
 ///
 /// # Example
@@ -48,8 +47,8 @@ mod utils;
 /// This expands to:
 /// ```rust
 /// struct MyServices {
-///     database: OpaqueServiceHandle<DatabaseService, RuntimeServiceId>,
-///     cache: OpaqueServiceHandle<CacheService, RuntimeServiceId>,
+///     database: OpaqueServiceHandle<DatabaseService>,
+///     cache: OpaqueServiceHandle<CacheService>,
 /// }
 ///
 /// #[async_trait]
@@ -76,9 +75,8 @@ pub fn derive_services(_attr: TokenStream, item: TokenStream) -> TokenStream {
         let field_type = &field.ty;
         let field_attrs = &field.attrs; // Preserve attributes (including feature flags)
 
-        let runtime_service_id_type_name = get_runtime_service_id_type_name();
         let new_field_type = quote! {
-            ::overwatch::OpaqueServiceRunnerHandle<#field_type, #runtime_service_id_type_name>
+            ::overwatch::OpaqueServiceRunnerHandle<#field_type>
         };
 
         quote! {
@@ -157,8 +155,8 @@ fn get_default_instrumentation_without_settings() -> proc_macro2::TokenStream {
 /// ```rust
 /// #[derive(Services)]
 /// struct MyServices {
-///     database: OpaqueServiceHandle<DatabaseService, RuntimeServiceId>,
-///     cache: OpaqueServiceHandle<CacheService, RuntimeServiceId>,
+///     database: OpaqueServiceHandle<DatabaseService>,
+///     cache: OpaqueServiceHandle<CacheService>,
 /// }
 /// ```
 #[proc_macro_derive(Services)]
@@ -877,9 +875,9 @@ fn generate_runtime_service_types(fields: &Punctuated<Field, Comma>) -> proc_mac
 ///
 /// ```rust
 /// struct MyServices {
-///     database: OpaqueServiceHandle<DatabaseService, RuntimeServiceId>,
-///     api_gateway: OpaqueServiceHandle<ApiGatewayService, RuntimeServiceId>,
-///     user_cache: OpaqueServiceHandle<CacheService<User>, RuntimeServiceId>,
+///     database: OpaqueServiceHandle<DatabaseService>,
+///     api_gateway: OpaqueServiceHandle<ApiGatewayService>,
+///     user_cache: OpaqueServiceHandle<CacheService<User>>,
 /// }
 /// ```
 ///
@@ -971,8 +969,8 @@ fn generate_service_id_trait_impls() -> proc_macro2::TokenStream {
 ///
 /// ```rust
 /// struct MyServices {
-///     database: OpaqueServiceHandle<DatabaseService, RuntimeServiceId>,
-///     api: OpaqueServiceHandle<ApiService, RuntimeServiceId>,
+///     database: OpaqueServiceHandle<DatabaseService>,
+///     api: OpaqueServiceHandle<ApiService>,
 /// }
 /// ```
 ///
@@ -992,7 +990,7 @@ fn generate_service_id_trait_impls() -> proc_macro2::TokenStream {
 ///
 /// ```rust
 /// struct MyServices {
-///     cache: OpaqueServiceHandle<CacheService<String, u64>, RuntimeServiceId>,
+///     cache: OpaqueServiceHandle<CacheService<String, u64>>,
 /// }
 /// ```
 ///
