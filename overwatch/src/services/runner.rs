@@ -19,17 +19,15 @@ use crate::{
     DynError,
 };
 
-pub struct ServiceRunnerHandle<Message, Settings, State, StateOperator, RuntimeServiceId> {
-    service_handle: ServiceHandle<Message, Settings, State, StateOperator, RuntimeServiceId>,
+pub struct ServiceRunnerHandle<Message, Settings, State, StateOperator> {
+    service_handle: ServiceHandle<Message, Settings, State, StateOperator>,
     runner_join_handle: JoinHandle<()>,
 }
 
-impl<Message, Settings, State, StateOperator, RuntimeServiceId>
-    ServiceRunnerHandle<Message, Settings, State, StateOperator, RuntimeServiceId>
+impl<Message, Settings, State, StateOperator>
+    ServiceRunnerHandle<Message, Settings, State, StateOperator>
 {
-    pub const fn service_handle(
-        &self,
-    ) -> &ServiceHandle<Message, Settings, State, StateOperator, RuntimeServiceId> {
+    pub const fn service_handle(&self) -> &ServiceHandle<Message, Settings, State, StateOperator> {
         &self.service_handle
     }
 
@@ -45,7 +43,6 @@ pub struct ServiceRunner<Message, Settings, State, StateOperator, RuntimeService
     service_resources: ServiceResources<Settings, State, RuntimeServiceId>,
     state_handle: StateHandle<State, StateOperator>,
     lifecycle_handle: LifecycleHandle,
-    overwatch_handle: OverwatchHandle<RuntimeServiceId>,
     settings_updater: SettingsUpdater<Settings>,
     status_handle: StatusHandle,
     relay: Relay<Message>,
@@ -81,7 +78,7 @@ where
 
         let service_resources = ServiceResources::new(
             status_handle.clone(),
-            overwatch_handle.clone(),
+            overwatch_handle,
             settings_updater.clone(),
             state_updater,
             lifecycle_handle.clone(),
@@ -91,7 +88,6 @@ where
             service_resources,
             state_handle,
             lifecycle_handle,
-            overwatch_handle,
             settings_updater,
             status_handle,
             relay,
@@ -120,9 +116,7 @@ where
     /// # Errors
     ///
     /// If the service cannot be initialized properly with the retrieved state.
-    pub fn run<Service>(
-        self,
-    ) -> ServiceRunnerHandle<Message, Settings, State, StateOp, RuntimeServiceId>
+    pub fn run<Service>(self) -> ServiceRunnerHandle<Message, Settings, State, StateOp>
     where
         Service: ServiceCore<RuntimeServiceId, Settings = Settings, State = State, Message = Message>
             + 'static,
@@ -342,7 +336,7 @@ where
 
 impl<Message, Settings, State, Operator, RuntimeServiceId>
     From<&ServiceRunner<Message, Settings, State, Operator, RuntimeServiceId>>
-    for ServiceHandle<Message, Settings, State, Operator, RuntimeServiceId>
+    for ServiceHandle<Message, Settings, State, Operator>
 where
     Settings: Clone,
     State: Clone,
@@ -354,7 +348,6 @@ where
     ) -> Self {
         Self::new(
             service_runner.relay.outbound.clone(),
-            service_runner.overwatch_handle.clone(),
             service_runner.settings_updater.clone(),
             service_runner.status_handle.clone(),
             service_runner.state_handle.clone(),
