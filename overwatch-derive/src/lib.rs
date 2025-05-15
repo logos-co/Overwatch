@@ -457,9 +457,9 @@ fn generate_new_impl(fields: &Punctuated<Field, Comma>) -> proc_macro2::TokenStr
 fn generate_start_all_impl(fields: &Punctuated<Field, Comma>) -> proc_macro2::TokenStream {
     let fields_len = fields.len();
     let call_create_channels = quote! {
-        let channels: Vec<_> = (0..#fields_len).map(|_| {
+        let channels = (0..#fields_len).map(|_| {
             ::tokio::sync::broadcast::channel::<::overwatch::services::life_cycle::FinishedSignal>(1)
-        }).collect();
+        });
         let (mut senders, receivers): (Vec<_>, Vec<_>) = channels.into_iter().unzip();
     };
 
@@ -595,9 +595,9 @@ fn generate_stop_all_impl(fields: &Punctuated<Field, Comma>) -> proc_macro2::Tok
     let fields_len = fields.len();
     // TODO: Use one channel with fields_len capacity?
     let call_create_channels = quote! {
-        let channels: Vec<_> = (0..#fields_len).map(|_| {
+        let channels = (0..#fields_len).map(|_| {
             ::tokio::sync::broadcast::channel::<::overwatch::services::life_cycle::FinishedSignal>(1)
-        }).collect();
+        });
         let (mut senders, receivers): (Vec<_>, Vec<_>) = channels.into_iter().unzip();
     };
 
