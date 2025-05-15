@@ -657,7 +657,7 @@ fn generate_shutdown_impl(fields: &Punctuated<Field, Comma>) -> proc_macro2::Tok
     let instrumentation = get_default_instrumentation();
     quote! {
         #instrumentation
-        async fn shutdown(&mut self) -> Result<(), ::overwatch::overwatch::Error> {
+        async fn shutdown(mut self) -> Result<(), ::overwatch::overwatch::Error> {
             self.stop_all().await?;
 
             # (#call_abort_service_runner_join_handles)*
