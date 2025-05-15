@@ -1,7 +1,11 @@
-use overwatch::overwatch::OverwatchRunner;
-use overwatch::services::state::{NoOperator, NoState};
-use overwatch::services::{ServiceCore, ServiceData};
-use overwatch::{DynError, OpaqueServiceResourcesHandle};
+use overwatch::{
+    overwatch::OverwatchRunner,
+    services::{
+        state::{NoOperator, NoState},
+        ServiceCore, ServiceData,
+    },
+    DynError, OpaqueServiceResourcesHandle,
+};
 use overwatch_derive::derive_services;
 
 #[derive(Clone, Debug)]
