@@ -15,7 +15,7 @@ use overwatch::{
 };
 use tokio::time::sleep;
 
-pub struct CancellableService {}
+pub struct CancellableService;
 
 impl ServiceData for CancellableService {
     type Settings = ();
