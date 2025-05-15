@@ -245,7 +245,7 @@ where
                     Self::handle_status(&services, status_command);
                 }
                 OverwatchCommand::ServiceLifeCycle(msg) => {
-                    Self::handle_service_service_lifecycle(&services, msg);
+                    Self::handle_service_lifecycle(&services, msg);
                 }
                 OverwatchCommand::OverwatchLifeCycle(command) => match command {
                     OverwatchLifeCycleCommand::StartAllServices => {
@@ -311,7 +311,7 @@ where
         }
     }
 
-    fn handle_service_service_lifecycle(
+    fn handle_service_lifecycle(
         services: &ServicesImpl,
         msg: ServiceLifeCycleCommand<ServicesImpl::RuntimeServiceId>,
     ) {
