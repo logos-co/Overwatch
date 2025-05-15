@@ -1,14 +1,9 @@
-use tokio::runtime::Handle;
-
-use crate::{
-    overwatch::handle::OverwatchHandle,
-    services::{
-        life_cycle::LifecycleHandle,
-        relay::OutboundRelay,
-        settings::SettingsUpdater,
-        state::StateHandle,
-        status::{StatusHandle, StatusWatcher},
-    },
+use crate::services::{
+    life_cycle::LifecycleHandle,
+    relay::OutboundRelay,
+    settings::SettingsUpdater,
+    state::StateHandle,
+    status::{StatusHandle, StatusWatcher},
 };
 
 /// Handle to a service.
@@ -22,26 +17,22 @@ use crate::{
 // is happening and it would get rid of the probably unnecessary Option and
 // cloning.
 #[derive(Clone)]
-pub struct ServiceHandle<Message, Settings, State, Operator, RuntimeServiceId> {
+pub struct ServiceHandle<Message, Settings, State, Operator> {
     /// Message channel relay
     ///
     /// It contains the channel if the service is running, otherwise it'll be
     /// [`None`]
     outbound_relay: OutboundRelay<Message>,
-    overwatch_handle: OverwatchHandle<RuntimeServiceId>,
     settings_updater: SettingsUpdater<Settings>,
     status_handle: StatusHandle,
     state_handle: StateHandle<State, Operator>,
     lifecycle_handle: LifecycleHandle,
 }
 
-impl<Message, Settings, State, Operator, RuntimeServiceId>
-    ServiceHandle<Message, Settings, State, Operator, RuntimeServiceId>
-{
+impl<Message, Settings, State, Operator> ServiceHandle<Message, Settings, State, Operator> {
     /// Crate a new service handle.
     pub const fn new(
         outbound_relay: OutboundRelay<Message>,
-        overwatch_handle: OverwatchHandle<RuntimeServiceId>,
         settings_updater: SettingsUpdater<Settings>,
         status_handle: StatusHandle,
         state_handle: StateHandle<State, Operator>,
@@ -49,26 +40,11 @@ impl<Message, Settings, State, Operator, RuntimeServiceId>
     ) -> Self {
         Self {
             outbound_relay,
-            overwatch_handle,
             settings_updater,
             status_handle,
             state_handle,
             lifecycle_handle,
         }
-    }
-
-    /// Get the service's [`Handle`].
-    ///
-    /// It's easily cloneable and can be done on demand.
-    pub const fn runtime(&self) -> &Handle {
-        self.overwatch_handle.runtime()
-    }
-
-    /// Get the service's [`OverwatchHandle`].
-    ///
-    /// It's easily cloneable and can be done on demand.
-    pub const fn overwatch_handle(&self) -> &OverwatchHandle<RuntimeServiceId> {
-        &self.overwatch_handle
     }
 
     /// Request a relay to this service.
