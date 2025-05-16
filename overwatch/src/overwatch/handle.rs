@@ -133,7 +133,7 @@ where
     {
         info!("Starting service with ID {}", RuntimeServiceId::SERVICE_ID);
 
-        let (sender, mut receiver) = tokio::sync::broadcast::channel(1);
+        let (sender, receiver) = tokio::sync::oneshot::channel();
         self.send(OverwatchCommand::ServiceLifeCycle(
             ServiceLifeCycleCommand {
                 service_id: RuntimeServiceId::SERVICE_ID,
@@ -145,7 +145,7 @@ where
             dbg!(e);
             ServiceError::Start
         })?;
-        receiver.recv().await.map_err(|e| {
+        receiver.await.map_err(|e| {
             dbg!(e);
             ServiceError::Start
         })?;
@@ -181,7 +181,7 @@ where
     {
         info!("Stopping service with ID {}", RuntimeServiceId::SERVICE_ID);
 
-        let (sender, mut receiver) = tokio::sync::broadcast::channel(1);
+        let (sender, receiver) = tokio::sync::oneshot::channel();
         self.send(OverwatchCommand::ServiceLifeCycle(
             ServiceLifeCycleCommand {
                 service_id: RuntimeServiceId::SERVICE_ID,
@@ -193,7 +193,7 @@ where
             dbg!(e);
             ServiceError::Stop
         })?;
-        receiver.recv().await.map_err(|e| {
+        receiver.await.map_err(|e| {
             dbg!(e);
             ServiceError::Stop
         })?;

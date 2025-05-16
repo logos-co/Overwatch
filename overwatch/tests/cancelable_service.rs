@@ -62,7 +62,7 @@ fn run_overwatch_then_shutdown_service_and_kill() {
         .runtime()
         .block_on(handle.start_service::<CancellableService>())
         .expect("service to start successfully.");
-    let (sender, mut receiver) = tokio::sync::broadcast::channel(1);
+    let (sender, receiver) = tokio::sync::oneshot::channel();
     overwatch.spawn(async move {
         sleep(Duration::from_millis(500)).await;
         let _ = handle
@@ -74,7 +74,7 @@ fn run_overwatch_then_shutdown_service_and_kill() {
             ))
             .await;
         // wait service finished
-        receiver.recv().await.unwrap();
+        receiver.await.unwrap();
         handle.shutdown().await;
     });
     overwatch.wait_finished();

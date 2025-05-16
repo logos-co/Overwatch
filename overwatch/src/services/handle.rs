@@ -1,5 +1,5 @@
 use crate::services::{
-    life_cycle::LifecycleHandle,
+    life_cycle::LifecycleNotifier,
     relay::OutboundRelay,
     settings::SettingsUpdater,
     state::StateHandle,
@@ -26,7 +26,7 @@ pub struct ServiceHandle<Message, Settings, State, Operator> {
     settings_updater: SettingsUpdater<Settings>,
     status_handle: StatusHandle,
     state_handle: StateHandle<State, Operator>,
-    lifecycle_handle: LifecycleHandle,
+    lifecycle_notifier: LifecycleNotifier,
 }
 
 impl<Message, Settings, State, Operator> ServiceHandle<Message, Settings, State, Operator> {
@@ -36,14 +36,14 @@ impl<Message, Settings, State, Operator> ServiceHandle<Message, Settings, State,
         settings_updater: SettingsUpdater<Settings>,
         status_handle: StatusHandle,
         state_handle: StateHandle<State, Operator>,
-        lifecycle_handle: LifecycleHandle,
+        lifecycle_notifier: LifecycleNotifier,
     ) -> Self {
         Self {
             outbound_relay,
             settings_updater,
             status_handle,
             state_handle,
-            lifecycle_handle,
+            lifecycle_notifier,
         }
     }
 
@@ -74,8 +74,8 @@ impl<Message, Settings, State, Operator> ServiceHandle<Message, Settings, State,
         &self.state_handle
     }
 
-    /// Get the [`LifecycleHandle`] for this service.
-    pub const fn lifecycle_handle(&self) -> &LifecycleHandle {
-        &self.lifecycle_handle
+    /// Get the [`LifecycleNotifier`] for this service.
+    pub const fn lifecycle_notifier(&self) -> &LifecycleNotifier {
+        &self.lifecycle_notifier
     }
 }

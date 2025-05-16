@@ -1,7 +1,7 @@
 use crate::{
     overwatch::handle::OverwatchHandle,
     services::{
-        life_cycle::LifecycleHandle, relay::InboundRelay, settings::SettingsUpdater,
+        life_cycle::LifecycleNotifier, relay::InboundRelay, settings::SettingsUpdater,
         state::StateUpdater, status::StatusHandle,
     },
 };
@@ -16,7 +16,7 @@ pub struct ServiceResources<Settings, State, RuntimeServiceId> {
     pub overwatch_handle: OverwatchHandle<RuntimeServiceId>,
     pub settings_updater: SettingsUpdater<Settings>,
     pub state_updater: StateUpdater<State>,
-    pub lifecycle_handle: LifecycleHandle,
+    pub lifecycle_notifier: LifecycleNotifier,
 }
 
 impl<Settings, State, RuntimeServiceId> ServiceResources<Settings, State, RuntimeServiceId>
@@ -30,14 +30,14 @@ where
         overwatch_handle: OverwatchHandle<RuntimeServiceId>,
         settings_updater: SettingsUpdater<Settings>,
         state_updater: StateUpdater<State>,
-        lifecycle_handle: LifecycleHandle,
+        lifecycle_notifier: LifecycleNotifier,
     ) -> Self {
         Self {
             status_handle,
             overwatch_handle,
             settings_updater,
             state_updater,
-            lifecycle_handle,
+            lifecycle_notifier,
         }
     }
 

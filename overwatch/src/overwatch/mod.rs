@@ -22,11 +22,7 @@ use crate::{
         },
         handle::OverwatchHandle,
     },
-    services::{
-        life_cycle::{LifecycleHandle, LifecycleMessage},
-        relay::AnyMessage,
-        status::StatusWatcher,
-    },
+    services::{life_cycle::LifecycleNotifier, relay::AnyMessage, status::StatusWatcher},
     utils::runtime::default_multithread_runtime,
 };
 
@@ -156,10 +152,12 @@ pub trait Services: Sized {
     /// implementer.
     fn update_settings(&mut self, settings: Self::Settings);
 
-    /// Get the [`LifecycleHandle`] for a service attached to the trait
+    /// Get the [`LifecycleNotifier`] for a service attached to the trait
     /// implementer.
-    fn get_service_lifecycle_handle(&self, service_id: &Self::RuntimeServiceId)
-        -> &LifecycleHandle;
+    fn get_service_lifecycle_notifier(
+        &self,
+        service_id: &Self::RuntimeServiceId,
+    ) -> &LifecycleNotifier;
 }
 
 /// Handle a running [`Overwatch`].
@@ -216,7 +214,7 @@ where
             commands_receiver,
         };
 
-        runtime.spawn(async move { runner.run_().await });
+        runtime.spawn(runner.run_());
 
         Ok(Overwatch {
             runtime,
@@ -245,7 +243,14 @@ where
                     Self::handle_status(&services, status_command);
                 }
                 OverwatchCommand::ServiceLifeCycle(msg) => {
-                    Self::handle_service_lifecycle(&services, msg);
+                    let ServiceLifeCycleCommand {
+                        service_id,
+                        msg: lifecycle_msg,
+                    } = msg;
+                    let lifecycle_notifier = services.get_service_lifecycle_notifier(&service_id);
+                    if let Err(e) = lifecycle_notifier.send(lifecycle_msg).await {
+                        error!(e);
+                    }
                 }
                 OverwatchCommand::OverwatchLifeCycle(command) => match command {
                     OverwatchLifeCycleCommand::StartAllServices => {
@@ -310,36 +315,6 @@ where
             error!("Error reporting back status watcher for service: {service_id:#?}");
         }
     }
-
-    fn handle_service_lifecycle(
-        services: &ServicesImpl,
-        msg: ServiceLifeCycleCommand<ServicesImpl::RuntimeServiceId>,
-    ) {
-        match msg {
-            ServiceLifeCycleCommand {
-                service_id,
-                msg: start_msg @ LifecycleMessage::Start(_),
-            } => {
-                if let Err(e) = services
-                    .get_service_lifecycle_handle(&service_id)
-                    .send(start_msg)
-                {
-                    error!(e);
-                }
-            }
-            ServiceLifeCycleCommand {
-                service_id,
-                msg: stop_msg @ LifecycleMessage::Stop(_),
-            } => {
-                if let Err(e) = services
-                    .get_service_lifecycle_handle(&service_id)
-                    .send(stop_msg)
-                {
-                    error!(e);
-                }
-            }
-        }
-    }
 }
 
 /// Main Overwatch entity.
@@ -400,7 +375,7 @@ mod test {
     use super::*;
     use crate::{
         overwatch::{handle::OverwatchHandle, Error, OverwatchRunner, Services},
-        services::{life_cycle::LifecycleHandle, status::StatusWatcher},
+        services::{life_cycle::LifecycleNotifier, status::StatusWatcher},
     };
 
     struct EmptyServices;
@@ -447,7 +422,7 @@ mod test {
 
         fn update_settings(&mut self, _settings: Self::Settings) {}
 
-        fn get_service_lifecycle_handle(&self, _service_id: &String) -> &LifecycleHandle {
+        fn get_service_lifecycle_notifier(&self, _service_id: &String) -> &LifecycleNotifier {
             unimplemented!("Not necessary for these tests.")
         }
     }

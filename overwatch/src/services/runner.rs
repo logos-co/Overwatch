@@ -1,6 +1,6 @@
 use std::fmt::Display;
 
-use tokio::{runtime::Handle, sync::broadcast::Sender, task::JoinHandle};
+use tokio::{runtime::Handle, sync::oneshot, task::JoinHandle};
 use tokio_stream::StreamExt;
 use tracing::info;
 
@@ -81,7 +81,7 @@ where
             overwatch_handle,
             settings_updater.clone(),
             state_updater,
-            lifecycle_handle.clone(),
+            lifecycle_handle.notifier().clone(),
         );
 
         Self {
@@ -180,7 +180,7 @@ where
                         state_handle.clone(),
                         &mut service_task_handle,
                         &mut state_handle_task_handle,
-                        &sender,
+                        sender,
                     );
                 }
                 LifecycleMessage::Stop(sender) => {
@@ -199,7 +199,7 @@ where
                         &service_resources,
                         &consumer_receiver,
                         consumer_sender.clone(),
-                        &sender,
+                        sender,
                         relay_buffer_size,
                     );
                     inbound_relay = Some(received_inbound_relay);
@@ -215,7 +215,7 @@ where
         state_handle: StateHandle<State, StateOp>,
         service_task_handle: &mut Option<JoinHandle<Result<(), DynError>>>,
         state_handle_task_handle: &mut Option<JoinHandle<()>>,
-        sender: &Sender<FinishedSignal>,
+        sender: oneshot::Sender<FinishedSignal>,
     ) where
         Service: ServiceCore<RuntimeServiceId, Settings = Settings, State = State, Message = Message>
             + 'static,
@@ -257,7 +257,7 @@ where
         state_handle: StateHandle<State, StateOp>,
         service_task_handle: &mut Option<JoinHandle<Result<(), DynError>>>,
         state_handle_task_handle: &mut Option<JoinHandle<()>>,
-        sender: &Sender<FinishedSignal>,
+        sender: oneshot::Sender<FinishedSignal>,
     ) where
         Service: ServiceCore<RuntimeServiceId, Settings = Settings, State = State, Message = Message>
             + 'static,
@@ -282,7 +282,7 @@ where
         service_resources: &ServiceResources<Settings, State, RuntimeServiceId>,
         consumer_receiver: &ConsumerReceiver<Message>,
         consumer_sender: ConsumerSender<Message>,
-        stop_finished_signal_sender: &Sender<FinishedSignal>,
+        stop_finished_signal_sender: oneshot::Sender<FinishedSignal>,
         relay_buffer_size: usize,
     ) -> InboundRelay<Message> {
         Self::stop_service(service_task_handle, state_handle_task_handle);
@@ -351,7 +351,7 @@ where
             service_runner.settings_updater.clone(),
             service_runner.status_handle.clone(),
             service_runner.state_handle.clone(),
-            service_runner.lifecycle_handle.clone(),
+            service_runner.lifecycle_handle.notifier().clone(),
         )
     }
 }
