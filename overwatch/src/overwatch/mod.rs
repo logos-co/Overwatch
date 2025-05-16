@@ -7,7 +7,7 @@ use async_trait::async_trait;
 use thiserror::Error;
 use tokio::{
     runtime::{Handle, Runtime},
-    sync::{mpsc::Receiver, oneshot},
+    sync::mpsc::Receiver,
     task::JoinHandle,
 };
 #[cfg(feature = "instrumentation")]
@@ -23,7 +23,7 @@ use crate::{
         handle::OverwatchHandle,
     },
     services::{life_cycle::LifecycleNotifier, relay::AnyMessage, status::StatusWatcher},
-    utils::runtime::default_multithread_runtime,
+    utils::{finished_signals, runtime::default_multithread_runtime},
 };
 
 /// Overwatch base error type.
@@ -38,9 +38,6 @@ impl From<super::DynError> for Error {
         Self::Any(err)
     }
 }
-
-/// Signal sent when overwatch finishes execution.
-type FinishOverwatchSignal = ();
 
 /// Marker trait for settings' related elements.
 pub type AnySettings = Box<dyn Any + Send>;
@@ -170,7 +167,7 @@ pub trait Services: Sized {
 /// That is, it's responsible for [`Overwatch`]'s application lifecycle.
 pub struct GenericOverwatchRunner<Services, RuntimeServiceId> {
     services: Services,
-    finish_signal_sender: oneshot::Sender<()>,
+    finish_signal_sender: finished_signals::Sender,
     commands_receiver: Receiver<OverwatchCommand<RuntimeServiceId>>,
 }
 
@@ -203,7 +200,7 @@ where
     ) -> Result<Overwatch<ServicesImpl::RuntimeServiceId>, super::DynError> {
         let runtime = runtime.unwrap_or_else(default_multithread_runtime);
 
-        let (finish_signal_sender, finish_runner_signal) = oneshot::channel();
+        let (finish_signal_sender, finish_runner_signal) = finished_signals::channel();
         let (commands_sender, commands_receiver) = tokio::sync::mpsc::channel(16);
         let handle = OverwatchHandle::new(runtime.handle().clone(), commands_sender);
         let services = ServicesImpl::new(settings, handle.clone())?;
@@ -322,7 +319,7 @@ where
 pub struct Overwatch<RuntimeServiceId> {
     runtime: Runtime,
     handle: OverwatchHandle<RuntimeServiceId>,
-    finish_runner_signal: oneshot::Receiver<FinishOverwatchSignal>,
+    finish_runner_signal: finished_signals::Receiver,
 }
 
 impl<RuntimeServiceId> Overwatch<RuntimeServiceId> {
