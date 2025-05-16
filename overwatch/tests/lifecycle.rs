@@ -22,7 +22,7 @@ use overwatch::{
     DynError, OpaqueServiceResourcesHandle,
 };
 use overwatch_derive::derive_services;
-use tokio::{runtime::Handle, sync::broadcast};
+use tokio::{runtime::Handle, sync::oneshot};
 
 #[derive(Debug, Clone)]
 struct LifecycleServiceState {
@@ -182,15 +182,11 @@ fn test_lifecycle() {
     let app = OverwatchRunner::<App>::run(settings, None).unwrap();
     let handle = app.handle();
     let runtime = handle.runtime();
-    let (lifecycle_sender, mut lifecycle_receiver) = broadcast::channel(5);
 
     // Start the Service
-    send_lifecycle_message(
-        runtime,
-        handle,
-        LifecycleMessage::Start(lifecycle_sender.clone()),
-    );
-    runtime.block_on(lifecycle_receiver.recv()).unwrap();
+    let (lifecycle_sender, lifecycle_receiver) = oneshot::channel();
+    send_lifecycle_message(runtime, handle, LifecycleMessage::Start(lifecycle_sender));
+    runtime.block_on(lifecycle_receiver).unwrap();
 
     // To avoid test failures, wait until StateOperator has saved the initial state
     // from the ServiceRunner
@@ -205,23 +201,17 @@ fn test_lifecycle() {
     state_operator_save_finished_signal_receiver.recv().unwrap();
 
     // Stop the Service
-    send_lifecycle_message(
-        runtime,
-        handle,
-        LifecycleMessage::Stop(lifecycle_sender.clone()),
-    );
-    runtime.block_on(lifecycle_receiver.recv()).unwrap();
+    let (lifecycle_sender, lifecycle_receiver) = oneshot::channel();
+    send_lifecycle_message(runtime, handle, LifecycleMessage::Stop(lifecycle_sender));
+    runtime.block_on(lifecycle_receiver).unwrap();
 
     // Check that the Service hasn't sent any messages
     assert_receiver.try_recv().unwrap_err();
 
     // Start the Service again
-    send_lifecycle_message(
-        runtime,
-        handle,
-        LifecycleMessage::Start(lifecycle_sender.clone()),
-    );
-    runtime.block_on(lifecycle_receiver.recv()).unwrap();
+    let (lifecycle_sender, lifecycle_receiver) = oneshot::channel();
+    send_lifecycle_message(runtime, handle, LifecycleMessage::Start(lifecycle_sender));
+    runtime.block_on(lifecycle_receiver).unwrap();
 
     // To avoid test failures, wait until StateOperator has saved the initial state
     // from the ServiceRunner
@@ -236,8 +226,9 @@ fn test_lifecycle() {
     state_operator_save_finished_signal_receiver.recv().unwrap();
 
     // Stop the Service again
+    let (lifecycle_sender, lifecycle_receiver) = oneshot::channel();
     send_lifecycle_message(runtime, handle, LifecycleMessage::Stop(lifecycle_sender));
-    runtime.block_on(lifecycle_receiver.recv()).unwrap();
+    runtime.block_on(lifecycle_receiver).unwrap();
 
     // Check that the Service hasn't sent any messages
     assert_receiver.try_recv().unwrap_err();

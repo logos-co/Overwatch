@@ -354,7 +354,7 @@ fn generate_services_impl(
     let impl_relay = generate_request_relay_impl(fields);
     let impl_status = generate_request_status_watcher_impl(fields);
     let impl_update_settings = generate_update_settings_impl(fields);
-    let impl_get_service_lifecycle_handle = generate_get_service_lifecycle_handle_impl(fields);
+    let impl_get_service_lifecycle_notifier = generate_get_service_lifecycle_notifier_impl(fields);
 
     let (impl_generics, ty_generics, where_clause) = generics.split_for_impl();
 
@@ -383,7 +383,7 @@ fn generate_services_impl(
 
             #impl_update_settings
 
-            #impl_get_service_lifecycle_handle
+            #impl_get_service_lifecycle_notifier
         }
     }
 }
@@ -456,7 +456,7 @@ fn generate_start_all_impl(fields: &Punctuated<Field, Comma>) -> proc_macro2::To
     let fields_len = fields.len();
     let call_create_channels = quote! {
         let channels = (0..#fields_len).map(|_| {
-            ::tokio::sync::broadcast::channel::<::overwatch::services::life_cycle::FinishedSignal>(1)
+            ::tokio::sync::oneshot::channel::<::overwatch::services::life_cycle::FinishedSignal>()
         });
         let (mut senders, receivers): (Vec<_>, Vec<_>) = channels.into_iter().unzip();
     };
@@ -464,15 +464,15 @@ fn generate_start_all_impl(fields: &Punctuated<Field, Comma>) -> proc_macro2::To
     let call_send_start_message = fields.iter().map(|field| {
         let field_identifier = field.ident.as_ref().expect("A struct attribute identifier");
         quote! {
-            self.#field_identifier.service_handle().lifecycle_handle().send(
+            self.#field_identifier.service_handle().lifecycle_notifier().send(
                 ::overwatch::services::life_cycle::LifecycleMessage::Start(senders.remove(0))
-            )?;
+            ).await?;
         }
     });
 
     let call_recv_finished_signals = quote! {
         for mut receiver in receivers {
-            receiver.recv().await.map_err(|error| {
+            receiver.await.map_err(|error| {
                 let dyn_error: ::overwatch::DynError = Box::new(error);
                 ::overwatch::overwatch::Error::from(dyn_error)
             })?;
@@ -513,9 +513,9 @@ fn generate_start_impl(fields: &Punctuated<Field, Comma>) -> proc_macro2::TokenS
         let type_id = utils::extract_type_from(&field.ty);
         quote! {
             &<Self::RuntimeServiceId as ::overwatch::services::AsServiceId<#type_id>>::SERVICE_ID => {
-                self.#field_identifier.service_handle().lifecycle_handle().send(
+                self.#field_identifier.service_handle().lifecycle_notifier().send(
                     ::overwatch::services::life_cycle::LifecycleMessage::Start(sender)
-                )?;
+                ).await?;
             }
         }
     });
@@ -524,11 +524,11 @@ fn generate_start_impl(fields: &Punctuated<Field, Comma>) -> proc_macro2::TokenS
     quote! {
         #instrumentation
         async fn start(&mut self, service_id: &Self::RuntimeServiceId) -> ::core::result::Result<(), ::overwatch::overwatch::Error> {
-            let (sender, mut receiver) = ::tokio::sync::broadcast::channel::<::overwatch::services::life_cycle::FinishedSignal>(1);
+            let (sender, mut receiver) = ::tokio::sync::oneshot::channel::<::overwatch::services::life_cycle::FinishedSignal>();
             match service_id {
                 #( #cases ),*
             };
-            receiver.recv().await.map_err(|error| {
+            receiver.await.map_err(|error| {
                 let dyn_error: ::overwatch::DynError = Box::new(error);
                 ::overwatch::overwatch::Error::from(dyn_error)
             })
@@ -555,9 +555,9 @@ fn generate_stop_impl(fields: &Punctuated<Field, Comma>) -> proc_macro2::TokenSt
         let type_id = utils::extract_type_from(&field.ty);
         quote! {
             &<Self::RuntimeServiceId as ::overwatch::services::AsServiceId<#type_id>>::SERVICE_ID => {
-                self.#field_identifier.service_handle().lifecycle_handle().send(
+                self.#field_identifier.service_handle().lifecycle_notifier().send(
                     ::overwatch::services::life_cycle::LifecycleMessage::Stop(sender)
-                )?;
+                ).await?;
             }
         }
     });
@@ -566,11 +566,11 @@ fn generate_stop_impl(fields: &Punctuated<Field, Comma>) -> proc_macro2::TokenSt
     quote! {
         #instrumentation
         async fn stop(&mut self, service_id: &Self::RuntimeServiceId) -> ::core::result::Result<(), ::overwatch::overwatch::Error> {
-            let (sender, mut receiver) = ::tokio::sync::broadcast::channel::<::overwatch::services::life_cycle::FinishedSignal>(1);
+            let (sender, mut receiver) = ::tokio::sync::oneshot::channel::<::overwatch::services::life_cycle::FinishedSignal>();
             match service_id {
                 #( #cases ),*
             };
-            receiver.recv().await.map_err(|error| {
+            receiver.await.map_err(|error| {
                 let dyn_error: ::overwatch::DynError = Box::new(error);
                 ::overwatch::overwatch::Error::from(dyn_error)
             })
@@ -591,10 +591,9 @@ fn generate_stop_impl(fields: &Punctuated<Field, Comma>) -> proc_macro2::TokenSt
 /// A token stream containing the `stop_all` method implementation.
 fn generate_stop_all_impl(fields: &Punctuated<Field, Comma>) -> proc_macro2::TokenStream {
     let fields_len = fields.len();
-    // TODO: Use one channel with fields_len capacity?
     let call_create_channels = quote! {
         let channels = (0..#fields_len).map(|_| {
-            ::tokio::sync::broadcast::channel::<::overwatch::services::life_cycle::FinishedSignal>(1)
+            ::tokio::sync::oneshot::channel::<::overwatch::services::life_cycle::FinishedSignal>()
         });
         let (mut senders, receivers): (Vec<_>, Vec<_>) = channels.into_iter().unzip();
     };
@@ -602,15 +601,15 @@ fn generate_stop_all_impl(fields: &Punctuated<Field, Comma>) -> proc_macro2::Tok
     let call_send_stop_message_to_services = fields.iter().map(|field| {
         let field_identifier = field.ident.as_ref().expect("A struct attribute identifier");
         quote! {
-            self.#field_identifier.service_handle().lifecycle_handle().send(
+            self.#field_identifier.service_handle().lifecycle_notifier().send(
                 ::overwatch::services::life_cycle::LifecycleMessage::Stop(senders.remove(0))
-            )?;
+            ).await?;
         }
     });
 
     let call_recv_finished_signals = quote! {
         for mut receiver in receivers {
-            receiver.recv().await.map_err(|error| {
+            receiver.await.map_err(|error| {
                 let dyn_error: ::overwatch::DynError = Box::new(error);
                 ::overwatch::overwatch::Error::from(dyn_error)
             })?;
@@ -783,7 +782,7 @@ fn generate_update_settings_impl(fields: &Punctuated<Field, Comma>) -> proc_macr
     }
 }
 
-/// Generates the `get_service_lifecycle_handle` method implementation for the
+/// Generates the `get_service_lifecycle_notifier` method implementation for the
 /// `Services` trait.
 ///
 /// This function creates code to retrieve the lifecycle handle for a specific
@@ -796,9 +795,9 @@ fn generate_update_settings_impl(fields: &Punctuated<Field, Comma>) -> proc_macr
 ///
 /// # Returns
 ///
-/// A token stream containing the `get_service_lifecycle_handle` method
+/// A token stream containing the `get_service_lifecycle_notifier` method
 /// implementation.
-fn generate_get_service_lifecycle_handle_impl(
+fn generate_get_service_lifecycle_notifier_impl(
     fields: &Punctuated<Field, Comma>,
 ) -> proc_macro2::TokenStream {
     let cases = fields.iter().map(|field| {
@@ -806,7 +805,7 @@ fn generate_get_service_lifecycle_handle_impl(
         let type_id = utils::extract_type_from(&field.ty);
         quote! {
             &<Self::RuntimeServiceId as ::overwatch::services::AsServiceId<#type_id>>::SERVICE_ID => {
-                self.#field_identifier.service_handle().lifecycle_handle()
+                self.#field_identifier.service_handle().lifecycle_notifier()
             }
         }
     });
@@ -814,7 +813,7 @@ fn generate_get_service_lifecycle_handle_impl(
     let instrumentation = get_default_instrumentation();
     quote! {
         #instrumentation
-        fn get_service_lifecycle_handle(&self, service_id: &Self::RuntimeServiceId) -> &::overwatch::services::life_cycle::LifecycleHandle {
+        fn get_service_lifecycle_notifier(&self, service_id: &Self::RuntimeServiceId) -> &::overwatch::services::life_cycle::LifecycleNotifier {
             match service_id {
                 #( #cases ),*
             }
