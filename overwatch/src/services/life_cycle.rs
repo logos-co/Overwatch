@@ -8,10 +8,7 @@ use futures::{Stream, StreamExt};
 use tokio::sync::mpsc::{channel, Sender};
 use tokio_stream::wrappers::ReceiverStream;
 
-use crate::DynError;
-
-/// Type alias for an empty signal.
-pub type FinishedSignal = ();
+use crate::{utils::finished_signals, DynError};
 
 /// Message type for `Service` lifecycle events.
 #[derive(Debug)]
@@ -23,9 +20,9 @@ pub enum LifecycleMessage {
     ///
     /// # Arguments
     ///
-    /// - [`Sender<FinishedSignal>`]: A [`FinishedSignal`] will be sent through
-    ///   the associated channel upon completion of the task.
-    Start(tokio::sync::oneshot::Sender<FinishedSignal>),
+    /// - [`finished_signals::Sender`]: A [`finished_signals::Signal`] will be
+    ///   sent through the associated channel upon completion of the task.
+    Start(finished_signals::Sender),
 
     /// Stops the `Service`.
     ///
@@ -36,9 +33,9 @@ pub enum LifecycleMessage {
     ///
     /// # Arguments
     ///
-    /// - [`Sender<FinishedSignal>`]: A [`FinishedSignal`] will be sent through
-    ///   the associated channel upon completion of the task.
-    Stop(tokio::sync::oneshot::Sender<FinishedSignal>),
+    /// - [`finished_signals::Sender`]: A [`finished_signals::Signal`] will be
+    ///   sent through the associated channel upon completion of the task.
+    Stop(finished_signals::Sender),
 }
 
 #[derive(Clone)]
