@@ -350,7 +350,7 @@ fn generate_services_impl(
     let impl_start_all = generate_start_all_impl(fields);
     let impl_stop = generate_stop_impl(fields);
     let impl_stop_all = generate_stop_all_impl(fields);
-    let impl_shutdown = generate_shutdown_impl(fields);
+    let impl_teardown = generate_teardown_impl(fields);
     let impl_relay = generate_request_relay_impl(fields);
     let impl_status = generate_request_status_watcher_impl(fields);
     let impl_update_settings = generate_update_settings_impl(fields);
@@ -375,7 +375,7 @@ fn generate_services_impl(
 
             #impl_stop_all
 
-            #impl_shutdown
+            #impl_teardown
 
             #impl_relay
 
@@ -627,9 +627,9 @@ fn generate_stop_all_impl(fields: &Punctuated<Field, Comma>) -> proc_macro2::Tok
     }
 }
 
-/// Generates the `shutdown` method implementation for the `Services` trait.
+/// Generates the `teardown` method implementation for the `Services` trait.
 ///
-/// This function creates code to shutdown the service runners.
+/// This function creates code to teardown the `Services` struct.
 ///
 /// # Arguments
 ///
@@ -637,12 +637,12 @@ fn generate_stop_all_impl(fields: &Punctuated<Field, Comma>) -> proc_macro2::Tok
 ///
 /// # Returns
 ///
-/// A token stream containing the `shutdown` method implementation.
-fn generate_shutdown_impl(fields: &Punctuated<Field, Comma>) -> proc_macro2::TokenStream {
+/// A token stream containing the `teardown` method implementation.
+fn generate_teardown_impl(fields: &Punctuated<Field, Comma>) -> proc_macro2::TokenStream {
     let call_abort_service_runner_join_handles = fields.iter().map(|field| {
         let field_identifier = field.ident.as_ref().expect("A struct attribute identifier");
         quote! {
-            // TODO: Ideally this would be a graceful shutdown by awaiting handles to be aborted.
+            // TODO: Ideally this would be a graceful teardown by awaiting handles to be aborted.
             self.#field_identifier.runner_join_handle().abort();
         }
     });
@@ -650,9 +650,7 @@ fn generate_shutdown_impl(fields: &Punctuated<Field, Comma>) -> proc_macro2::Tok
     let instrumentation = get_default_instrumentation();
     quote! {
         #instrumentation
-        async fn shutdown(mut self) -> Result<(), ::overwatch::overwatch::Error> {
-            self.stop_all().await?;
-
+        async fn teardown(self) -> Result<(), ::overwatch::overwatch::Error> {
             # (#call_abort_service_runner_join_handles)*
 
             Ok::<(), ::overwatch::overwatch::Error>(())
