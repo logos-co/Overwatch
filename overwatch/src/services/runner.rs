@@ -75,7 +75,8 @@ where
         let state_operator = StateOp::from_settings(&settings);
         let settings_updater = SettingsUpdater::new(settings);
 
-        let (state_handle, state_updater) = StateHandle::<State, StateOp>::new(state_operator);
+        let (state_handle, state_updater) =
+            StateHandle::<State, StateOp>::new(state_operator, None);
 
         let service_resources = ServiceResources::new(
             status_handle.clone(),
@@ -231,10 +232,10 @@ where
 
         let services_resources_handle = service_resources.to_handle(inbound_relay);
         let service = Service::init(services_resources_handle, initial_state.clone());
-        service_resources.state_updater.update(initial_state);
 
         match service {
             Ok(service) => {
+                service_resources.state_updater.update(Some(initial_state));
                 Self::handle_service_run(
                     service,
                     runtime,
@@ -262,7 +263,7 @@ where
     ) where
         Service: ServiceCore<RuntimeServiceId, Settings = Settings, State = State, Message = Message>
             + 'static,
-        StateOp: Clone,
+        StateOp: StateOperator<State = State> + Clone,
     {
         *service_task_handle = Some(runtime.spawn(service.run()));
         *state_handle_task_handle = Some(runtime.spawn(state_handle.run()));

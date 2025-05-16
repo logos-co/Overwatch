@@ -64,7 +64,7 @@ impl ServiceCore<RuntimeServiceId> for PingService {
                         PingMessage::Pong => {
                             pong_count += 1;
                             service_resources_handle.state_updater.update(
-                                Self::State { pong_count }
+                                Some(Self::State { pong_count })
                             );
                             println!("Received Pong. Total: {pong_count}");
                         }

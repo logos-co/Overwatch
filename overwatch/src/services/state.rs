@@ -2,8 +2,8 @@ use std::{convert::Infallible, marker::PhantomData, pin::Pin, sync::Arc};
 
 use async_trait::async_trait;
 use futures::StreamExt;
-use tokio::sync::broadcast::{channel, Receiver, Sender};
-use tokio_stream::wrappers::BroadcastStream;
+use tokio::sync::watch::{channel, Receiver, Sender};
+use tokio_stream::wrappers::WatchStream;
 use tracing::error;
 
 /// Service state initialization traits.
@@ -80,7 +80,7 @@ pub trait StateOperator {
 #[derive(Copy)]
 pub struct NoOperator<StateInput>(PhantomData<*const StateInput>);
 
-/// `NoOperator` does not actually hold anything and is thus Sync.
+/// `NoOperator` does not hold anything and is thus Sync.
 ///
 /// Note that we don't use `PhantomData<StateInput>` as that would suggest we
 /// indeed hold an instance of [`StateOperator::State`].
@@ -149,7 +149,7 @@ impl<Settings> ServiceState for NoState<Settings> {
 /// A [`StateHandle`] watches a stream of incoming states and triggers the
 /// attached operator handling method over it.
 pub struct StateHandle<State, Operator> {
-    watcher: StateWatcher<State>,
+    watcher: StateWatcher<Option<State>>,
     operator: Operator,
 }
 
@@ -174,56 +174,14 @@ impl<State, Operator> StateHandle<State, Operator>
 where
     State: Clone,
 {
-    pub fn new(operator: Operator) -> (Self, StateUpdater<State>) {
-        let (sender, receiver) = channel(5);
+    pub fn new(operator: Operator, initial_state: Option<State>) -> (Self, StateUpdater<State>) {
+        let (sender, receiver) = channel(initial_state);
         let watcher = StateWatcher { receiver };
         let updater = StateUpdater {
             sender: Arc::new(sender),
         };
 
         (Self { watcher, operator }, updater)
-    }
-}
-
-/// Sender part of the state handling mechanism.
-///
-/// Update the current state and notifies the [`StateHandle`].
-pub struct StateUpdater<State> {
-    sender: Arc<Sender<State>>,
-}
-
-// Clone is implemented manually because auto deriving introduces an unnecessary
-// Clone bound on T.
-impl<State> Clone for StateUpdater<State> {
-    fn clone(&self) -> Self {
-        Self {
-            sender: self.sender.clone(),
-        }
-    }
-}
-
-impl<State> StateUpdater<State> {
-    /// Send a new state and notify the [`StateWatcher`].
-    pub fn update(&self, new_state: State) {
-        self.sender.send(new_state).unwrap_or_else(|_e| {
-            error!("Error updating state");
-            0
-        });
-    }
-}
-
-/// Wrapper over [`Receiver`].
-pub struct StateWatcher<State> {
-    receiver: Receiver<State>,
-}
-
-// Clone is implemented manually because auto deriving introduces an unnecessary
-// Clone bound on T.
-impl<State: Clone> Clone for StateWatcher<State> {
-    fn clone(&self) -> Self {
-        Self {
-            receiver: self.receiver.resubscribe(),
-        }
     }
 }
 
@@ -238,17 +196,65 @@ where
             watcher,
             mut operator,
         } = self;
-        let mut state_stream = BroadcastStream::new(watcher.receiver);
+        let mut state_stream = WatchStream::new(watcher.receiver);
         while let Some(state) = state_stream.next().await {
-            let state = match state {
-                Ok(state) => state,
-                Err(error) => {
-                    error!("Error receiving state: {error}");
-                    continue;
-                }
-            };
-            operator.run(state).await;
+            if let Some(state) = state {
+                operator.run(state).await;
+            } else {
+                dbg!("StateHandle's Stream received None. Not forwarding to StateOperator.");
+            }
         }
+    }
+}
+
+/// Sender part of the state handling mechanism.
+///
+/// Update the current state and notifies the [`StateHandle`].
+pub struct StateUpdater<State> {
+    sender: Arc<Sender<Option<State>>>,
+}
+
+// Clone is implemented manually because auto deriving introduces an unnecessary
+// Clone bound on T.
+impl<State> Clone for StateUpdater<State> {
+    fn clone(&self) -> Self {
+        Self {
+            sender: self.sender.clone(),
+        }
+    }
+}
+
+impl<State> StateUpdater<State> {
+    /// Send a new state and notify the [`StateWatcher`].
+    ///
+    /// `None` values won't be forwarded to the [`StateOperator`].
+    pub fn update(&self, new_state: Option<State>) {
+        self.sender.send(new_state).unwrap_or_else(|_e| {
+            error!("Error updating state");
+        });
+    }
+}
+
+/// Receiver part of the state handling mechanism.
+pub struct StateWatcher<State> {
+    receiver: Receiver<State>,
+}
+
+// Clone is implemented manually because auto deriving introduces an unnecessary
+// Clone bound on T.
+impl<State> Clone for StateWatcher<State> {
+    fn clone(&self) -> Self {
+        Self {
+            receiver: self.receiver.clone(),
+        }
+    }
+}
+
+impl<State> StateWatcher<State> {
+    /// Get the internal [`Receiver`].
+    #[must_use]
+    pub const fn receiver(&self) -> &Receiver<State> {
+        &self.receiver
     }
 }
 
@@ -303,18 +309,19 @@ mod test {
     #[tokio::test]
     #[should_panic(expected = "assertion failed: value < 10")]
     async fn state_stream_collects() {
+        let initial_state = UsizeCounter::from_settings(&()).unwrap();
         let (handle, updater): (
             StateHandle<UsizeCounter, PanicOnGreaterThanTen>,
             StateUpdater<UsizeCounter>,
-        ) = StateHandle::new(PanicOnGreaterThanTen::from_settings(&()));
-
-        let initial_state = UsizeCounter::from_settings(&()).unwrap();
-        updater.update(initial_state);
+        ) = StateHandle::new(
+            PanicOnGreaterThanTen::from_settings(&()),
+            Some(initial_state),
+        );
 
         tokio::task::spawn(async move {
             sleep(Duration::from_millis(50)).await;
             for i in 0..15 {
-                updater.update(UsizeCounter(i));
+                updater.update(Some(UsizeCounter(i)));
                 sleep(Duration::from_millis(50)).await;
             }
         });

@@ -133,7 +133,7 @@ impl ServiceCore<RuntimeServiceId> for LifecycleService {
         let value = initial_state.value + 1;
         service_resources_handle
             .state_updater
-            .update(Self::State { value });
+            .update(Some(Self::State { value }));
 
         Ok(())
     }
