@@ -37,6 +37,8 @@ pub type AnyMessage = Box<dyn Any + Send + 'static>;
 /// Channel to retrieve the consumer of the relay connection.
 /// The intended usage is oneshot-like, but having them as mpsc simplifies
 /// reusing the relay when a service is stopped and started.
+// TODO: Update this name to something more meaningful. E.g.:
+// InboundConsumerSender TODO: Try async
 pub type ConsumerSender<Message> = sync_mpsc::Sender<Receiver<Message>>;
 pub type ConsumerReceiver<Message> = sync_mpsc::Receiver<Receiver<Message>>;
 
@@ -170,8 +172,8 @@ where
 }
 
 pub struct Relay<Message> {
-    pub inbound: InboundRelay<Message>,
-    pub outbound: OutboundRelay<Message>,
+    pub inbound_relay: InboundRelay<Message>,
+    pub outbound_relay: OutboundRelay<Message>,
     pub consumer_sender: ConsumerSender<Message>,
     pub consumer_receiver: ConsumerReceiver<Message>,
 }
@@ -183,8 +185,8 @@ impl<Message> Relay<Message> {
         let (sender, receiver) = channel(buffer_size);
         let (consumer_sender, consumer_receiver) = sync_mpsc::channel();
         Self {
-            inbound: InboundRelay::new(receiver, consumer_sender.clone(), buffer_size),
-            outbound: OutboundRelay::new(sender),
+            inbound_relay: InboundRelay::new(receiver, consumer_sender.clone(), buffer_size),
+            outbound_relay: OutboundRelay::new(sender),
             consumer_sender,
             consumer_receiver,
         }
