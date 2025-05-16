@@ -455,9 +455,7 @@ fn generate_new_impl(fields: &Punctuated<Field, Comma>) -> proc_macro2::TokenStr
 fn generate_start_all_impl(fields: &Punctuated<Field, Comma>) -> proc_macro2::TokenStream {
     let fields_len = fields.len();
     let call_create_channels = quote! {
-        let channels = (0..#fields_len).map(|_| {
-            ::tokio::sync::oneshot::channel::<::overwatch::services::life_cycle::FinishedSignal>()
-        });
+        let channels = (0..#fields_len).map(|_| { ::overwatch::utils::finished_signals::channel() });
         let (mut senders, receivers): (Vec<_>, Vec<_>) = channels.into_iter().unzip();
     };
 
@@ -524,7 +522,7 @@ fn generate_start_impl(fields: &Punctuated<Field, Comma>) -> proc_macro2::TokenS
     quote! {
         #instrumentation
         async fn start(&mut self, service_id: &Self::RuntimeServiceId) -> ::core::result::Result<(), ::overwatch::overwatch::Error> {
-            let (sender, mut receiver) = ::tokio::sync::oneshot::channel::<::overwatch::services::life_cycle::FinishedSignal>();
+            let (sender, mut receiver) = ::overwatch::utils::finished_signals::channel();
             match service_id {
                 #( #cases ),*
             };
@@ -566,7 +564,7 @@ fn generate_stop_impl(fields: &Punctuated<Field, Comma>) -> proc_macro2::TokenSt
     quote! {
         #instrumentation
         async fn stop(&mut self, service_id: &Self::RuntimeServiceId) -> ::core::result::Result<(), ::overwatch::overwatch::Error> {
-            let (sender, mut receiver) = ::tokio::sync::oneshot::channel::<::overwatch::services::life_cycle::FinishedSignal>();
+            let (sender, mut receiver) = ::overwatch::utils::finished_signals::channel();
             match service_id {
                 #( #cases ),*
             };
@@ -592,9 +590,7 @@ fn generate_stop_impl(fields: &Punctuated<Field, Comma>) -> proc_macro2::TokenSt
 fn generate_stop_all_impl(fields: &Punctuated<Field, Comma>) -> proc_macro2::TokenStream {
     let fields_len = fields.len();
     let call_create_channels = quote! {
-        let channels = (0..#fields_len).map(|_| {
-            ::tokio::sync::oneshot::channel::<::overwatch::services::life_cycle::FinishedSignal>()
-        });
+        let channels = (0..#fields_len).map(|_| { ::overwatch::utils::finished_signals::channel() });
         let (mut senders, receivers): (Vec<_>, Vec<_>) = channels.into_iter().unzip();
     };
 

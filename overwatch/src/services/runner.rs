@@ -1,6 +1,6 @@
 use std::fmt::Display;
 
-use tokio::{runtime::Handle, sync::oneshot, task::JoinHandle};
+use tokio::{runtime::Handle, task::JoinHandle};
 use tokio_stream::StreamExt;
 use tracing::info;
 
@@ -8,7 +8,7 @@ use crate::{
     overwatch::handle::OverwatchHandle,
     services::{
         handle::ServiceHandle,
-        life_cycle::{FinishedSignal, LifecycleHandle, LifecycleMessage},
+        life_cycle::{LifecycleHandle, LifecycleMessage},
         relay::{ConsumerReceiver, ConsumerSender, InboundRelay, Relay},
         resources::ServiceResources,
         settings::SettingsUpdater,
@@ -16,6 +16,7 @@ use crate::{
         status::{ServiceStatus, StatusHandle},
         ServiceCore,
     },
+    utils::finished_signals::Sender,
     DynError,
 };
 
@@ -215,7 +216,7 @@ where
         state_handle: StateHandle<State, StateOp>,
         service_task_handle: &mut Option<JoinHandle<Result<(), DynError>>>,
         state_handle_task_handle: &mut Option<JoinHandle<()>>,
-        sender: oneshot::Sender<FinishedSignal>,
+        sender: Sender,
     ) where
         Service: ServiceCore<RuntimeServiceId, Settings = Settings, State = State, Message = Message>
             + 'static,
@@ -257,7 +258,7 @@ where
         state_handle: StateHandle<State, StateOp>,
         service_task_handle: &mut Option<JoinHandle<Result<(), DynError>>>,
         state_handle_task_handle: &mut Option<JoinHandle<()>>,
-        sender: oneshot::Sender<FinishedSignal>,
+        sender: Sender,
     ) where
         Service: ServiceCore<RuntimeServiceId, Settings = Settings, State = State, Message = Message>
             + 'static,
@@ -282,7 +283,7 @@ where
         service_resources: &ServiceResources<Settings, State, RuntimeServiceId>,
         consumer_receiver: &ConsumerReceiver<Message>,
         consumer_sender: ConsumerSender<Message>,
-        stop_finished_signal_sender: oneshot::Sender<FinishedSignal>,
+        stop_finished_signal_sender: Sender,
         relay_buffer_size: usize,
     ) -> InboundRelay<Message> {
         Self::stop_service(service_task_handle, state_handle_task_handle);
