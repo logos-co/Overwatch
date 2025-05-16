@@ -41,7 +41,7 @@ impl ServiceState for LifecycleServiceState {
 #[derive(Clone)]
 struct LifecycleServiceStateOperator {
     saved_state: &'static Mutex<Option<LifecycleServiceState>>,
-    save_finished_signal_sender: Sender<()>,
+    saved_sender: Sender<u8>,
 }
 
 #[async_trait]
@@ -62,19 +62,17 @@ impl StateOperator for LifecycleServiceStateOperator {
     fn from_settings(settings: &<Self::State as ServiceState>::Settings) -> Self {
         Self {
             saved_state: settings.saved_state,
-            save_finished_signal_sender: settings
-                .state_operator_save_finished_signal_sender
-                .clone(),
+            saved_sender: settings.saved_state_sender.clone(),
         }
     }
 
     async fn run(&mut self, state: Self::State) {
         if let Ok(mut lock) = self.saved_state.lock() {
-            *lock = Some(state);
+            *lock = Some(state.clone());
         } else {
             panic!("Failed to lock saved state mutex.");
         }
-        self.save_finished_signal_sender.send(()).unwrap();
+        self.saved_sender.send(state.value).unwrap();
     }
 }
 
@@ -82,7 +80,7 @@ impl StateOperator for LifecycleServiceStateOperator {
 struct LifecycleServiceSettings {
     assert_sender: Sender<String>,
     saved_state: &'static Mutex<Option<LifecycleServiceState>>,
-    state_operator_save_finished_signal_sender: Sender<()>,
+    saved_state_sender: Sender<u8>,
 }
 
 struct LifecycleService {
@@ -165,17 +163,17 @@ fn test_lifecycle() {
 
     // When a Service is stopped, its StateHandler is stopped as well, which
     // includes the StateOperator.
-    // Due to this, and to achieve test idempotency, we wait until StateOperator
-    // finishes running before proceeding to the next step.
-    let (state_operator_save_finished_signal_sender, state_operator_save_finished_signal_receiver) =
-        channel();
+    // Due to this, and to achieve test idempotency, we verify when the
+    // StateOperator has saved the last expected state to continue to the next
+    // step.
+    let (saved_state_sender, saved_state_receiver) = channel();
 
     let (assert_sender, assert_receiver) = channel();
     let settings = AppServiceSettings {
         lifecycle_service: LifecycleServiceSettings {
             assert_sender,
             saved_state: &SAVED_STATE,
-            state_operator_save_finished_signal_sender,
+            saved_state_sender,
         },
     };
 
@@ -188,17 +186,17 @@ fn test_lifecycle() {
     send_lifecycle_message(runtime, handle, LifecycleMessage::Start(lifecycle_sender));
     runtime.block_on(lifecycle_receiver).unwrap();
 
-    // To avoid test failures, wait until StateOperator has saved the initial state
-    // from the ServiceRunner
-    state_operator_save_finished_signal_receiver.recv().unwrap();
-
     // Check the initial value is sent from within the Service
     let service_value = assert_receiver.recv().unwrap();
     assert_eq!(service_value, "0");
 
-    // To avoid test failures, wait until StateOperator has saved the state from the
-    // Service
-    state_operator_save_finished_signal_receiver.recv().unwrap();
+    // To avoid test failures, wait until StateOperator has saved the last expected
+    // state
+    while let Ok(value) = saved_state_receiver.recv() {
+        if value == 1 {
+            break;
+        }
+    }
 
     // Stop the Service
     let (lifecycle_sender, lifecycle_receiver) = oneshot::channel();
@@ -213,17 +211,17 @@ fn test_lifecycle() {
     send_lifecycle_message(runtime, handle, LifecycleMessage::Start(lifecycle_sender));
     runtime.block_on(lifecycle_receiver).unwrap();
 
-    // To avoid test failures, wait until StateOperator has saved the initial state
-    // from the ServiceRunner
-    state_operator_save_finished_signal_receiver.recv().unwrap();
-
     // Check the initial value is sent from within the Service
     let service_value = assert_receiver.recv().unwrap();
     assert_eq!(service_value, "1");
 
-    // To avoid test failures, wait until StateOperator has saved to send the state
-    // from the Service
-    state_operator_save_finished_signal_receiver.recv().unwrap();
+    // To avoid test failures, wait until StateOperator has saved the last expected
+    // state
+    while let Ok(value) = saved_state_receiver.recv() {
+        if value == 2 {
+            break;
+        }
+    }
 
     // Stop the Service again
     let (lifecycle_sender, lifecycle_receiver) = oneshot::channel();
