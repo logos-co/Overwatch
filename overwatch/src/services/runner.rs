@@ -16,7 +16,7 @@ use crate::{
         status::{ServiceStatus, StatusHandle},
         ServiceCore,
     },
-    utils::finished_signals::Sender,
+    utils::finished_signal::Sender,
     DynError,
 };
 

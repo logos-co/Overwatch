@@ -1,2 +1,2 @@
-pub mod finished_signals;
+pub mod finished_signal;
 pub mod runtime;
