@@ -109,6 +109,8 @@ pub trait Services: Sized {
     /// [`ServiceRunner`](crate::services::runner::ServiceRunner)s attached to
     /// the trait implementer.
     ///
+    /// Depending on the implementation, this may be a no-op.
+    ///
     /// This is the opposite operation of [`Self::new`]: It's _final_.
     /// `Service`s won't be able to be started again after calling it.
     ///
@@ -116,22 +118,19 @@ pub trait Services: Sized {
     ///
     /// The current implementation of this function (when derived via the
     /// [`#[derive_services]`](overwatch_derive::derive_services) macro)
-    /// cleans up attached `Service`s by calling [`Self::stop_all`] before
-    /// terminating the [`Runner`]s, preventing resource leaks.
+    /// kills the [`ServiceRunner`](crate::services::runner::ServiceRunner)s
+    /// without waiting for their respective `Service`s to finish.
+    /// If you want to wait for the `Service`s to finish, you should call
+    /// [`Self::stop_all`] first.
     ///
     /// # Errors
     ///
     /// The generated [`Error`].
-    // TODO 1: For improved SRP, an alternative to consider would be restricting
-    // this  function's role to just killing the
+    // TODO: For improved SRP, an alternative to consider would be restricting
+    //   this  function's role to just killing the
     //  [`ServiceRunner`](crate::services::runner::ServiceRunner)s, while
     //  composing the full cleanup within a [`OverwatchLifeCycleCommand`].
-    // TODO 2: This function might not fit here conceptually, as it implies there's
-    //  something to  shutdown even though this trait should be agnostic. That
-    //  being said, the alternative of handling cleanup within
-    //  [`Self::stop_all`] is not ideal: Mixes responsibilities and disables the
-    //  ability to stop `Service`s without shutting down.
-    async fn shutdown(self) -> Result<(), Error>;
+    async fn teardown(self) -> Result<(), Error>;
 
     /// Request a communication relay for a service attached to the trait
     /// implementer.
@@ -252,17 +251,20 @@ where
                 OverwatchCommand::OverwatchLifeCycle(command) => match command {
                     OverwatchLifeCycleCommand::StartAllServices => {
                         if let Err(e) = services.start_all().await {
-                            error!(error=?e, "Error starting all services");
+                            error!(error=?e, "Error starting all services.");
                         }
                     }
                     OverwatchLifeCycleCommand::StopAllServices => {
                         if let Err(e) = services.stop_all().await {
-                            error!(error=?e, "Error stopping all services");
+                            error!(error=?e, "Error stopping all services.");
                         }
                     }
                     OverwatchLifeCycleCommand::Shutdown => {
-                        if let Err(e) = services.shutdown().await {
-                            error!(error=?e, "Error shutting down all services");
+                        if let Err(e) = services.stop_all().await {
+                            error!(error=?e, "Error stopping all services during teardown.");
+                        }
+                        if let Err(e) = services.teardown().await {
+                            error!(error=?e, "Error tearing down services.");
                         }
                         break;
                     }
@@ -405,7 +407,7 @@ mod test {
             Ok(())
         }
 
-        async fn shutdown(self) -> Result<(), Error> {
+        async fn teardown(self) -> Result<(), Error> {
             Ok(())
         }
 
