@@ -97,7 +97,7 @@ impl ServiceCore<RuntimeServiceId> for UpdateStateService {
     async fn run(mut self) -> Result<(), overwatch::DynError> {
         let state_updater = self.service_resources_handle.state_updater;
         for value in 0..10 {
-            state_updater.update(CounterState { value });
+            state_updater.update(Some(CounterState { value }));
             sleep(Duration::from_millis(50)).await;
         }
         Ok(())
