@@ -8,7 +8,7 @@ use futures::{Stream, StreamExt};
 use tokio::sync::mpsc::{channel, Sender};
 use tokio_stream::wrappers::ReceiverStream;
 
-use crate::{utils::finished_signals, DynError};
+use crate::{utils::finished_signal, DynError};
 
 /// Message type for `Service` lifecycle events.
 #[derive(Debug)]
@@ -20,9 +20,9 @@ pub enum LifecycleMessage {
     ///
     /// # Arguments
     ///
-    /// - [`finished_signals::Sender`]: A [`finished_signals::Signal`] will be
+    /// - [`finished_signal::Sender`]: A [`finished_signal::Signal`] will be
     ///   sent through the associated channel upon completion of the task.
-    Start(finished_signals::Sender),
+    Start(finished_signal::Sender),
 
     /// Stops the `Service`.
     ///
@@ -33,9 +33,9 @@ pub enum LifecycleMessage {
     ///
     /// # Arguments
     ///
-    /// - [`finished_signals::Sender`]: A [`finished_signals::Signal`] will be
+    /// - [`finished_signal::Sender`]: A [`finished_signal::Signal`] will be
     ///   sent through the associated channel upon completion of the task.
-    Stop(finished_signals::Sender),
+    Stop(finished_signal::Sender),
 }
 
 #[derive(Clone)]
