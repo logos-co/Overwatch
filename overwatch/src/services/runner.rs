@@ -31,6 +31,10 @@ impl<Message, Settings, State, StateOperator>
     pub const fn runner_join_handle(&self) -> &JoinHandle<()> {
         &self.runner_join_handle
     }
+
+    pub fn runner_join_handle_owned(self) -> JoinHandle<()> {
+        self.runner_join_handle
+    }
 }
 
 /// Executor for a `Service`.
