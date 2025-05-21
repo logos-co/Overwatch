@@ -716,7 +716,7 @@ fn generate_request_status_watcher_impl(
         let type_id = utils::extract_type_from(&field.ty);
         quote! {
             &<Self::RuntimeServiceId as ::overwatch::services::AsServiceId<#type_id>>::SERVICE_ID => {
-                self.#field_identifier.service_handle().status_watcher()
+                self.#field_identifier.service_handle().status_watcher().clone()
             }
         }
     });

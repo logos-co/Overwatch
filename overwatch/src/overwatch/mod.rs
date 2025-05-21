@@ -126,10 +126,6 @@ pub trait Services: Sized {
     /// # Errors
     ///
     /// The generated [`Error`].
-    // TODO: For improved SRP, an alternative to consider would be restricting
-    //   this  function's role to just killing the
-    //  [`ServiceRunner`](crate::services::runner::ServiceRunner)s, while
-    //  composing the full cleanup within a [`OverwatchLifeCycleCommand`].
     async fn teardown(self) -> Result<(), Error>;
 
     /// Request a communication relay for a service attached to the trait

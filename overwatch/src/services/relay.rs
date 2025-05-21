@@ -38,7 +38,8 @@ pub type AnyMessage = Box<dyn Any + Send + 'static>;
 /// The intended usage is oneshot-like, but having them as mpsc simplifies
 /// reusing the relay when a service is stopped and started.
 // TODO: Update this name to something more meaningful. E.g.:
-// InboundConsumerSender TODO: Try async
+//  InboundConsumerSender
+// TODO: Try async
 pub type ConsumerSender<Message> = sync_mpsc::Sender<Receiver<Message>>;
 pub type ConsumerReceiver<Message> = sync_mpsc::Receiver<Receiver<Message>>;
 
@@ -46,7 +47,7 @@ pub type ConsumerReceiver<Message> = sync_mpsc::Receiver<Receiver<Message>>;
 #[derive(Debug)]
 pub struct InboundRelay<Message> {
     receiver: Receiver<Message>,
-    /// Sender to return the consumer back to the caller
+    /// Sender to return the consumer to the caller
     /// This is used to maintain a single consumer while being able to reuse it
     /// when the same service is stopped and started.
     consumer_sender: ConsumerSender<Message>,
@@ -95,17 +96,17 @@ impl<Message> Drop for InboundRelay<Message> {
         } = self;
 
         // Instantiate a fake receiver to swap with the original one
-        // This is hack to take ownership of the receiver, required to send it back
+        // This is a hack to take ownership of the receiver, required to send it back
         let (_sender, mut swapped_receiver) = channel(*buffer_size);
         mem::swap(&mut swapped_receiver, receiver);
 
         // Instantiate a fake return sender to swap with the original one
-        // This is hack to take ownership of the receiver, required to call `send`
+        // This is a hack to take ownership of the sender, required to call `send`
         let (mut swapped_consumer_sender, _oneshot_rx) = sync_mpsc::channel();
         mem::swap(&mut swapped_consumer_sender, consumer_sender);
 
-        if let Err(e) = swapped_consumer_sender.send(swapped_receiver) {
-            error!("Failed returning receiver: {e:?}. This is expected if the `ServiceRunner` has been killed.");
+        if let Err(error) = swapped_consumer_sender.send(swapped_receiver) {
+            error!("Failed returning receiver: {error}. This is expected if the `ServiceRunner` has been killed.");
         }
     }
 }

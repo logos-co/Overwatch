@@ -7,8 +7,10 @@ use crate::{
         life_cycle::LifecycleHandle,
         relay::{ConsumerReceiver, ConsumerSender, InboundRelay, OutboundRelay, Relay},
         settings::{SettingsNotifier, SettingsUpdater},
-        state::{ServiceState, StateHandle, StateOperator as StateOperatorTrait, StateUpdater},
-        status::StatusHandle,
+        state::{
+            fuse, ServiceState, StateHandle, StateOperator as StateOperatorTrait, StateUpdater,
+        },
+        status::{handle::ServiceAPI, StatusHandle, StatusUpdater},
     },
 };
 
@@ -17,16 +19,20 @@ use crate::{
 /// Contains everything required to start a new
 /// [`ServiceRunner`](crate::services::runner::ServiceRunner).
 pub struct ServiceResources<Message, Settings, State, StateOperator, RuntimeServiceId> {
-    /// Message channel relay to receive messages from other services
-    pub status_handle: StatusHandle,
+    // Overwatch
     pub overwatch_handle: OverwatchHandle<RuntimeServiceId>,
+    // Status
+    pub status_handle: StatusHandle,
+    // Settings
     pub settings_updater: SettingsUpdater<Settings>,
     settings_notifier: SettingsNotifier<Settings>,
+    // State
     pub state_handle: StateHandle<State, StateOperator>,
-    pub state_updater: StateUpdater<State>,
+    state_updater: StateUpdater<State>,
+    operator_fuse_sender: fuse::Sender,
+    // Lifecycle
     pub lifecycle_handle: LifecycleHandle,
-
-    // pub relay: Relay<Message>,
+    // Relay
     pub inbound_relay: Option<InboundRelay<Message>>,
     pub outbound_relay: OutboundRelay<Message>,
     pub consumer_sender: ConsumerSender<Message>,
@@ -54,8 +60,11 @@ where
         let state_operator = StateOperator::from_settings(&settings);
         let settings_updater = SettingsUpdater::new(settings);
         let settings_notifier = settings_updater.notifier();
+
+        let (operator_fuse_sender, operator_fuse_receiver) = fuse::channel();
         let (state_handle, state_updater) =
-            StateHandle::<State, StateOperator>::new(state_operator, None);
+            StateHandle::<State, StateOperator>::new(state_operator, None, operator_fuse_receiver);
+
         let Relay {
             inbound_relay,
             outbound_relay,
@@ -64,12 +73,13 @@ where
         } = relay;
 
         Self {
-            status_handle,
             overwatch_handle,
+            status_handle,
             settings_updater,
             settings_notifier,
             state_handle,
             state_updater,
+            operator_fuse_sender,
             lifecycle_handle,
             inbound_relay: Some(inbound_relay),
             outbound_relay,
@@ -97,7 +107,7 @@ where
     ) -> ServiceResourcesHandle<Message, Settings, State, RuntimeServiceId> {
         ServiceResourcesHandle {
             inbound_relay,
-            status_handle: self.status_handle.clone(),
+            status_updater: self.status_handle.service_updater().clone(),
             overwatch_handle: self.overwatch_handle.clone(),
             settings_updater: self.settings_updater.clone(),
             state_updater: self.state_updater.clone(),
@@ -108,8 +118,16 @@ where
         &self.settings_notifier
     }
 
+    pub const fn state_updater(&self) -> &StateUpdater<State> {
+        &self.state_updater
+    }
+
     pub const fn relay_buffer_size(&self) -> usize {
         self.relay_buffer_size
+    }
+
+    pub const fn operator_fuse_sender(&self) -> &fuse::Sender {
+        &self.operator_fuse_sender
     }
 
     /// Retrieves the inbound relay consumer from the channel.
@@ -166,7 +184,7 @@ where
 
 pub struct ServiceResourcesHandle<Message, Settings, State, RuntimeServiceId> {
     pub inbound_relay: InboundRelay<Message>,
-    pub status_handle: StatusHandle,
+    pub status_updater: StatusUpdater<ServiceAPI>,
     pub overwatch_handle: OverwatchHandle<RuntimeServiceId>,
     pub settings_updater: SettingsUpdater<Settings>,
     pub state_updater: StateUpdater<State>,
@@ -187,7 +205,7 @@ where
         Self::new(
             service_resources.outbound_relay.clone(),
             service_resources.settings_updater.clone(),
-            service_resources.status_handle.clone(),
+            service_resources.status_handle.watcher().clone(),
             service_resources.state_handle.clone(),
             service_resources.lifecycle_handle.notifier().clone(),
         )
