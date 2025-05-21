@@ -5,7 +5,7 @@ This is a brief overview of the main entities of the Services module:
   When booted, it starts listening for [`LifecycleMessage`](lifecycle::LifecycleMessage)s for that
   `Service` and acts upon them.
   Currently: `Start` and `Stop` the `Service`.
-- [`ServiceHandle`](handle::ServiceHandle): Contains the components an external source might need
+- [`ServiceHandle`](service_handle::ServiceHandle): Contains the components an external source might need
   to communicate with a `Service`.
   It includes everything from mechanisms to send `Message`s to `Service`s to reading and updating
   their `Settings`.
@@ -21,11 +21,11 @@ This is a brief overview of the main entities of the Services module:
     Whenever a `Service` is started, a new clone is made.
  */
 
-pub mod handle;
 pub mod lifecycle;
 pub mod relay;
 pub mod resources;
 pub mod runner;
+pub mod service_handle;
 pub mod settings;
 pub mod state;
 pub mod status;
