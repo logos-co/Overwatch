@@ -312,9 +312,9 @@ where
         .await;
 
         service_resources
-            .retrieve_inbound_relay_consumer()
+            .rebuild_inbound_relay()
             .unwrap_or_else(|error| {
-                panic!("Failed to retrieve inbound relay consumer: {error}");
+                panic!("Could not rebuild the InboundRelay: {error}");
             });
 
         service_resources

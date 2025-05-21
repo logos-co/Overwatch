@@ -5,7 +5,7 @@ use crate::{
     services::{
         handle::ServiceHandle,
         life_cycle::LifecycleHandle,
-        relay::{ConsumerReceiver, ConsumerSender, InboundRelay, OutboundRelay, Relay},
+        relay::{InboundRelay, InboundRelayReceiver, InboundRelaySender, OutboundRelay, Relay},
         settings::SettingsHandle,
         state::{
             fuse, ServiceState, StateHandle, StateOperator as StateOperatorTrait, StateUpdater,
@@ -34,8 +34,8 @@ pub struct ServiceResources<Message, Settings, State, StateOperator, RuntimeServ
     // Relay
     pub inbound_relay: Option<InboundRelay<Message>>,
     pub outbound_relay: OutboundRelay<Message>,
-    pub consumer_sender: ConsumerSender<Message>,
-    pub consumer_receiver: ConsumerReceiver<Message>,
+    pub inbound_relay_sender: InboundRelaySender<Message>,
+    pub inbound_relay_receiver: InboundRelayReceiver<Message>,
     relay_buffer_size: usize,
 }
 
@@ -66,8 +66,8 @@ where
         let Relay {
             inbound_relay,
             outbound_relay,
-            consumer_sender,
-            consumer_receiver,
+            inbound_relay_sender,
+            inbound_relay_receiver,
         } = relay;
 
         Self {
@@ -80,8 +80,8 @@ where
             lifecycle_handle,
             inbound_relay: Some(inbound_relay),
             outbound_relay,
-            consumer_sender,
-            consumer_receiver,
+            inbound_relay_sender,
+            inbound_relay_receiver,
             relay_buffer_size,
         }
     }
@@ -123,31 +123,32 @@ where
         &self.operator_fuse_sender
     }
 
-    /// Retrieves the inbound relay consumer from the channel.
+    /// Retrieves the [`InboundRelay`]'s receiver from the channel and rebuilds
+    /// a new [`InboundRelay`].
     ///
-    /// Only one inbound relay exists at a time.
+    /// Only one [`InboundRelay`] exists at a time for a given `Service`.
     ///
     /// This function must be called only if awaiting a `Service` to be Dropped,
-    /// which is when the inbound relay consumer is returned.
+    /// which is when the [`InboundRelay`]'s receiver is returned.
     ///
     /// # Errors
     ///
-    /// If the inbound relay already exists in [`ServiceResources`].
+    /// If the [`InboundRelay`] already exists in [`ServiceResources`].
     ///
     /// # Panics
     ///
-    /// If the consumer cannot be retrieved from the channel.
-    pub fn retrieve_inbound_relay_consumer(&mut self) -> Result<(), String> {
+    /// If the [`InboundRelay`]'s receiver cannot be retrieved from the channel.
+    pub fn rebuild_inbound_relay(&mut self) -> Result<(), String> {
         if self.inbound_relay.is_some() {
             return Err(String::from("Inbound relay already exists."));
         }
-        let inbound_consumer = self
-            .consumer_receiver
+        let inbound_relay_receiver = self
+            .inbound_relay_receiver
             .recv()
-            .map_err(|error| format!("Failed to receive the InboundRelay consumer: {error}"))?;
+            .map_err(|error| format!("Failed to retrieve the InboundRelay's receiver: {error}"))?;
         let inbound_relay = InboundRelay::new(
-            inbound_consumer,
-            self.consumer_sender.clone(),
+            inbound_relay_receiver,
+            self.inbound_relay_sender.clone(),
             self.relay_buffer_size(),
         );
         self.inbound_relay = Some(inbound_relay);
