@@ -56,16 +56,8 @@ impl ServiceCore<RuntimeServiceId> for AwaitService1 {
     }
 
     async fn run(self) -> Result<(), DynError> {
-        println!("Initialized 1");
-        self.service_resources_handle
-            .status_handle
-            .updater()
-            .update(ServiceStatus::Running);
+        self.service_resources_handle.status_updater.ready();
         tokio::time::sleep(Duration::from_millis(100)).await;
-        self.service_resources_handle
-            .status_handle
-            .updater()
-            .update(ServiceStatus::Stopped);
         Ok(())
     }
 }
@@ -82,10 +74,7 @@ impl ServiceCore<RuntimeServiceId> for AwaitService2 {
     }
 
     async fn run(self) -> Result<(), DynError> {
-        self.service_resources_handle
-            .status_handle
-            .updater()
-            .update(ServiceStatus::Running);
+        self.service_resources_handle.status_updater.ready();
 
         let mut watcher: StatusWatcher = self
             .service_resources_handle
@@ -94,20 +83,17 @@ impl ServiceCore<RuntimeServiceId> for AwaitService2 {
             .await;
 
         watcher
-            .wait_for(ServiceStatus::Running, Some(Duration::from_millis(50)))
+            .wait_for(ServiceStatus::Ready, Some(Duration::from_millis(50)))
             .await
             .unwrap();
 
-        println!("Initialized 2");
         tokio::time::sleep(Duration::from_millis(100)).await;
+
         watcher
             .wait_for(ServiceStatus::Stopped, Some(Duration::from_millis(50)))
             .await
             .unwrap();
-        self.service_resources_handle
-            .status_handle
-            .updater()
-            .update(ServiceStatus::Stopped);
+
         Ok(())
     }
 }
@@ -124,10 +110,7 @@ impl ServiceCore<RuntimeServiceId> for AwaitService3 {
     }
 
     async fn run(self) -> Result<(), DynError> {
-        self.service_resources_handle
-            .status_handle
-            .updater()
-            .update(ServiceStatus::Running);
+        self.service_resources_handle.status_updater.ready();
 
         let mut watcher: StatusWatcher = self
             .service_resources_handle
@@ -136,20 +119,17 @@ impl ServiceCore<RuntimeServiceId> for AwaitService3 {
             .await;
 
         watcher
-            .wait_for(ServiceStatus::Running, Some(Duration::from_millis(50)))
+            .wait_for(ServiceStatus::Ready, Some(Duration::from_millis(50)))
             .await
             .unwrap();
 
-        println!("Initialized 3");
         tokio::time::sleep(Duration::from_millis(100)).await;
+
         watcher
             .wait_for(ServiceStatus::Stopped, Some(Duration::from_millis(50)))
             .await
             .unwrap();
-        self.service_resources_handle
-            .status_handle
-            .updater()
-            .update(ServiceStatus::Stopped);
+
         Ok(())
     }
 }

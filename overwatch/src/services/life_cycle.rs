@@ -10,6 +10,13 @@ use tokio_stream::wrappers::ReceiverStream;
 
 use crate::{utils::finished_signal, DynError};
 
+#[expect(clippy::derive_partial_eq_without_eq, reason = "Not needed")]
+#[derive(PartialEq)]
+pub enum LifecyclePhase {
+    Started,
+    Stopped,
+}
+
 /// Message type for `Service` lifecycle events.
 #[derive(Debug)]
 pub enum LifecycleMessage {

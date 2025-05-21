@@ -1,9 +1,6 @@
 use crate::services::{
-    life_cycle::LifecycleNotifier,
-    relay::OutboundRelay,
-    settings::SettingsUpdater,
-    state::StateHandle,
-    status::{StatusHandle, StatusWatcher},
+    life_cycle::LifecycleNotifier, relay::OutboundRelay, settings::SettingsUpdater,
+    state::StateHandle, status::watcher::StatusWatcher,
 };
 
 /// Handle to a service.
@@ -24,7 +21,7 @@ pub struct ServiceHandle<Message, Settings, State, Operator> {
     /// [`None`]
     outbound_relay: OutboundRelay<Message>,
     settings_updater: SettingsUpdater<Settings>,
-    status_handle: StatusHandle,
+    status_watcher: StatusWatcher,
     state_handle: StateHandle<State, Operator>,
     lifecycle_notifier: LifecycleNotifier,
 }
@@ -34,14 +31,14 @@ impl<Message, Settings, State, Operator> ServiceHandle<Message, Settings, State,
     pub const fn new(
         outbound_relay: OutboundRelay<Message>,
         settings_updater: SettingsUpdater<Settings>,
-        status_handle: StatusHandle,
+        status_watcher: StatusWatcher,
         state_handle: StateHandle<State, Operator>,
         lifecycle_notifier: LifecycleNotifier,
     ) -> Self {
         Self {
             outbound_relay,
             settings_updater,
-            status_handle,
+            status_watcher,
             state_handle,
             lifecycle_notifier,
         }
@@ -54,19 +51,14 @@ impl<Message, Settings, State, Operator> ServiceHandle<Message, Settings, State,
         self.outbound_relay.clone()
     }
 
-    /// Get the [`StatusWatcher`] for this service.
-    pub fn status_watcher(&self) -> StatusWatcher {
-        self.status_handle.watcher()
-    }
-
     /// Update the current settings with a new one.
     pub fn update_settings(&self, settings: Settings) {
         self.settings_updater.update(settings);
     }
 
-    /// Get the [`StatusHandle`] for this service.
-    pub const fn status_handle(&self) -> &StatusHandle {
-        &self.status_handle
+    /// Get the [`StatusWatcher`] for this service.
+    pub const fn status_watcher(&self) -> &StatusWatcher {
+        &self.status_watcher
     }
 
     /// Get the [`StateHandle`] for this service.

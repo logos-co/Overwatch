@@ -78,7 +78,7 @@ impl StateOperator for LifecycleServiceStateOperator {
 
 #[derive(Debug, Clone)]
 struct LifecycleServiceSettings {
-    assert_sender: Sender<String>,
+    assert_sender: Sender<u8>,
     saved_state: &'static Mutex<Option<LifecycleServiceState>>,
     saved_state_sender: Sender<u8>,
 }
@@ -125,7 +125,7 @@ impl ServiceCore<RuntimeServiceId> for LifecycleService {
             .assert_sender;
 
         // Initial value
-        assert_sender.send(initial_state.value.to_string()).unwrap();
+        assert_sender.send(initial_state.value).unwrap();
 
         // Increment and save
         let value = initial_state.value + 1;
@@ -188,7 +188,7 @@ fn test_lifecycle() {
 
     // Check the initial value is sent from within the Service
     let service_value = assert_receiver.recv().unwrap();
-    assert_eq!(service_value, "0");
+    assert_eq!(service_value, 0);
 
     // To avoid test failures, wait until StateOperator has saved the last expected
     // state
@@ -206,6 +206,14 @@ fn test_lifecycle() {
     // Check that the Service hasn't sent any messages
     assert_receiver.try_recv().unwrap_err();
 
+    // Debugging purposes: Edit the SAVED_STATE so the last saved state from the
+    // first instance is different from the initial state of the second
+    // instance.
+    {
+        let mut guard = SAVED_STATE.lock().expect("Lock should be available.");
+        *guard = Some(LifecycleServiceState { value: 2 });
+    }
+
     // Start the Service again
     let (lifecycle_sender, lifecycle_receiver) = oneshot::channel();
     send_lifecycle_message(runtime, handle, LifecycleMessage::Start(lifecycle_sender));
@@ -213,12 +221,12 @@ fn test_lifecycle() {
 
     // Check the initial value is sent from within the Service
     let service_value = assert_receiver.recv().unwrap();
-    assert_eq!(service_value, "1");
+    assert_eq!(service_value, 2);
 
     // To avoid test failures, wait until StateOperator has saved the last expected
     // state
     while let Ok(value) = saved_state_receiver.recv() {
-        if value == 2 {
+        if value == 3 {
             break;
         }
     }
@@ -234,9 +242,12 @@ fn test_lifecycle() {
     // Check the last saved value
     let state_value = {
         let saved_state_guard = SAVED_STATE.lock().unwrap();
-        saved_state_guard.as_ref().unwrap().value
-    }; // MutexGuard is dropped here, before the .await
-    assert_eq!(state_value, 2);
+        saved_state_guard
+            .as_ref()
+            .expect("Lock should be available.")
+            .value
+    };
+    assert_eq!(state_value, 3);
 
     runtime.block_on(handle.shutdown());
     app.wait_finished();
