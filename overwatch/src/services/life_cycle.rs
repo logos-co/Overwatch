@@ -10,12 +10,6 @@ use tokio_stream::wrappers::ReceiverStream;
 
 use crate::{utils::finished_signal, DynError};
 
-#[derive(Eq, PartialEq)]
-pub enum LifecyclePhase {
-    Started,
-    Stopped,
-}
-
 /// Message type for `Service` lifecycle events.
 #[derive(Debug)]
 pub enum LifecycleMessage {
