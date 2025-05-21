@@ -20,22 +20,22 @@ use crate::{
 /// [`ServiceRunner`](crate::services::runner::ServiceRunner).
 pub struct ServiceResources<Message, Settings, State, StateOperator, RuntimeServiceId> {
     // Overwatch
-    pub overwatch_handle: OverwatchHandle<RuntimeServiceId>,
+    overwatch_handle: OverwatchHandle<RuntimeServiceId>,
     // Status
-    pub status_handle: StatusHandle,
+    status_handle: StatusHandle,
     // Settings
-    pub settings_handle: SettingsHandle<Settings>,
+    settings_handle: SettingsHandle<Settings>,
     // State
-    pub state_handle: StateHandle<State, StateOperator>,
+    state_handle: StateHandle<State, StateOperator>,
     state_updater: StateUpdater<State>,
     operator_fuse_sender: fuse::Sender,
     // Lifecycle
-    pub lifecycle_handle: LifecycleHandle,
+    lifecycle_handle: LifecycleHandle,
     // Relay
-    pub inbound_relay: Option<InboundRelay<Message>>,
-    pub outbound_relay: OutboundRelay<Message>,
-    pub inbound_relay_sender: InboundRelaySender<Message>,
-    pub inbound_relay_receiver: InboundRelayReceiver<Message>,
+    inbound_relay: Option<InboundRelay<Message>>,
+    outbound_relay: OutboundRelay<Message>,
+    inbound_relay_sender: InboundRelaySender<Message>,
+    inbound_relay_receiver: InboundRelayReceiver<Message>,
     relay_buffer_size: usize,
 }
 
@@ -86,33 +86,32 @@ where
         }
     }
 
-    /// Create a new [`ServiceResourcesHandle`] from the current
-    /// `ServiceResources`.
-    ///
-    /// # Parameters
-    ///
-    /// * `inbound_relay`: The relay the service will use to receive messages.
-    ///   Due to the singleton nature of the inbound relay, if the recipient
-    ///   service is being restarted, then the relay should be the same one
-    ///   returned by the previous instance when it was stopped. This ensures
-    ///   the new instance will maintain communication with other services who
-    ///   opened a relay to the previous instance.
-    #[must_use]
-    pub fn to_handle(
-        &self,
-        inbound_relay: InboundRelay<Message>,
-    ) -> ServiceResourcesHandle<Message, Settings, State, RuntimeServiceId> {
-        ServiceResourcesHandle {
-            inbound_relay,
-            status_updater: self.status_handle.service_updater().clone(),
-            overwatch_handle: self.overwatch_handle.clone(),
-            settings_handle: self.settings_handle.clone(),
-            state_updater: self.state_updater.clone(),
-        }
+    pub const fn overwatch_handle(&self) -> &OverwatchHandle<RuntimeServiceId> {
+        &self.overwatch_handle
+    }
+
+    pub const fn status_handle(&self) -> &StatusHandle {
+        &self.status_handle
+    }
+
+    pub const fn settings_handle(&self) -> &SettingsHandle<Settings> {
+        &self.settings_handle
+    }
+
+    pub const fn state_handle(&self) -> &StateHandle<State, StateOperator> {
+        &self.state_handle
     }
 
     pub const fn state_updater(&self) -> &StateUpdater<State> {
         &self.state_updater
+    }
+
+    pub const fn lifecycle_handle(&self) -> &LifecycleHandle {
+        &self.lifecycle_handle
+    }
+
+    pub const fn lifecycle_handle_mut(&mut self) -> &mut LifecycleHandle {
+        &mut self.lifecycle_handle
     }
 
     pub const fn relay_buffer_size(&self) -> usize {
@@ -173,6 +172,31 @@ where
             info!("Couldn't load state from Operator. Creating from settings.");
             State::from_settings(&settings)
         }
+    }
+
+    /// Create a new [`ServiceResourcesHandle`](ServiceResourcesHandle) from the
+    /// current `ServiceResources`.
+    ///
+    /// It requires `inbound_relay` to be set.
+    ///
+    /// # Errors
+    ///
+    /// If the [`InboundRelay`] is not set in the `ServiceResources`.
+    pub fn as_handle(
+        &mut self,
+    ) -> Result<ServiceResourcesHandle<Message, Settings, State, RuntimeServiceId>, String> {
+        let inbound_relay = self
+            .inbound_relay
+            .take()
+            .ok_or_else(|| String::from("InboundRelay is not set in the ServiceResources."))?;
+
+        Ok(ServiceResourcesHandle {
+            inbound_relay,
+            status_updater: self.status_handle.service_updater().clone(),
+            overwatch_handle: self.overwatch_handle.clone(),
+            settings_handle: self.settings_handle.clone(),
+            state_updater: self.state_updater.clone(),
+        })
     }
 }
 
