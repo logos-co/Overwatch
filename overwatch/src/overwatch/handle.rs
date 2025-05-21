@@ -17,7 +17,7 @@ use crate::{
         Services,
     },
     services::{
-        life_cycle::LifecycleMessage,
+        lifecycle::LifecycleMessage,
         relay::{OutboundRelay, RelayError, ServiceError},
         status::StatusWatcher,
         AsServiceId, ServiceData,

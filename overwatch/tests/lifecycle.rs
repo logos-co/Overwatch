@@ -14,7 +14,7 @@ use overwatch::{
         OverwatchRunner,
     },
     services::{
-        life_cycle::LifecycleMessage,
+        lifecycle::LifecycleMessage,
         resources::ServiceResourcesHandle,
         state::{ServiceState, StateOperator},
         ServiceCore, ServiceData,

@@ -2,7 +2,7 @@
 # Services
 This is a brief overview of the main entities of the Services module:
 - [`ServiceRunner`](runner::ServiceRunner): Oneshot runner of a `Service`.
-  When booted, it starts listening for [`LifecycleMessage`](life_cycle::LifecycleMessage)s for that
+  When booted, it starts listening for [`LifecycleMessage`](lifecycle::LifecycleMessage)s for that
   `Service` and acts upon them.
   Currently: `Start` and `Stop` the `Service`.
 - [`ServiceHandle`](handle::ServiceHandle): Contains the components an external source might need
@@ -22,7 +22,7 @@ This is a brief overview of the main entities of the Services module:
  */
 
 pub mod handle;
-pub mod life_cycle;
+pub mod lifecycle;
 pub mod relay;
 pub mod resources;
 pub mod runner;

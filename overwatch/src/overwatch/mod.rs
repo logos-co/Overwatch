@@ -22,7 +22,7 @@ use crate::{
         },
         handle::OverwatchHandle,
     },
-    services::{life_cycle::LifecycleNotifier, relay::AnyMessage, status::StatusWatcher},
+    services::{lifecycle::LifecycleNotifier, relay::AnyMessage, status::StatusWatcher},
     utils::{finished_signal, runtime::default_multithread_runtime},
 };
 
@@ -366,7 +366,7 @@ mod test {
     use super::*;
     use crate::{
         overwatch::{handle::OverwatchHandle, Error, OverwatchRunner, Services},
-        services::{life_cycle::LifecycleNotifier, status::StatusWatcher},
+        services::{lifecycle::LifecycleNotifier, status::StatusWatcher},
     };
 
     struct EmptyServices;
