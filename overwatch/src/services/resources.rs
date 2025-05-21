@@ -4,7 +4,7 @@ use crate::{
     overwatch::handle::OverwatchHandle,
     services::{
         handle::ServiceHandle,
-        life_cycle::LifecycleHandle,
+        lifecycle::LifecycleHandle,
         relay::{InboundRelay, InboundRelayReceiver, InboundRelaySender, OutboundRelay, Relay},
         settings::SettingsHandle,
         state::{

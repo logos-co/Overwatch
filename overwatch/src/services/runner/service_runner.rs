@@ -8,7 +8,7 @@ use crate::{
     overwatch::handle::OverwatchHandle,
     services::{
         handle::ServiceHandle,
-        life_cycle::LifecycleMessage,
+        lifecycle::LifecycleMessage,
         resources::ServiceResources,
         runner::ServiceRunnerHandle,
         state::{ServiceState, StateOperator},

@@ -1,5 +1,5 @@
 use crate::services::{
-    life_cycle::LifecycleNotifier, relay::OutboundRelay, settings::SettingsUpdater,
+    lifecycle::LifecycleNotifier, relay::OutboundRelay, settings::SettingsUpdater,
     state::StateHandle, status::watcher::StatusWatcher,
 };
 
