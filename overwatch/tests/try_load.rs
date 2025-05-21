@@ -86,7 +86,7 @@ impl ServiceCore<RuntimeServiceId> for TryLoad {
             ..
         } = self;
         let sender = service_resources_handle
-            .settings_updater
+            .settings_handle
             .notifier()
             .get_updated_settings()
             .origin_sender;
