@@ -3,9 +3,9 @@ use tracing::info;
 use crate::{
     overwatch::handle::OverwatchHandle,
     services::{
-        handle::ServiceHandle,
         lifecycle::LifecycleHandle,
         relay::{InboundRelay, InboundRelayReceiver, InboundRelaySender, OutboundRelay, Relay},
+        service_handle::ServiceHandle,
         settings::SettingsHandle,
         state::{
             fuse, ServiceState, StateHandle, StateOperator as StateOperatorTrait, StateUpdater,

@@ -15,7 +15,7 @@ pub type OpaqueServiceRunner<S, RuntimeServiceId> = services::runner::ServiceRun
     <S as ServiceData>::StateOperator,
     RuntimeServiceId,
 >;
-pub type OpaqueServiceHandle<S> = services::handle::ServiceHandle<
+pub type OpaqueServiceHandle<S> = services::service_handle::ServiceHandle<
     <S as ServiceData>::Message,
     <S as ServiceData>::Settings,
     <S as ServiceData>::State,
