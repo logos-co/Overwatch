@@ -8,12 +8,12 @@ use overwatch::{
         state::{NoOperator, NoState},
         ServiceCore, ServiceData,
     },
-    OpaqueServiceStateHandle,
+    OpaqueServiceResourcesHandle,
 };
 use tokio::time::sleep;
 
 pub struct SettingsService {
-    state: OpaqueServiceStateHandle<Self, RuntimeServiceId>,
+    service_resources_handle: OpaqueServiceResourcesHandle<Self, RuntimeServiceId>,
 }
 
 type SettingsServiceSettings = String;
@@ -31,20 +31,16 @@ impl ServiceData for SettingsService {
 #[async_trait]
 impl ServiceCore<RuntimeServiceId> for SettingsService {
     fn init(
-        state: OpaqueServiceStateHandle<Self, RuntimeServiceId>,
+        service_resources_handle: OpaqueServiceResourcesHandle<Self, RuntimeServiceId>,
         _initial_state: Self::State,
     ) -> Result<Self, overwatch::DynError> {
-        Ok(Self { state })
+        Ok(Self {
+            service_resources_handle,
+        })
     }
 
     async fn run(mut self) -> Result<(), overwatch::DynError> {
-        let Self {
-            state:
-                OpaqueServiceStateHandle::<Self, RuntimeServiceId> {
-                    settings_reader, ..
-                },
-        } = self;
-
+        let settings_reader = self.service_resources_handle.settings_updater.notifier();
         let print = async move {
             let mut asserted = false;
             for _ in 0..10 {
@@ -76,6 +72,12 @@ fn settings_service_update_settings() {
     };
     let overwatch = OverwatchRunner::<TestApp>::run(settings.clone(), None).unwrap();
     let handle = overwatch.handle().clone();
+
+    handle
+        .runtime()
+        .block_on(handle.start_service::<SettingsService>())
+        .expect("service to start successfully.");
+
     let handle2 = handle.clone();
     settings.settings_service = "New settings".to_string();
     overwatch.spawn(async move { handle.clone().update_settings::<TestApp>(settings).await });

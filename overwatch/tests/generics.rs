@@ -6,15 +6,19 @@ use overwatch::{
     derive_services,
     overwatch::OverwatchRunner,
     services::{
-        handle::ServiceStateHandle,
+        resources::ServiceResourcesHandle,
         state::{NoOperator, NoState},
         ServiceCore, ServiceData,
     },
 };
-use tokio::time::sleep;
+use tokio::{
+    io::{self, AsyncWriteExt},
+    time::sleep,
+};
 
 pub struct GenericService {
-    state: ServiceStateHandle<GenericServiceMessage, (), NoState<()>, RuntimeServiceId>,
+    service_resources_handle:
+        ServiceResourcesHandle<GenericServiceMessage, (), NoState<()>, RuntimeServiceId>,
 }
 
 #[derive(Clone, Debug)]
@@ -30,22 +34,21 @@ impl ServiceData for GenericService {
 #[async_trait]
 impl ServiceCore<RuntimeServiceId> for GenericService {
     fn init(
-        state: ServiceStateHandle<Self::Message, Self::Settings, Self::State, RuntimeServiceId>,
+        service_resources_handle: ServiceResourcesHandle<
+            Self::Message,
+            Self::Settings,
+            Self::State,
+            RuntimeServiceId,
+        >,
         _initial_state: Self::State,
     ) -> Result<Self, overwatch::DynError> {
-        Ok(Self { state })
+        Ok(Self {
+            service_resources_handle,
+        })
     }
 
     async fn run(mut self) -> Result<(), overwatch::DynError> {
-        use tokio::io::{self, AsyncWriteExt};
-
-        let Self {
-            state: ServiceStateHandle {
-                mut inbound_relay, ..
-            },
-            ..
-        } = self;
-
+        let mut inbound_relay = self.service_resources_handle.inbound_relay;
         let generic = async move {
             let mut stdout = io::stdout();
             while let Some(message) = inbound_relay.recv().await {
@@ -95,6 +98,11 @@ fn derive_generic_service() {
     };
     let overwatch = OverwatchRunner::<TestApp>::run(settings, None).unwrap();
     let handle = overwatch.handle().clone();
+
+    handle
+        .runtime()
+        .block_on(handle.start_service::<GenericService>())
+        .expect("service to start successfully.");
 
     overwatch.spawn(async move {
         let generic_service_relay = handle

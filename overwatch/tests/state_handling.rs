@@ -8,7 +8,7 @@ use overwatch::{
         state::{ServiceState, StateOperator},
         ServiceCore, ServiceData,
     },
-    OpaqueServiceStateHandle,
+    OpaqueServiceResourcesHandle,
 };
 use tokio::{
     io::{self, AsyncWriteExt},
@@ -16,7 +16,7 @@ use tokio::{
 };
 
 pub struct UpdateStateService {
-    state: OpaqueServiceStateHandle<Self, RuntimeServiceId>,
+    service_resources_handle: OpaqueServiceResourcesHandle<Self, RuntimeServiceId>,
 }
 
 #[derive(Clone, Debug)]
@@ -86,18 +86,18 @@ impl ServiceData for UpdateStateService {
 #[async_trait]
 impl ServiceCore<RuntimeServiceId> for UpdateStateService {
     fn init(
-        state: OpaqueServiceStateHandle<Self, RuntimeServiceId>,
+        service_resources_handle: OpaqueServiceResourcesHandle<Self, RuntimeServiceId>,
         _initial_state: Self::State,
     ) -> Result<Self, overwatch::DynError> {
-        Ok(Self { state })
+        Ok(Self {
+            service_resources_handle,
+        })
     }
 
     async fn run(mut self) -> Result<(), overwatch::DynError> {
-        let Self {
-            state: OpaqueServiceStateHandle::<Self, RuntimeServiceId> { state_updater, .. },
-        } = self;
+        let state_updater = self.service_resources_handle.state_updater;
         for value in 0..10 {
-            state_updater.update(CounterState { value });
+            state_updater.update(Some(CounterState { value }));
             sleep(Duration::from_millis(50)).await;
         }
         Ok(())
@@ -116,6 +116,11 @@ fn state_update_service() {
     };
     let overwatch = OverwatchRunner::<TestApp>::run(settings, None).unwrap();
     let handle = overwatch.handle().clone();
+
+    handle
+        .runtime()
+        .block_on(handle.start_service::<UpdateStateService>())
+        .expect("service to start successfully.");
 
     overwatch.spawn(async move {
         sleep(Duration::from_secs(1)).await;

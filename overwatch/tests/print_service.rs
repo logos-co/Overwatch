@@ -9,12 +9,15 @@ use overwatch::{
         state::{NoOperator, NoState},
         ServiceCore, ServiceData,
     },
-    OpaqueServiceStateHandle,
+    OpaqueServiceResourcesHandle,
 };
-use tokio::time::sleep;
+use tokio::{
+    io::{self, AsyncWriteExt},
+    time::sleep,
+};
 
 pub struct PrintService {
-    state: OpaqueServiceStateHandle<Self, RuntimeServiceId>,
+    service_resources_handle: OpaqueServiceResourcesHandle<Self, RuntimeServiceId>,
 }
 
 #[derive(Clone, Debug)]
@@ -30,22 +33,16 @@ impl ServiceData for PrintService {
 #[async_trait]
 impl ServiceCore<RuntimeServiceId> for PrintService {
     fn init(
-        state: OpaqueServiceStateHandle<Self, RuntimeServiceId>,
+        service_resources_handle: OpaqueServiceResourcesHandle<Self, RuntimeServiceId>,
         _initial_state: Self::State,
     ) -> Result<Self, overwatch::DynError> {
-        Ok(Self { state })
+        Ok(Self {
+            service_resources_handle,
+        })
     }
 
     async fn run(mut self) -> Result<(), overwatch::DynError> {
-        use tokio::io::{self, AsyncWriteExt};
-
-        let Self {
-            state:
-                OpaqueServiceStateHandle::<Self, RuntimeServiceId> {
-                    mut inbound_relay, ..
-                },
-        } = self;
-
+        let mut inbound_relay = self.service_resources_handle.inbound_relay;
         let print = async move {
             let mut stdout = io::stdout();
             while let Some(message) = inbound_relay.recv().await {
@@ -93,6 +90,11 @@ fn derive_print_service() {
     let settings: TestAppServiceSettings = TestAppServiceSettings { print_service: () };
     let overwatch = OverwatchRunner::<TestApp>::run(settings, None).unwrap();
     let handle = overwatch.handle().clone();
+
+    handle
+        .runtime()
+        .block_on(handle.start_service::<PrintService>())
+        .expect("service to start successfully.");
 
     overwatch.spawn(async move {
         let print_service_relay = handle

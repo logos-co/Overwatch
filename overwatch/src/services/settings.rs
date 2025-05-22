@@ -17,7 +17,7 @@ where
         Self { notifier_channel }
     }
 
-    /// Get latest settings.
+    /// Get the latest settings.
     ///
     /// It is guaranteed that at least an initial value is present.
     ///
@@ -36,9 +36,10 @@ where
 }
 
 /// Settings update notification sender.
+#[derive(Clone)]
 pub struct SettingsUpdater<Settings> {
     sender: Sender<Settings>,
-    receiver: Receiver<Settings>,
+    receiver: Receiver<Settings>, // TODO: Replace by SettingsNotifier
 }
 
 impl<Settings> SettingsUpdater<Settings> {
