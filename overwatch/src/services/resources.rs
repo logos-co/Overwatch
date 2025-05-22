@@ -4,7 +4,7 @@ use crate::{
     overwatch::handle::OverwatchHandle,
     services::{
         lifecycle::LifecycleHandle,
-        relay::{InboundRelay, InboundRelayReceiver, InboundRelaySender, OutboundRelay, Relay},
+        relay::{inbound_relay_retriever, InboundRelay, OutboundRelay, Relay},
         service_handle::ServiceHandle,
         settings::SettingsHandle,
         state::{
@@ -34,8 +34,8 @@ pub struct ServiceResources<Message, Settings, State, StateOperator, RuntimeServ
     // Relay
     inbound_relay: Option<InboundRelay<Message>>,
     outbound_relay: OutboundRelay<Message>,
-    inbound_relay_sender: InboundRelaySender<Message>,
-    inbound_relay_receiver: InboundRelayReceiver<Message>,
+    inbound_relay_retriever_sender: inbound_relay_retriever::Sender<Message>,
+    inbound_relay_retriever_receiver: inbound_relay_retriever::Receiver<Message>,
     relay_buffer_size: usize,
 }
 
@@ -66,8 +66,8 @@ where
         let Relay {
             inbound_relay,
             outbound_relay,
-            inbound_relay_sender,
-            inbound_relay_receiver,
+            inbound_relay_retriever_sender,
+            inbound_relay_retriever_receiver,
         } = relay;
 
         Self {
@@ -80,8 +80,8 @@ where
             lifecycle_handle,
             inbound_relay: Some(inbound_relay),
             outbound_relay,
-            inbound_relay_sender,
-            inbound_relay_receiver,
+            inbound_relay_retriever_sender,
+            inbound_relay_retriever_receiver,
             relay_buffer_size,
         }
     }
@@ -142,12 +142,12 @@ where
             return Err(String::from("Inbound relay already exists."));
         }
         let inbound_relay_receiver = self
-            .inbound_relay_receiver
+            .inbound_relay_retriever_receiver
             .recv()
             .map_err(|error| format!("Failed to retrieve the InboundRelay's receiver: {error}"))?;
         let inbound_relay = InboundRelay::new(
             inbound_relay_receiver,
-            self.inbound_relay_sender.clone(),
+            self.inbound_relay_retriever_sender.clone(),
             self.relay_buffer_size(),
         );
         self.inbound_relay = Some(inbound_relay);
