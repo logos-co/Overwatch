@@ -1,17 +1,16 @@
 use futures::Sink;
-use tokio::sync::mpsc::Sender;
 use tokio_util::sync::PollSender;
 
-use crate::services::relay::errors::RelayError;
+use crate::services::relay::{errors::RelayError, OutboundRelaySender};
 
 /// Channel sender of a relay connection.
 pub struct OutboundRelay<Message> {
-    sender: Sender<Message>,
+    sender: OutboundRelaySender<Message>,
 }
 
 impl<Message> OutboundRelay<Message> {
     #[must_use]
-    pub const fn new(sender: Sender<Message>) -> Self {
+    pub const fn new(sender: OutboundRelaySender<Message>) -> Self {
         Self { sender }
     }
 }

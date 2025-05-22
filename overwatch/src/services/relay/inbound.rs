@@ -1,24 +1,22 @@
 use std::{
     mem,
     pin::Pin,
-    sync::mpsc as std_mpsc,
     task::{Context, Poll},
 };
 
 use futures::Stream;
-use tokio::sync::mpsc::{channel, Receiver};
 use tracing::error;
 
-use crate::services::relay::InboundRelaySender;
+use crate::services::relay::{inbound_relay_retriever, relay_channel, InboundRelayReceiver};
 
 /// Channel receiver of a relay connection.
 #[derive(Debug)]
 pub struct InboundRelay<Message> {
-    receiver: Receiver<Message>,
+    receiver: InboundRelayReceiver<Message>,
     /// Sender to return the receiver to the caller
     /// This is used to maintain a single [`InboundRelay`] throughout the
     /// lifetime of a `Service`, so other services can maintain their relay.
-    inbound_relay_sender: InboundRelaySender<Message>,
+    retriever_sender: inbound_relay_retriever::Sender<Message>,
     /// Size of the relay buffer, used for consistency in a hack in Drop to
     /// return the receiver
     buffer_size: usize,
@@ -28,13 +26,13 @@ pub struct InboundRelay<Message> {
 impl<Message> InboundRelay<Message> {
     #[must_use]
     pub const fn new(
-        receiver: Receiver<Message>,
-        inbound_relay_sender: InboundRelaySender<Message>,
+        receiver: InboundRelayReceiver<Message>,
+        retriever_sender: inbound_relay_retriever::Sender<Message>,
         buffer_size: usize,
     ) -> Self {
         Self {
             receiver,
-            inbound_relay_sender,
+            retriever_sender,
             buffer_size,
             _stats: (),
         }
@@ -58,22 +56,22 @@ impl<Message> Drop for InboundRelay<Message> {
     fn drop(&mut self) {
         let Self {
             receiver,
-            inbound_relay_sender,
+            retriever_sender,
             buffer_size,
             ..
         } = self;
 
         // Instantiate a fake receiver to swap with the original one
         // This is a hack to take ownership of the receiver, required to send it back
-        let (_sender, mut swapped_receiver) = channel(*buffer_size);
+        let (_sender, mut swapped_receiver) = relay_channel(*buffer_size);
         mem::swap(&mut swapped_receiver, receiver);
 
         // Instantiate a fake return sender to swap with the original one
         // This is a hack to take ownership of the sender, required to call `send`
-        let (mut swapped_inbound_relay, _oneshot_rx) = std_mpsc::channel();
-        mem::swap(&mut swapped_inbound_relay, inbound_relay_sender);
+        let (mut swapped_retriever_sender, _oneshot_rx) = inbound_relay_retriever::channel();
+        mem::swap(&mut swapped_retriever_sender, retriever_sender);
 
-        if let Err(error) = swapped_inbound_relay.send(swapped_receiver) {
+        if let Err(error) = swapped_retriever_sender.send(swapped_receiver) {
             error!("Failed returning receiver: {error}. This is expected if the `ServiceRunner` has been killed.");
         }
     }
