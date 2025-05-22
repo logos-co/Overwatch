@@ -119,7 +119,7 @@ impl ServiceCore<RuntimeServiceId> for LifecycleService {
         } = self;
 
         let assert_sender = service_resources_handle
-            .settings_updater
+            .settings_handle
             .notifier()
             .get_updated_settings()
             .assert_sender;

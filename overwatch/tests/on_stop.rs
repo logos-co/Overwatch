@@ -33,7 +33,7 @@ impl ServiceCore<RuntimeServiceId> for OnStopService {
         _initial_state: Self::State,
     ) -> Result<Self, DynError> {
         let settings = service_resources_handle
-            .settings_updater
+            .settings_handle
             .notifier()
             .get_updated_settings();
         Ok(Self {

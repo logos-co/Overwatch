@@ -4,6 +4,7 @@ use tracing::error;
 use tracing::instrument;
 
 /// Wrapper around [`Receiver`].
+#[derive(Clone)]
 pub struct SettingsNotifier<Settings> {
     notifier_channel: Receiver<Settings>,
 }
@@ -35,34 +36,52 @@ where
     }
 }
 
-/// Settings update notification sender.
 #[derive(Clone)]
 pub struct SettingsUpdater<Settings> {
     sender: Sender<Settings>,
-    receiver: Receiver<Settings>, // TODO: Replace by SettingsNotifier
 }
 
 impl<Settings> SettingsUpdater<Settings> {
-    pub fn new(settings: Settings) -> Self {
-        let (sender, receiver) = channel(settings);
-
-        Self { sender, receiver }
+    #[must_use]
+    pub const fn new(sender: Sender<Settings>) -> Self {
+        Self { sender }
     }
 
     /// Send a new settings update notification to the watcher end.
     #[cfg_attr(feature = "instrumentation", instrument(skip_all))]
     pub fn update(&self, settings: Settings) {
-        self.sender.send(settings).unwrap_or_else(|_e| {
-            error!("Error sending settings update for service");
+        self.sender.send(settings).unwrap_or_else(|error| {
+            error!("Error sending settings update for service: {error}");
         });
     }
+}
 
-    /// Get a new notifier channel, used to get latest settings changes updates.
+/// Settings update notification sender.
+#[derive(Clone)]
+pub struct SettingsHandle<Settings> {
+    updater: SettingsUpdater<Settings>,
+    notifier: SettingsNotifier<Settings>,
+}
+
+impl<Settings> SettingsHandle<Settings>
+where
+    Settings: Clone,
+{
+    pub fn new(settings: Settings) -> Self {
+        let (sender, receiver) = channel(settings);
+        let updater = SettingsUpdater::new(sender);
+        let notifier = SettingsNotifier::new(receiver);
+        Self { updater, notifier }
+    }
+
     #[must_use]
-    pub fn notifier(&self) -> SettingsNotifier<Settings> {
-        SettingsNotifier {
-            notifier_channel: self.receiver.clone(),
-        }
+    pub const fn updater(&self) -> &SettingsUpdater<Settings> {
+        &self.updater
+    }
+
+    #[must_use]
+    pub const fn notifier(&self) -> &SettingsNotifier<Settings> {
+        &self.notifier
     }
 }
 
@@ -72,12 +91,11 @@ mod test {
 
     use tokio::time::{sleep, timeout};
 
-    use crate::services::settings::SettingsUpdater;
+    use crate::services::settings::SettingsHandle;
 
     #[tokio::test]
     async fn settings_updater_sequence() {
-        let updater = SettingsUpdater::new(10usize);
-        let notifier = updater.notifier();
+        let SettingsHandle { notifier, updater } = SettingsHandle::new(10usize);
         let values = [10, 0usize];
         let mut seq = HashSet::from(values);
         let handle = tokio::spawn(timeout(Duration::from_secs(3), async move {

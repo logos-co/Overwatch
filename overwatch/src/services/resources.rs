@@ -6,7 +6,7 @@ use crate::{
         handle::ServiceHandle,
         life_cycle::LifecycleHandle,
         relay::{ConsumerReceiver, ConsumerSender, InboundRelay, OutboundRelay, Relay},
-        settings::{SettingsNotifier, SettingsUpdater},
+        settings::SettingsHandle,
         state::{
             fuse, ServiceState, StateHandle, StateOperator as StateOperatorTrait, StateUpdater,
         },
@@ -24,8 +24,7 @@ pub struct ServiceResources<Message, Settings, State, StateOperator, RuntimeServ
     // Status
     pub status_handle: StatusHandle,
     // Settings
-    pub settings_updater: SettingsUpdater<Settings>,
-    settings_notifier: SettingsNotifier<Settings>,
+    pub settings_handle: SettingsHandle<Settings>,
     // State
     pub state_handle: StateHandle<State, StateOperator>,
     state_updater: StateUpdater<State>,
@@ -58,8 +57,7 @@ where
         let relay = Relay::new(relay_buffer_size);
         let status_handle = StatusHandle::new();
         let state_operator = StateOperator::from_settings(&settings);
-        let settings_updater = SettingsUpdater::new(settings);
-        let settings_notifier = settings_updater.notifier();
+        let settings_handle = SettingsHandle::new(settings);
 
         let (operator_fuse_sender, operator_fuse_receiver) = fuse::channel();
         let (state_handle, state_updater) =
@@ -75,8 +73,7 @@ where
         Self {
             overwatch_handle,
             status_handle,
-            settings_updater,
-            settings_notifier,
+            settings_handle,
             state_handle,
             state_updater,
             operator_fuse_sender,
@@ -109,13 +106,9 @@ where
             inbound_relay,
             status_updater: self.status_handle.service_updater().clone(),
             overwatch_handle: self.overwatch_handle.clone(),
-            settings_updater: self.settings_updater.clone(),
+            settings_handle: self.settings_handle.clone(),
             state_updater: self.state_updater.clone(),
         }
-    }
-
-    pub const fn settings_notifier(&self) -> &SettingsNotifier<Settings> {
-        &self.settings_notifier
     }
 
     pub const fn state_updater(&self) -> &StateUpdater<State> {
@@ -171,7 +164,7 @@ where
     ///
     /// If the State fails to load from Settings.
     pub fn get_service_initial_state(&self) -> Result<State, State::Error> {
-        let settings = self.settings_notifier.get_updated_settings();
+        let settings = self.settings_handle.notifier().get_updated_settings();
         if let Ok(Some(loaded_state)) = StateOperator::try_load(&settings) {
             info!("Loaded state from Operator");
             Ok(loaded_state)
@@ -186,7 +179,7 @@ pub struct ServiceResourcesHandle<Message, Settings, State, RuntimeServiceId> {
     pub inbound_relay: InboundRelay<Message>,
     pub status_updater: StatusUpdater<ServiceAPI>,
     pub overwatch_handle: OverwatchHandle<RuntimeServiceId>,
-    pub settings_updater: SettingsUpdater<Settings>,
+    pub settings_handle: SettingsHandle<Settings>,
     pub state_updater: StateUpdater<State>,
 }
 
@@ -204,7 +197,7 @@ where
     ) -> Self {
         Self::new(
             service_resources.outbound_relay.clone(),
-            service_resources.settings_updater.clone(),
+            service_resources.settings_handle.updater().clone(),
             service_resources.status_handle.watcher().clone(),
             service_resources.state_handle.clone(),
             service_resources.lifecycle_handle.notifier().clone(),
