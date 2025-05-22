@@ -34,23 +34,23 @@ pub enum ServiceError {
 /// Message wrapper type.
 pub type AnyMessage = Box<dyn Any + Send + 'static>;
 
-/// Channel to retrieve the consumer of the relay connection.
+/// Channel to retrieve the receiver of the [`InboundRelay`].
 /// The intended usage is oneshot-like, but having them as mpsc simplifies
 /// reusing the relay when a service is stopped and started.
 // TODO: Update this name to something more meaningful. E.g.:
 //  InboundConsumerSender
 // TODO: Try async
-pub type ConsumerSender<Message> = sync_mpsc::Sender<Receiver<Message>>;
-pub type ConsumerReceiver<Message> = sync_mpsc::Receiver<Receiver<Message>>;
+pub type InboundRelaySender<Message> = sync_mpsc::Sender<Receiver<Message>>;
+pub type InboundRelayReceiver<Message> = sync_mpsc::Receiver<Receiver<Message>>;
 
 /// Channel receiver of a relay connection.
 #[derive(Debug)]
 pub struct InboundRelay<Message> {
     receiver: Receiver<Message>,
-    /// Sender to return the consumer to the caller
-    /// This is used to maintain a single consumer while being able to reuse it
-    /// when the same service is stopped and started.
-    consumer_sender: ConsumerSender<Message>,
+    /// Sender to return the receiver to the caller
+    /// This is used to maintain a single [`InboundRelay`] throughout the
+    /// lifetime of a `Service`, so other services can maintain their relay.
+    inbound_relay_sender: InboundRelaySender<Message>,
     /// Size of the relay buffer, used for consistency in a hack in Drop to
     /// return the receiver
     buffer_size: usize,
@@ -61,12 +61,12 @@ impl<Message> InboundRelay<Message> {
     #[must_use]
     pub const fn new(
         receiver: Receiver<Message>,
-        consumer_sender: ConsumerSender<Message>,
+        inbound_relay_sender: InboundRelaySender<Message>,
         buffer_size: usize,
     ) -> Self {
         Self {
             receiver,
-            consumer_sender,
+            inbound_relay_sender,
             buffer_size,
             _stats: (),
         }
@@ -90,7 +90,7 @@ impl<Message> Drop for InboundRelay<Message> {
     fn drop(&mut self) {
         let Self {
             receiver,
-            consumer_sender,
+            inbound_relay_sender,
             buffer_size,
             ..
         } = self;
@@ -102,10 +102,10 @@ impl<Message> Drop for InboundRelay<Message> {
 
         // Instantiate a fake return sender to swap with the original one
         // This is a hack to take ownership of the sender, required to call `send`
-        let (mut swapped_consumer_sender, _oneshot_rx) = sync_mpsc::channel();
-        mem::swap(&mut swapped_consumer_sender, consumer_sender);
+        let (mut swapped_inbound_relay, _oneshot_rx) = sync_mpsc::channel();
+        mem::swap(&mut swapped_inbound_relay, inbound_relay_sender);
 
-        if let Err(error) = swapped_consumer_sender.send(swapped_receiver) {
+        if let Err(error) = swapped_inbound_relay.send(swapped_receiver) {
             error!("Failed returning receiver: {error}. This is expected if the `ServiceRunner` has been killed.");
         }
     }
@@ -175,8 +175,8 @@ where
 pub struct Relay<Message> {
     pub inbound_relay: InboundRelay<Message>,
     pub outbound_relay: OutboundRelay<Message>,
-    pub consumer_sender: ConsumerSender<Message>,
-    pub consumer_receiver: ConsumerReceiver<Message>,
+    pub inbound_relay_sender: InboundRelaySender<Message>,
+    pub inbound_relay_receiver: InboundRelayReceiver<Message>,
 }
 
 impl<Message> Relay<Message> {
@@ -184,12 +184,12 @@ impl<Message> Relay<Message> {
     #[must_use]
     pub fn new(buffer_size: usize) -> Self {
         let (sender, receiver) = channel(buffer_size);
-        let (consumer_sender, consumer_receiver) = sync_mpsc::channel();
+        let (inbound_relay_sender, inbound_relay_receiver) = sync_mpsc::channel();
         Self {
-            inbound_relay: InboundRelay::new(receiver, consumer_sender.clone(), buffer_size),
+            inbound_relay: InboundRelay::new(receiver, inbound_relay_sender.clone(), buffer_size),
             outbound_relay: OutboundRelay::new(sender),
-            consumer_sender,
-            consumer_receiver,
+            inbound_relay_sender,
+            inbound_relay_receiver,
         }
     }
 }

@@ -642,8 +642,16 @@ fn generate_teardown_impl(fields: &Punctuated<Field, Comma>) -> proc_macro2::Tok
     let call_abort_service_runner_join_handles = fields.iter().map(|field| {
         let field_identifier = field.ident.as_ref().expect("A struct attribute identifier");
         quote! {
-            // TODO: Ideally this would be a graceful teardown by awaiting handles to be aborted.
             self.#field_identifier.runner_join_handle().abort();
+        }
+    });
+
+    let call_await_service_runner_join_handles = fields.iter().map(|field| {
+        let field_identifier = field.ident.as_ref().expect("A struct attribute identifier");
+        quote! {
+            if let Err(error) = self.#field_identifier.runner_join_handle_owned().await {
+                ::tracing::error!("Error while awaiting ServiceRunner's JoinHandle: {error}");
+            }
         }
     });
 
@@ -652,6 +660,8 @@ fn generate_teardown_impl(fields: &Punctuated<Field, Comma>) -> proc_macro2::Tok
         #instrumentation
         async fn teardown(self) -> Result<(), ::overwatch::overwatch::Error> {
             # (#call_abort_service_runner_join_handles)*
+
+            # (#call_await_service_runner_join_handles)*
 
             Ok::<(), ::overwatch::overwatch::Error>(())
         }
