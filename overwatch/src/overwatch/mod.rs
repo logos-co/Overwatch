@@ -1,10 +1,11 @@
 pub mod commands;
+pub mod errors;
 pub mod handle;
 
 use std::{any::Any, fmt::Debug, future::Future};
 
 use async_trait::async_trait;
-use thiserror::Error;
+pub use errors::{DynError, Error};
 use tokio::{
     runtime::{Handle, Runtime},
     sync::mpsc::Receiver,
@@ -25,19 +26,6 @@ use crate::{
     services::{lifecycle::LifecycleNotifier, relay::AnyMessage, status::StatusWatcher},
     utils::{finished_signal, runtime::default_multithread_runtime},
 };
-
-/// Overwatch base error type.
-#[derive(Error, Debug)]
-pub enum Error {
-    #[error(transparent)]
-    Any(super::DynError),
-}
-
-impl From<super::DynError> for Error {
-    fn from(err: super::DynError) -> Self {
-        Self::Any(err)
-    }
-}
 
 /// Marker trait for settings' related elements.
 pub type AnySettings = Box<dyn Any + Send>;
@@ -75,7 +63,7 @@ pub trait Services: Sized {
     fn new(
         settings: Self::Settings,
         overwatch_handle: OverwatchHandle<Self::RuntimeServiceId>,
-    ) -> Result<Self, super::DynError>;
+    ) -> Result<Self, DynError>;
 
     /// Start a service attached to the trait implementer.
     ///
@@ -188,7 +176,7 @@ where
     pub fn run(
         settings: ServicesImpl::Settings,
         runtime: Option<Runtime>,
-    ) -> Result<Overwatch<ServicesImpl::RuntimeServiceId>, super::DynError> {
+    ) -> Result<Overwatch<ServicesImpl::RuntimeServiceId>, DynError> {
         let runtime = runtime.unwrap_or_else(default_multithread_runtime);
 
         let (finish_signal_sender, finish_runner_signal) = finished_signal::channel();
