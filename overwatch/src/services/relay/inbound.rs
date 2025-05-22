@@ -20,7 +20,6 @@ pub struct InboundRelay<Message> {
     /// Size of the relay buffer, used for consistency in a hack in Drop to
     /// return the receiver
     buffer_size: usize,
-    _stats: (), // placeholder
 }
 
 impl<Message> InboundRelay<Message> {
@@ -34,7 +33,6 @@ impl<Message> InboundRelay<Message> {
             receiver,
             retriever_sender,
             buffer_size,
-            _stats: (),
         }
     }
 
