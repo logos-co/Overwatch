@@ -10,6 +10,6 @@ pub enum ServiceStatus {
     /// The `Service` has been stopped.
     ///
     /// It can be restarted by sending the appropriate
-    /// [`LifecycleMessage`](crate::services::life_cycle::LifecycleMessage).
+    /// [`LifecycleMessage`](crate::services::lifecycle::LifecycleMessage).
     Stopped,
 }

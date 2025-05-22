@@ -463,7 +463,7 @@ fn generate_start_all_impl(fields: &Punctuated<Field, Comma>) -> proc_macro2::To
         let field_identifier = field.ident.as_ref().expect("A struct attribute identifier");
         quote! {
             self.#field_identifier.service_handle().lifecycle_notifier().send(
-                ::overwatch::services::life_cycle::LifecycleMessage::Start(senders.remove(0))
+                ::overwatch::services::lifecycle::LifecycleMessage::Start(senders.remove(0))
             ).await?;
         }
     });
@@ -512,7 +512,7 @@ fn generate_start_impl(fields: &Punctuated<Field, Comma>) -> proc_macro2::TokenS
         quote! {
             &<Self::RuntimeServiceId as ::overwatch::services::AsServiceId<#type_id>>::SERVICE_ID => {
                 self.#field_identifier.service_handle().lifecycle_notifier().send(
-                    ::overwatch::services::life_cycle::LifecycleMessage::Start(sender)
+                    ::overwatch::services::lifecycle::LifecycleMessage::Start(sender)
                 ).await?;
             }
         }
@@ -554,7 +554,7 @@ fn generate_stop_impl(fields: &Punctuated<Field, Comma>) -> proc_macro2::TokenSt
         quote! {
             &<Self::RuntimeServiceId as ::overwatch::services::AsServiceId<#type_id>>::SERVICE_ID => {
                 self.#field_identifier.service_handle().lifecycle_notifier().send(
-                    ::overwatch::services::life_cycle::LifecycleMessage::Stop(sender)
+                    ::overwatch::services::lifecycle::LifecycleMessage::Stop(sender)
                 ).await?;
             }
         }
@@ -598,7 +598,7 @@ fn generate_stop_all_impl(fields: &Punctuated<Field, Comma>) -> proc_macro2::Tok
         let field_identifier = field.ident.as_ref().expect("A struct attribute identifier");
         quote! {
             self.#field_identifier.service_handle().lifecycle_notifier().send(
-                ::overwatch::services::life_cycle::LifecycleMessage::Stop(senders.remove(0))
+                ::overwatch::services::lifecycle::LifecycleMessage::Stop(senders.remove(0))
             ).await?;
         }
     });
@@ -817,7 +817,7 @@ fn generate_get_service_lifecycle_notifier_impl(
     let instrumentation = get_default_instrumentation();
     quote! {
         #instrumentation
-        fn get_service_lifecycle_notifier(&self, service_id: &Self::RuntimeServiceId) -> &::overwatch::services::life_cycle::LifecycleNotifier {
+        fn get_service_lifecycle_notifier(&self, service_id: &Self::RuntimeServiceId) -> &::overwatch::services::lifecycle::LifecycleNotifier {
             match service_id {
                 #( #cases ),*
             }

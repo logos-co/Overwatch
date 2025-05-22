@@ -2,7 +2,7 @@ use tokio::sync::oneshot;
 
 use crate::{
     overwatch::AnySettings,
-    services::{life_cycle::LifecycleMessage, relay::AnyMessage, status::StatusWatcher},
+    services::{lifecycle::LifecycleMessage, relay::AnyMessage, status::StatusWatcher},
 };
 
 #[derive(Debug)]
