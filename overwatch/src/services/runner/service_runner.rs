@@ -8,33 +8,19 @@ use crate::{
     overwatch::handle::OverwatchHandle,
     services::{
         handle::ServiceHandle,
-        life_cycle::{LifecycleMessage, LifecyclePhase},
+        life_cycle::LifecycleMessage,
         resources::ServiceResources,
+        runner::ServiceRunnerHandle,
         state::{ServiceState, StateOperator},
         ServiceCore,
     },
     utils::finished_signal,
 };
 
-pub struct ServiceRunnerHandle<Message, Settings, State, StateOperator> {
-    service_handle: ServiceHandle<Message, Settings, State, StateOperator>,
-    runner_join_handle: JoinHandle<()>,
-}
-
-impl<Message, Settings, State, StateOperator>
-    ServiceRunnerHandle<Message, Settings, State, StateOperator>
-{
-    pub const fn service_handle(&self) -> &ServiceHandle<Message, Settings, State, StateOperator> {
-        &self.service_handle
-    }
-
-    pub const fn runner_join_handle(&self) -> &JoinHandle<()> {
-        &self.runner_join_handle
-    }
-
-    pub fn runner_join_handle_owned(self) -> JoinHandle<()> {
-        self.runner_join_handle
-    }
+#[derive(PartialEq)]
+enum LifecyclePhase {
+    Started,
+    Stopped,
 }
 
 /// Executor for a `Service`.
@@ -100,10 +86,7 @@ where
         let runtime = self.service_resources.overwatch_handle().runtime().clone();
         let runner_join_handle = runtime.spawn(self.run_::<Service>());
 
-        ServiceRunnerHandle {
-            service_handle,
-            runner_join_handle,
-        }
+        ServiceRunnerHandle::new(service_handle, runner_join_handle)
     }
 
     async fn run_<Service>(self)
