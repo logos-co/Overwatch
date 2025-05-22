@@ -31,7 +31,7 @@ pub trait ServiceState: Sized {
     ///
     /// # Errors
     ///
-    /// The generated [`Error`].
+    /// The generated [`Error`](Self::Error).
     fn from_settings(settings: &Self::Settings) -> Result<Self, Self::Error>;
 }
 
@@ -63,7 +63,7 @@ pub trait StateOperator {
     ///
     /// # Errors
     ///
-    /// The implementer's [`LoadError`].
+    /// The implementer's [`Self::LoadError`].
     fn try_load(
         settings: &<Self::State as ServiceState>::Settings,
     ) -> Result<Option<Self::State>, Self::LoadError>;
