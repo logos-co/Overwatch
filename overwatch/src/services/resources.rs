@@ -28,7 +28,7 @@ pub struct ServiceResources<Message, Settings, State, StateOperator, RuntimeServ
     settings_handle: SettingsHandle<Settings>,
     // State
     state_handle: StateHandle<State, StateOperator>,
-    state_updater: StateUpdater<State>,
+    state_updater: StateUpdater<Option<State>>,
     operator_fuse_sender: fuse::Sender,
     // Lifecycle
     lifecycle_handle: LifecycleHandle,
@@ -103,7 +103,7 @@ where
         &self.state_handle
     }
 
-    pub const fn state_updater(&self) -> &StateUpdater<State> {
+    pub const fn state_updater(&self) -> &StateUpdater<Option<State>> {
         &self.state_updater
     }
 
@@ -208,7 +208,7 @@ pub struct ServiceResourcesHandle<Message, Settings, State, RuntimeServiceId> {
     pub status_updater: StatusUpdater<ServiceAPI>,
     pub overwatch_handle: OverwatchHandle<RuntimeServiceId>,
     pub settings_handle: SettingsHandle<Settings>,
-    pub state_updater: StateUpdater<State>,
+    pub state_updater: StateUpdater<Option<State>>,
 }
 
 impl<Message, Settings, State, Operator, RuntimeServiceId>
