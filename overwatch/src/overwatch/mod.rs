@@ -81,28 +81,28 @@ pub trait Services: Sized {
     ///
     /// # Errors
     ///
-    /// The generated [`Error`].
+    /// The generated [`Error`](enum@Error).
     async fn start(&mut self, service_id: &Self::RuntimeServiceId) -> Result<(), Error>;
 
     /// Start all services attached to the trait implementer.
     ///
     /// # Errors
     ///
-    /// The generated [`Error`].
+    /// The generated [`Error`](enum@Error).
     async fn start_all(&mut self) -> Result<(), Error>;
 
     /// Stop a service attached to the trait implementer.
     ///
     /// # Errors
     ///
-    /// The generated [`Error`].
+    /// The generated [`Error`](enum@Error).
     async fn stop(&mut self, service_id: &Self::RuntimeServiceId) -> Result<(), Error>;
 
     /// Stop all services attached to the trait implementer.
     ///
     /// # Errors
     ///
-    /// The generated [`Error`].
+    /// The generated [`Error`](enum@Error).
     async fn stop_all(&mut self) -> Result<(), Error>;
 
     /// Shuts down the `Service`'s
@@ -125,15 +125,11 @@ pub trait Services: Sized {
     ///
     /// # Errors
     ///
-    /// The generated [`Error`].
+    /// The generated [`Error`](enum@Error).
     async fn teardown(self) -> Result<(), Error>;
 
     /// Request a communication relay for a service attached to the trait
     /// implementer.
-    ///
-    /// # Errors
-    ///
-    /// The generated [`Error`].
     fn request_relay(&mut self, service_id: &Self::RuntimeServiceId) -> AnyMessage;
 
     /// Request a status watcher for a service attached to the trait

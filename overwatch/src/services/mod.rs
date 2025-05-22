@@ -16,7 +16,7 @@ This is a brief overview of the main entities of the Services module:
   [`OverwatchCommand`](super::overwatch::commands::OverwatchCommand)s to updating their own `State`.
   The ownership of [`ServiceResources`](resources::ServiceResources) belongs to
   [`ServiceRunner`](runner::ServiceRunner).
-  - [`ServiceResourcesHandle`]: A clone from [`ServiceResources`](resources::ServiceResources)
+  - [`ServiceResourcesHandle`](resources::ServiceResourcesHandle): A clone from [`ServiceResources`](resources::ServiceResources)
     that includes the [`InboundRelay`](relay::InboundRelay) for the `Service`.
     Whenever a `Service` is started, a new clone is made.
  */

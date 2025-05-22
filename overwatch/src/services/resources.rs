@@ -89,8 +89,8 @@ where
         }
     }
 
-    /// Create a new [`ServiceResourcesHandle`](ServiceResourcesHandle) from the
-    /// current `ServiceResources`.
+    /// Create a new [`ServiceResourcesHandle`] from the current
+    /// `ServiceResources`.
     ///
     /// # Parameters
     ///
