@@ -48,6 +48,13 @@ pub trait Services: Sized {
     /// The generated [`Error`](enum@Error).
     async fn start(&mut self, service_id: &Self::RuntimeServiceId) -> Result<(), Error>;
 
+    /// Start a list of services attached to the trait implementer.
+    ///
+    /// # Errors
+    ///
+    /// The generated [`Error`](enum@Error).
+    async fn start_list(&mut self, service_ids: &[Self::RuntimeServiceId]) -> Result<(), Error>;
+
     /// Start all services attached to the trait implementer.
     ///
     /// # Errors
@@ -61,6 +68,13 @@ pub trait Services: Sized {
     ///
     /// The generated [`Error`](enum@Error).
     async fn stop(&mut self, service_id: &Self::RuntimeServiceId) -> Result<(), Error>;
+
+    /// Stop a list of services attached to the trait implementer.
+    ///
+    /// # Errors
+    ///
+    /// The generated [`Error`](enum@Error).
+    async fn stop_list(&mut self, service_ids: &[Self::RuntimeServiceId]) -> Result<(), Error>;
 
     /// Stop all services attached to the trait implementer.
     ///
