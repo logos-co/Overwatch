@@ -460,11 +460,10 @@ fn generate_new_impl(fields: &Punctuated<Field, Comma>) -> proc_macro2::TokenStr
 ///
 /// A token stream containing the `start_all` method implementation.
 fn generate_start_all_impl(fields: &Punctuated<Field, Comma>) -> proc_macro2::TokenStream {
+    let instrumentation = get_default_instrumentation();
+
     let fields_len = fields.len();
-    let call_create_channels = quote! {
-        let channels = (0..#fields_len).map(|_| { ::overwatch::utils::finished_signal::channel() });
-        let (mut senders, receivers): (Vec<_>, Vec<_>) = channels.into_iter().unzip();
-    };
+    let call_create_channels = create_finished_signal_channels_from_amount(fields_len);
 
     let call_send_start_message = fields.iter().map(|field| {
         let field_identifier = field.ident.as_ref().expect("A struct attribute identifier");
@@ -475,16 +474,8 @@ fn generate_start_all_impl(fields: &Punctuated<Field, Comma>) -> proc_macro2::To
         }
     });
 
-    let call_recv_finished_signals = quote! {
-        for mut receiver in receivers {
-            receiver.await.map_err(|error| {
-                let dyn_error: ::overwatch::DynError = Box::new(error);
-                ::overwatch::overwatch::Error::from(dyn_error)
-            })?;
-        }
-    };
+    let call_recv_finished_signals = await_finished_signal_receivers();
 
-    let instrumentation = get_default_instrumentation();
     quote! {
         #instrumentation
         async fn start_all(&mut self) -> ::core::result::Result<(), ::overwatch::overwatch::Error> {
@@ -513,6 +504,8 @@ fn generate_start_all_impl(fields: &Punctuated<Field, Comma>) -> proc_macro2::To
 ///
 /// A token stream containing the start method implementation.
 fn generate_start_impl(fields: &Punctuated<Field, Comma>) -> proc_macro2::TokenStream {
+    let instrumentation = get_default_instrumentation_for_result();
+
     let cases = fields.iter().map(|field| {
         let field_identifier = field.ident.as_ref().expect("A struct attribute identifier");
         let type_id = utils::extract_type_from(&field.ty);
@@ -525,7 +518,6 @@ fn generate_start_impl(fields: &Punctuated<Field, Comma>) -> proc_macro2::TokenS
         }
     });
 
-    let instrumentation = get_default_instrumentation_for_result();
     quote! {
         #instrumentation
         async fn start(&mut self, service_id: &Self::RuntimeServiceId) -> ::core::result::Result<(), ::overwatch::overwatch::Error> {
@@ -557,7 +549,8 @@ fn generate_start_list_impl(fields: &Punctuated<Field, Comma>) -> proc_macro2::T
     let instrumentation = get_default_instrumentation();
 
     let var_services_len = Ident::new("services_len", Span::call_site());
-    let call_create_finished_signal_channels = create_finished_signal_channels(&var_services_len);
+    let call_create_finished_signal_channels =
+        create_finished_signal_channels_from_variable(&var_services_len);
 
     let var_service_ids = Ident::new("service_ids", Span::call_site());
     let var_service_id = Ident::new("service_id", Span::call_site());
@@ -614,6 +607,8 @@ fn generate_start_list_impl(fields: &Punctuated<Field, Comma>) -> proc_macro2::T
 ///
 /// A token stream containing the stop method implementation.
 fn generate_stop_impl(fields: &Punctuated<Field, Comma>) -> proc_macro2::TokenStream {
+    let instrumentation = get_default_instrumentation();
+
     let cases = fields.iter().map(|field| {
         let field_identifier = field.ident.as_ref().expect("A struct attribute identifier");
         let type_id = utils::extract_type_from(&field.ty);
@@ -626,7 +621,6 @@ fn generate_stop_impl(fields: &Punctuated<Field, Comma>) -> proc_macro2::TokenSt
         }
     });
 
-    let instrumentation = get_default_instrumentation();
     quote! {
         #instrumentation
         async fn stop(&mut self, service_id: &Self::RuntimeServiceId) -> ::core::result::Result<(), ::overwatch::overwatch::Error> {
@@ -658,7 +652,8 @@ fn generate_stop_list_impl(fields: &Punctuated<Field, Comma>) -> proc_macro2::To
     let instrumentation = get_default_instrumentation();
 
     let var_services_len = Ident::new("services_len", Span::call_site());
-    let call_create_finished_signal_channels = create_finished_signal_channels(&var_services_len);
+    let call_create_finished_signal_channels =
+        create_finished_signal_channels_from_variable(&var_services_len);
 
     let var_service_ids = Ident::new("service_ids", Span::call_site());
     let var_service_id = Ident::new("service_id", Span::call_site());
@@ -713,11 +708,10 @@ fn generate_stop_list_impl(fields: &Punctuated<Field, Comma>) -> proc_macro2::To
 ///
 /// A token stream containing the `stop_all` method implementation.
 fn generate_stop_all_impl(fields: &Punctuated<Field, Comma>) -> proc_macro2::TokenStream {
+    let instrumentation = get_default_instrumentation();
+
     let fields_len = fields.len();
-    let call_create_channels = quote! {
-        let channels = (0..#fields_len).map(|_| { ::overwatch::utils::finished_signal::channel() });
-        let (mut senders, receivers): (Vec<_>, Vec<_>) = channels.into_iter().unzip();
-    };
+    let call_create_channels = create_finished_signal_channels_from_amount(fields_len);
 
     let call_send_stop_message_to_services = fields.iter().map(|field| {
         let field_identifier = field.ident.as_ref().expect("A struct attribute identifier");
@@ -728,16 +722,8 @@ fn generate_stop_all_impl(fields: &Punctuated<Field, Comma>) -> proc_macro2::Tok
         }
     });
 
-    let call_recv_finished_signals = quote! {
-        for mut receiver in receivers {
-            receiver.await.map_err(|error| {
-                let dyn_error: ::overwatch::DynError = Box::new(error);
-                ::overwatch::overwatch::Error::from(dyn_error)
-            })?;
-        }
-    };
+    let call_recv_finished_signals = await_finished_signal_receivers();
 
-    let instrumentation = get_default_instrumentation();
     quote! {
         #instrumentation
         async fn stop_all(&mut self) -> Result<(), ::overwatch::overwatch::Error> {
@@ -764,6 +750,8 @@ fn generate_stop_all_impl(fields: &Punctuated<Field, Comma>) -> proc_macro2::Tok
 ///
 /// A token stream containing the `teardown` method implementation.
 fn generate_teardown_impl(fields: &Punctuated<Field, Comma>) -> proc_macro2::TokenStream {
+    let instrumentation = get_default_instrumentation();
+
     let call_abort_service_runner_join_handles = fields.iter().map(|field| {
         let field_identifier = field.ident.as_ref().expect("A struct attribute identifier");
         quote! {
@@ -780,7 +768,6 @@ fn generate_teardown_impl(fields: &Punctuated<Field, Comma>) -> proc_macro2::Tok
         }
     });
 
-    let instrumentation = get_default_instrumentation();
     quote! {
         #instrumentation
         async fn teardown(self) -> Result<(), ::overwatch::overwatch::Error> {
@@ -807,6 +794,8 @@ fn generate_teardown_impl(fields: &Punctuated<Field, Comma>) -> proc_macro2::Tok
 ///
 /// A token stream containing the `request_relay` method implementation.
 fn generate_request_relay_impl(fields: &Punctuated<Field, Comma>) -> proc_macro2::TokenStream {
+    let instrumentation = get_default_instrumentation();
+
     let cases = fields.iter().map(|field| {
         let field_identifier = field.ident.as_ref().expect("A struct attribute identifier");
         let type_id = utils::extract_type_from(&field.ty);
@@ -817,7 +806,6 @@ fn generate_request_relay_impl(fields: &Punctuated<Field, Comma>) -> proc_macro2
         }
     });
 
-    let instrumentation = get_default_instrumentation();
     quote! {
         #instrumentation
         fn request_relay(&mut self, service_id: &Self::RuntimeServiceId) -> ::overwatch::services::relay::AnyMessage {
@@ -846,6 +834,8 @@ fn generate_request_relay_impl(fields: &Punctuated<Field, Comma>) -> proc_macro2
 fn generate_request_status_watcher_impl(
     fields: &Punctuated<Field, Comma>,
 ) -> proc_macro2::TokenStream {
+    let instrumentation = get_default_instrumentation();
+
     let cases = fields.iter().map(|field| {
         let field_identifier = field.ident.as_ref().expect("A struct attribute identifier");
         let type_id = utils::extract_type_from(&field.ty);
@@ -856,7 +846,6 @@ fn generate_request_status_watcher_impl(
         }
     });
 
-    let instrumentation = get_default_instrumentation();
     quote! {
         #instrumentation
         fn request_status_watcher(&self, service_id: &Self::RuntimeServiceId) -> ::overwatch::services::status::StatusWatcher {
@@ -882,6 +871,8 @@ fn generate_request_status_watcher_impl(
 ///
 /// A token stream containing the `update_settings` method implementation.
 fn generate_update_settings_impl(fields: &Punctuated<Field, Comma>) -> proc_macro2::TokenStream {
+    let instrumentation = get_default_instrumentation_without_settings();
+
     let fields_settings = fields.iter().map(|field| {
         let field_identifier = field.ident.as_ref().expect("A struct attribute identifier");
         let settings_field_identifier = service_settings_field_identifier_from(field_identifier);
@@ -898,7 +889,6 @@ fn generate_update_settings_impl(fields: &Punctuated<Field, Comma>) -> proc_macr
         }
     });
 
-    let instrumentation = get_default_instrumentation_without_settings();
     quote! {
         #instrumentation
         fn update_settings(&mut self, settings: Self::Settings) {
@@ -929,6 +919,8 @@ fn generate_update_settings_impl(fields: &Punctuated<Field, Comma>) -> proc_macr
 fn generate_get_service_lifecycle_notifier_impl(
     fields: &Punctuated<Field, Comma>,
 ) -> proc_macro2::TokenStream {
+    let instrumentation = get_default_instrumentation();
+
     let cases = fields.iter().map(|field| {
         let field_identifier = field.ident.as_ref().expect("A struct attribute identifier");
         let type_id = utils::extract_type_from(&field.ty);
@@ -939,7 +931,6 @@ fn generate_get_service_lifecycle_notifier_impl(
         }
     });
 
-    let instrumentation = get_default_instrumentation();
     quote! {
         #instrumentation
         fn get_service_lifecycle_notifier(&self, service_id: &Self::RuntimeServiceId) -> &::overwatch::services::lifecycle::LifecycleNotifier {
@@ -1203,9 +1194,16 @@ fn generate_as_service_id_impl(fields: &Punctuated<Field, Comma>) -> proc_macro2
     }
 }
 
-fn create_finished_signal_channels(amount: &Ident) -> proc_macro2::TokenStream {
+fn create_finished_signal_channels_from_amount(amount: usize) -> proc_macro2::TokenStream {
     quote! {
         let channels = (0..#amount).map(|_| { ::overwatch::utils::finished_signal::channel() });
+        let (mut senders, receivers): (Vec<_>, Vec<_>) = channels.into_iter().unzip();
+    }
+}
+
+fn create_finished_signal_channels_from_variable(variable: &Ident) -> proc_macro2::TokenStream {
+    quote! {
+        let channels = (0..#variable).map(|_| { ::overwatch::utils::finished_signal::channel() });
         let (mut senders, receivers): (Vec<_>, Vec<_>) = channels.into_iter().unzip();
     }
 }
