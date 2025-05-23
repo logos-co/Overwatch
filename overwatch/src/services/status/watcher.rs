@@ -1,7 +1,5 @@
 use std::time::Duration;
 
-use tokio::sync::watch::Ref;
-
 use crate::services::status::{service_status::ServiceStatus, Receiver};
 
 /// Watcher for the [`ServiceStatus`] updates.
@@ -27,7 +25,7 @@ impl StatusWatcher {
         status: ServiceStatus,
         timeout_duration: Option<Duration>,
     ) -> Result<ServiceStatus, ServiceStatus> {
-        let current = *self.current();
+        let current = self.current();
         if status == current {
             return Ok(current);
         }
@@ -39,7 +37,7 @@ impl StatusWatcher {
     }
 
     #[must_use]
-    pub fn current(&self) -> Ref<'_, ServiceStatus> {
-        self.0.borrow()
+    pub fn current(&self) -> ServiceStatus {
+        *self.0.borrow()
     }
 }
