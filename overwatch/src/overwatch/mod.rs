@@ -99,11 +99,25 @@ mod test {
             Ok(())
         }
 
+        async fn start_list(
+            &mut self,
+            _service_ids: &[Self::RuntimeServiceId],
+        ) -> Result<(), Error> {
+            Ok(())
+        }
+
         async fn start_all(&mut self) -> Result<(), Error> {
             Ok(())
         }
 
         async fn stop(&mut self, _service_id: &String) -> Result<(), Error> {
+            Ok(())
+        }
+
+        async fn stop_list(
+            &mut self,
+            _service_ids: &[Self::RuntimeServiceId],
+        ) -> Result<(), Error> {
             Ok(())
         }
 
