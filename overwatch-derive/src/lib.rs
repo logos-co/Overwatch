@@ -447,49 +447,6 @@ fn generate_new_impl(fields: &Punctuated<Field, Comma>) -> proc_macro2::TokenStr
     }
 }
 
-/// Generates the `start_all` method implementation for the `Services` trait.
-///
-/// This function creates code to start all service runners and return a
-/// combined lifecycle handle that can be used to manage the running services.
-///
-/// # Arguments
-///
-/// * `fields` - The fields of the services struct
-///
-/// # Returns
-///
-/// A token stream containing the `start_all` method implementation.
-fn generate_start_all_impl(fields: &Punctuated<Field, Comma>) -> proc_macro2::TokenStream {
-    let instrumentation = get_default_instrumentation();
-
-    let fields_len = fields.len();
-    let call_create_channels = create_finished_signal_channels_from_amount(fields_len);
-
-    let call_send_start_message = fields.iter().map(|field| {
-        let field_identifier = field.ident.as_ref().expect("A struct attribute identifier");
-        quote! {
-            self.#field_identifier.service_handle().lifecycle_notifier().send(
-                ::overwatch::services::lifecycle::LifecycleMessage::Start(senders.remove(0))
-            ).await?;
-        }
-    });
-
-    let call_recv_finished_signals = await_finished_signal_receivers();
-
-    quote! {
-        #instrumentation
-        async fn start_all(&mut self) -> ::core::result::Result<(), ::overwatch::overwatch::Error> {
-            #call_create_channels
-
-            #( #call_send_start_message )*
-
-            #call_recv_finished_signals
-
-            Ok::<(), ::overwatch::overwatch::Error>(())
-        }
-    }
-}
-
 /// Generates the `start` method implementation for the `Services` trait.
 ///
 /// This function creates code to start a specific service identified by its
@@ -589,6 +546,49 @@ fn generate_start_list_impl(fields: &Punctuated<Field, Comma>) -> proc_macro2::T
             #call_await_finished_signal_receivers;
 
             Ok(())
+        }
+    }
+}
+
+/// Generates the `start_all` method implementation for the `Services` trait.
+///
+/// This function creates code to start all service runners and return a
+/// combined lifecycle handle that can be used to manage the running services.
+///
+/// # Arguments
+///
+/// * `fields` - The fields of the services struct
+///
+/// # Returns
+///
+/// A token stream containing the `start_all` method implementation.
+fn generate_start_all_impl(fields: &Punctuated<Field, Comma>) -> proc_macro2::TokenStream {
+    let instrumentation = get_default_instrumentation();
+
+    let fields_len = fields.len();
+    let call_create_channels = create_finished_signal_channels_from_amount(fields_len);
+
+    let call_send_start_message = fields.iter().map(|field| {
+        let field_identifier = field.ident.as_ref().expect("A struct attribute identifier");
+        quote! {
+            self.#field_identifier.service_handle().lifecycle_notifier().send(
+                ::overwatch::services::lifecycle::LifecycleMessage::Start(senders.remove(0))
+            ).await?;
+        }
+    });
+
+    let call_recv_finished_signals = await_finished_signal_receivers();
+
+    quote! {
+        #instrumentation
+        async fn start_all(&mut self) -> ::core::result::Result<(), ::overwatch::overwatch::Error> {
+            #call_create_channels
+
+            #( #call_send_start_message )*
+
+            #call_recv_finished_signals
+
+            Ok::<(), ::overwatch::overwatch::Error>(())
         }
     }
 }
