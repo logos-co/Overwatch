@@ -191,7 +191,12 @@ where
             .expect("Failed to retrieve inbound relay.");
 
         let service_resources_handle = service_resources.to_handle(inbound_relay);
-        let service = Service::init(service_resources_handle, initial_state.clone());
+        let service = match Service::init(service_resources_handle, initial_state.clone()) {
+            Ok(service) => service,
+            Err(error) => {
+                panic!("Service couldn't be initialised: {error}");
+            }
+        };
 
         service_resources
             .state_updater()
@@ -202,19 +207,12 @@ where
             .service_runner_updater()
             .starting();
 
-        match service {
-            Ok(service) => {
-                Self::start_tasks(
-                    service,
-                    service_resources,
-                    service_task_handle,
-                    state_handle_task_handle,
-                );
-            }
-            Err(error) => {
-                panic!("Service couldn't be initialised: {error}");
-            }
-        }
+        Self::start_tasks(
+            service,
+            service_resources,
+            service_task_handle,
+            state_handle_task_handle,
+        );
     }
 
     fn start_tasks<Service>(
