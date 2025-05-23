@@ -514,22 +514,18 @@ fn generate_start_list_impl(fields: &Punctuated<Field, Comma>) -> proc_macro2::T
     let match_cases = fields.iter().map(|field| {
         let field_identifier = field.ident.as_ref().expect("A struct attribute identifier");
         let type_id = utils::extract_type_from(&field.ty);
+        let call_send_start = send_start_lifecycle_message_over_senders(field_identifier);
         quote! {
             &<Self::RuntimeServiceId as ::overwatch::services::AsServiceId<#type_id>>::SERVICE_ID => {
-                self.#field_identifier.service_handle().lifecycle_notifier().send(
-                    ::overwatch::services::lifecycle::LifecycleMessage::Start(senders.remove(0))
-                ).await?;
+                #call_send_start
             }
         }
     });
-    let match_ = quote! {
-        match service_id {
-            #( #match_cases ),*
-        }
-    };
     let loop_match = quote! {
         for #var_service_id in #var_service_ids {
-            #match_
+            match #var_service_id {
+                #( #match_cases ),*
+            }
         }
     };
 
@@ -570,11 +566,7 @@ fn generate_start_all_impl(fields: &Punctuated<Field, Comma>) -> proc_macro2::To
 
     let call_send_start_message = fields.iter().map(|field| {
         let field_identifier = field.ident.as_ref().expect("A struct attribute identifier");
-        quote! {
-            self.#field_identifier.service_handle().lifecycle_notifier().send(
-                ::overwatch::services::lifecycle::LifecycleMessage::Start(senders.remove(0))
-            ).await?;
-        }
+        send_start_lifecycle_message_over_senders(field_identifier)
     });
 
     let call_recv_finished_signals = await_finished_signal_receivers();
@@ -660,22 +652,18 @@ fn generate_stop_list_impl(fields: &Punctuated<Field, Comma>) -> proc_macro2::To
     let match_cases = fields.iter().map(|field| {
         let field_identifier = field.ident.as_ref().expect("A struct attribute identifier");
         let type_id = utils::extract_type_from(&field.ty);
+        let call_send_stop = send_stop_lifecycle_message_over_senders(field_identifier);
         quote! {
             &<Self::RuntimeServiceId as ::overwatch::services::AsServiceId<#type_id>>::SERVICE_ID => {
-                self.#field_identifier.service_handle().lifecycle_notifier().send(
-                    ::overwatch::services::lifecycle::LifecycleMessage::Stop(senders.remove(0))
-                ).await?;
+                #call_send_stop
             }
         }
     });
-    let match_ = quote! {
-        match service_id {
-            #( #match_cases ),*
-        }
-    };
     let loop_match = quote! {
         for #var_service_id in #var_service_ids {
-            #match_
+            match #var_service_id {
+                #( #match_cases ),*
+            }
         }
     };
 
@@ -715,11 +703,7 @@ fn generate_stop_all_impl(fields: &Punctuated<Field, Comma>) -> proc_macro2::Tok
 
     let call_send_stop_message_to_services = fields.iter().map(|field| {
         let field_identifier = field.ident.as_ref().expect("A struct attribute identifier");
-        quote! {
-            self.#field_identifier.service_handle().lifecycle_notifier().send(
-                ::overwatch::services::lifecycle::LifecycleMessage::Stop(senders.remove(0))
-            ).await?;
-        }
+        send_stop_lifecycle_message_over_senders(field_identifier)
     });
 
     let call_recv_finished_signals = await_finished_signal_receivers();
@@ -1217,4 +1201,24 @@ fn await_finished_signal_receivers() -> proc_macro2::TokenStream {
             })?;
         }
     }
+}
+
+fn send_lifecycle_message_over_senders(
+    field: &Ident,
+    lifecycle_variant: &str,
+) -> proc_macro2::TokenStream {
+    let lifecycle_variant = format_ident!("{}", lifecycle_variant);
+    quote! {
+        self.#field.service_handle().lifecycle_notifier().send(
+            ::overwatch::services::lifecycle::LifecycleMessage::#lifecycle_variant(senders.remove(0))
+        ).await?;
+    }
+}
+
+fn send_start_lifecycle_message_over_senders(field: &Ident) -> proc_macro2::TokenStream {
+    send_lifecycle_message_over_senders(field, "Start")
+}
+
+fn send_stop_lifecycle_message_over_senders(field: &Ident) -> proc_macro2::TokenStream {
+    send_lifecycle_message_over_senders(field, "Stop")
 }
