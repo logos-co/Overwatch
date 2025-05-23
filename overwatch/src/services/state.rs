@@ -246,6 +246,10 @@ where
             }
         }
 
+        Self::teardown(state_stream, operator).await;
+    }
+
+    async fn teardown(mut state_stream: WatchStream<Option<State>>, mut operator: Operator) {
         dbg!("Attempting to fetch the last state from StateHandle's Stream.");
         if let Some(last_state) = state_stream.next().now_or_never().flatten() {
             dbg!("StateHandle's Stream received the last state. Forwarding to Operator.");
