@@ -21,6 +21,7 @@
 //!   identifiers.
 
 use proc_macro::TokenStream;
+use proc_macro2::{Ident, Span};
 use proc_macro_error2::{abort_call_site, proc_macro_error};
 use quote::{format_ident, quote};
 use syn::{
@@ -347,8 +348,10 @@ fn generate_services_impl(
     let services_settings_identifier = service_settings_identifier_from(services_identifier);
     let impl_new = generate_new_impl(fields);
     let impl_start = generate_start_impl(fields);
+    let impl_start_list = generate_start_list_impl(fields);
     let impl_start_all = generate_start_all_impl(fields);
     let impl_stop = generate_stop_impl(fields);
+    let impl_stop_list = generate_stop_list_impl(fields);
     let impl_stop_all = generate_stop_all_impl(fields);
     let impl_teardown = generate_teardown_impl(fields);
     let impl_relay = generate_request_relay_impl(fields);
@@ -369,9 +372,13 @@ fn generate_services_impl(
 
             #impl_start
 
+            #impl_start_list
+
             #impl_start_all
 
             #impl_stop
+
+            #impl_stop_list
 
             #impl_stop_all
 
@@ -534,6 +541,65 @@ fn generate_start_impl(fields: &Punctuated<Field, Comma>) -> proc_macro2::TokenS
     }
 }
 
+/// Generates the `start_list` method implementation for the `Services` trait.
+///
+/// This function creates code to start a list of services identified by their
+/// `RuntimeServiceId`.
+///
+/// # Arguments
+///
+/// * `fields` - The fields of the services struct
+///
+/// # Returns
+///
+/// A token stream containing the `start_list` method implementation.
+fn generate_start_list_impl(fields: &Punctuated<Field, Comma>) -> proc_macro2::TokenStream {
+    let instrumentation = get_default_instrumentation();
+
+    let var_services_len = Ident::new("services_len", Span::call_site());
+    let call_create_finished_signal_channels = create_finished_signal_channels(&var_services_len);
+
+    let var_service_ids = Ident::new("service_ids", Span::call_site());
+    let var_service_id = Ident::new("service_id", Span::call_site());
+    let match_cases = fields.iter().map(|field| {
+        let field_identifier = field.ident.as_ref().expect("A struct attribute identifier");
+        let type_id = utils::extract_type_from(&field.ty);
+        quote! {
+            &<Self::RuntimeServiceId as ::overwatch::services::AsServiceId<#type_id>>::SERVICE_ID => {
+                self.#field_identifier.service_handle().lifecycle_notifier().send(
+                    ::overwatch::services::lifecycle::LifecycleMessage::Start(senders.remove(0))
+                ).await?;
+            }
+        }
+    });
+    let match_ = quote! {
+        match service_id {
+            #( #match_cases ),*
+        }
+    };
+    let loop_match = quote! {
+        for #var_service_id in #var_service_ids {
+            #match_
+        }
+    };
+
+    let call_await_finished_signal_receivers = await_finished_signal_receivers();
+
+    quote! {
+        #instrumentation
+        async fn start_list(&mut self, service_ids: &[Self::RuntimeServiceId]) -> ::core::result::Result<(), ::overwatch::overwatch::Error> {
+            let #var_services_len = service_ids.len();
+            #call_create_finished_signal_channels;
+
+            #loop_match;
+
+            #call_await_finished_signal_receivers;
+
+            Ok(())
+        }
+    }
+}
+
 /// Generates the `stop` method implementation for the `Services` trait.
 ///
 /// This function creates code to stop a specific service identified by its
@@ -572,6 +638,65 @@ fn generate_stop_impl(fields: &Punctuated<Field, Comma>) -> proc_macro2::TokenSt
                 let dyn_error: ::overwatch::DynError = Box::new(error);
                 ::overwatch::overwatch::Error::from(dyn_error)
             })
+        }
+    }
+}
+
+/// Generates the `stop_list` method implementation for the `Services` trait.
+///
+/// This function creates code to stop a list of services identified by their
+/// `RuntimeServiceId`.
+///
+/// # Arguments
+///
+/// * `fields` - The fields of the services struct
+///
+/// # Returns
+///
+/// A token stream containing the `stop_list` method implementation.
+fn generate_stop_list_impl(fields: &Punctuated<Field, Comma>) -> proc_macro2::TokenStream {
+    let instrumentation = get_default_instrumentation();
+
+    let var_services_len = Ident::new("services_len", Span::call_site());
+    let call_create_finished_signal_channels = create_finished_signal_channels(&var_services_len);
+
+    let var_service_ids = Ident::new("service_ids", Span::call_site());
+    let var_service_id = Ident::new("service_id", Span::call_site());
+    let match_cases = fields.iter().map(|field| {
+        let field_identifier = field.ident.as_ref().expect("A struct attribute identifier");
+        let type_id = utils::extract_type_from(&field.ty);
+        quote! {
+            &<Self::RuntimeServiceId as ::overwatch::services::AsServiceId<#type_id>>::SERVICE_ID => {
+                self.#field_identifier.service_handle().lifecycle_notifier().send(
+                    ::overwatch::services::lifecycle::LifecycleMessage::Stop(senders.remove(0))
+                ).await?;
+            }
+        }
+    });
+    let match_ = quote! {
+        match service_id {
+            #( #match_cases ),*
+        }
+    };
+    let loop_match = quote! {
+        for #var_service_id in #var_service_ids {
+            #match_
+        }
+    };
+
+    let call_await_finished_signal_receivers = await_finished_signal_receivers();
+
+    quote! {
+        #instrumentation
+        async fn stop_list(&mut self, service_ids: &[Self::RuntimeServiceId]) -> ::core::result::Result<(), ::overwatch::overwatch::Error> {
+            let #var_services_len = service_ids.len();
+            #call_create_finished_signal_channels;
+
+            #loop_match;
+
+            #call_await_finished_signal_receivers;
+
+            Ok(())
         }
     }
 }
@@ -1075,5 +1200,23 @@ fn generate_as_service_id_impl(fields: &Punctuated<Field, Comma>) -> proc_macro2
 
     quote! {
         #(#impl_blocks)*
+    }
+}
+
+fn create_finished_signal_channels(amount: &Ident) -> proc_macro2::TokenStream {
+    quote! {
+        let channels = (0..#amount).map(|_| { ::overwatch::utils::finished_signal::channel() });
+        let (mut senders, receivers): (Vec<_>, Vec<_>) = channels.into_iter().unzip();
+    }
+}
+
+fn await_finished_signal_receivers() -> proc_macro2::TokenStream {
+    quote! {
+        for mut receiver in receivers {
+            receiver.await.map_err(|error| {
+                let dyn_error: ::overwatch::DynError = Box::new(error);
+                ::overwatch::overwatch::Error::from(dyn_error)
+            })?;
+        }
     }
 }
