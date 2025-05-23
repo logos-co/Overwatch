@@ -172,7 +172,6 @@ pub struct StateHandle<State, Operator> {
 // Clone bound on T.
 impl<State, Operator> Clone for StateHandle<State, Operator>
 where
-    State: Clone,
     Operator: Clone,
 {
     fn clone(&self) -> Self {
