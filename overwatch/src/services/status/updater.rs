@@ -59,19 +59,19 @@ impl<API> StatusUpdater<API> {
 
 impl StatusUpdater<ServiceRunnerAPI> {
     /// Shorthand for sending a [`ServiceStatus::Starting`] message.
-    pub fn starting(&self) {
+    pub fn notify_starting(&self) {
         self.send(ServiceStatus::Starting);
     }
 
     /// Shorthand for sending a [`ServiceStatus::Stopped`] message.
-    pub fn stopped(&self) {
+    pub fn notify_stopped(&self) {
         self.send(ServiceStatus::Stopped);
     }
 }
 
 impl StatusUpdater<ServiceAPI> {
     /// Shorthand for sending a [`ServiceStatus::Ready`] message.
-    pub fn ready(self) {
+    pub fn notify_ready(self) {
         self.send(ServiceStatus::Ready);
     }
 }

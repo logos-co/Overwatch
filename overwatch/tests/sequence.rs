@@ -56,7 +56,7 @@ impl ServiceCore<RuntimeServiceId> for AwaitService1 {
     }
 
     async fn run(self) -> Result<(), DynError> {
-        self.service_resources_handle.status_updater.ready();
+        self.service_resources_handle.status_updater.notify_ready();
         tokio::time::sleep(Duration::from_millis(100)).await;
         Ok(())
     }
@@ -74,7 +74,7 @@ impl ServiceCore<RuntimeServiceId> for AwaitService2 {
     }
 
     async fn run(self) -> Result<(), DynError> {
-        self.service_resources_handle.status_updater.ready();
+        self.service_resources_handle.status_updater.notify_ready();
 
         let mut watcher: StatusWatcher = self
             .service_resources_handle
@@ -110,7 +110,7 @@ impl ServiceCore<RuntimeServiceId> for AwaitService3 {
     }
 
     async fn run(self) -> Result<(), DynError> {
-        self.service_resources_handle.status_updater.ready();
+        self.service_resources_handle.status_updater.notify_ready();
 
         let mut watcher: StatusWatcher = self
             .service_resources_handle

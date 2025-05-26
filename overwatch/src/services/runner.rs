@@ -207,7 +207,7 @@ where
         service_resources
             .status_handle
             .service_runner_updater()
-            .starting();
+            .notify_starting();
 
         Self::start_tasks(
             service,
@@ -316,7 +316,7 @@ where
         service_resources
             .status_handle
             .service_runner_updater()
-            .stopped();
+            .notify_stopped();
     }
 
     async fn stop_tasks(
