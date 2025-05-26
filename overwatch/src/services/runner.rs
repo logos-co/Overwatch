@@ -163,6 +163,8 @@ where
         }
     }
 
+    /// Handles a [`LifecycleMessage::Start`] event, ensuring the `Service` task
+    /// and its corresponding `StateHandle` task are both started correctly.
     fn handle_start<Service>(
         service_resources: &mut ServiceResources<
             Message,
@@ -250,6 +252,9 @@ where
         // - If we don't wait for it and the task finishes, the ServiceRunner will
         //   ignore it.
         let (sender, _receiver) = finished_signal::channel();
+
+        // When the `Service`'s task finishes, a [`LifecycleMessage::Stop`] is sent to
+        // the `ServiceRunner` to ensure proper cleanup.
         async move {
             if let Err(error) = task.await {
                 error!("Error while waiting for Service's task to be completed: {error}");
@@ -263,6 +268,27 @@ where
         }
     }
 
+    /// Handles a [`LifecycleMessage::Stop`] event, ensuring proper shutdown and
+    /// cleanup.
+    ///
+    /// This can occur in two scenarios:
+    ///
+    /// 1. **User-initiated stop**: The user sends a stop message. In this case:
+    /// - A `fuse` is sent to The
+    ///   [`StatusHandle`](crate::services::status::StatusHandle), so its task
+    ///   is gracefully stopped.
+    /// - The `Service` task is aborted.
+    /// - Final cleanup is performed.
+    ///
+    /// 2. **Service self-termination**: The `Service` finishes execution on its
+    ///    own. In this case:
+    /// - The `Service` task is already stopped.
+    /// - A `fuse` is sent to the
+    ///   [`StatusHandle`](crate::services::status::StatusHandle), so its task
+    ///   is gracefully stopped.
+    /// - Final cleanup is performed.
+    ///
+    /// This ensures both tasks are properly stopped and cleaned up.
     async fn handle_stop(
         service_task_handle: &mut Option<JoinHandle<()>>,
         state_handle_task_handle: &mut Option<JoinHandle<()>>,
