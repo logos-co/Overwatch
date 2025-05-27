@@ -50,12 +50,26 @@ pub trait Services: Sized {
 
     /// Start a list of services attached to the trait implementer.
     ///
+    /// # Implementation Details
+    ///
+    /// The current implementation of this function (when derived via the
+    /// [`#[derive_services]`](overwatch_derive::derive_services) macro)
+    /// starts the services sequentially, in the order they are provided in the
+    /// `service_ids` slice.
+    ///
     /// # Errors
     ///
     /// The generated [`Error`](enum@Error).
     async fn start_list(&mut self, service_ids: &[Self::RuntimeServiceId]) -> Result<(), Error>;
 
     /// Start all services attached to the trait implementer.
+    ///
+    /// # Implementation Details
+    ///
+    /// The current implementation of this function (when derived via the
+    /// [`#[derive_services]`](overwatch_derive::derive_services) macro)
+    /// starts all the services sequentially, in the order they are defined
+    /// in the implementer's definition.
     ///
     /// # Errors
     ///
@@ -71,12 +85,27 @@ pub trait Services: Sized {
 
     /// Stop a list of services attached to the trait implementer.
     ///
+    /// # Implementation Details
+    ///
+    /// The current implementation of this function (when derived via the
+    /// [`#[derive_services]`](overwatch_derive::derive_services) macro),
+    /// stops the services sequentially, in the order they are provided in the
+    /// `service_ids` slice.
+    ///
     /// # Errors
     ///
     /// The generated [`Error`](enum@Error).
     async fn stop_list(&mut self, service_ids: &[Self::RuntimeServiceId]) -> Result<(), Error>;
 
     /// Stop all services attached to the trait implementer.
+    ///
+    /// # Implementation Details
+    ///
+    /// The current implementation of this function (when derived via the
+    /// [`#[derive_services]`](overwatch_derive::derive_services) macro)
+    /// stops all the services sequentially, in the order they are defined
+    /// in the implementer's definition.
+    ///
     ///
     /// # Errors
     ///
@@ -92,7 +121,7 @@ pub trait Services: Sized {
     /// This is the opposite operation of [`Self::new`]: It's _final_.
     /// `Service`s won't be able to be started again after calling it.
     ///
-    /// # Note
+    /// # Implementation Details
     ///
     /// The current implementation of this function (when derived via the
     /// [`#[derive_services]`](overwatch_derive::derive_services) macro)
