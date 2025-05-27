@@ -37,7 +37,9 @@ mod utils;
 /// to manage service lifecycle operations.
 ///
 /// # Example
-/// ```rust
+/// ```rust,ignore
+/// use overwatch_derive::derive_services;
+///
 /// #[derive_services]
 /// struct MyServices {
 ///     database: DatabaseService,
@@ -45,7 +47,10 @@ mod utils;
 /// }
 /// ```
 /// This expands to:
-/// ```rust
+/// ```rust,ignore
+/// use overwatch::OpaqueServiceRunnerHandle;
+/// use async_trait::async_trait;
+///
 /// struct MyServices {
 ///     database: OpaqueServiceHandle<DatabaseService>,
 ///     cache: OpaqueServiceHandle<CacheService>,
@@ -152,7 +157,9 @@ fn get_default_instrumentation_without_settings() -> proc_macro2::TokenStream {
 /// RATHER USE THE `derive_services` MACRO**.
 ///
 /// # Example
-/// ```rust
+/// ```rust,ignore
+/// use overwatch::OpaqueServiceHandle;
+///
 /// #[derive(Services)]
 /// struct MyServices {
 ///     database: OpaqueServiceHandle<DatabaseService>,
@@ -178,7 +185,9 @@ pub fn services_derive(input: TokenStream) -> TokenStream {
 ///
 /// # Examples
 ///
-/// ```
+/// ```rust,ignore
+/// use quote::format_ident;
+///
 /// let service_id = format_ident!("AppServices");
 /// let settings_id = service_settings_identifier_from(&service_id);
 /// // settings_id will be "AppServicesServiceSettings"
@@ -200,7 +209,9 @@ fn service_settings_identifier_from(
 ///
 /// # Examples
 ///
-/// ```
+/// ```rust,ignore
+/// use quote::format_ident;
+///
 /// let field_id = format_ident!("database");
 /// let settings_field_id = service_settings_field_identifier_from(&field_id);
 /// // settings_field_id will be "database_settings"
@@ -876,7 +887,7 @@ fn generate_runtime_service_types(fields: &Punctuated<Field, Comma>) -> proc_mac
 ///
 /// For a service container struct like:
 ///
-/// ```rust
+/// ```rust,ignore
 /// struct MyServices {
 ///     database: OpaqueServiceHandle<DatabaseService>,
 ///     api_gateway: OpaqueServiceHandle<ApiGatewayService>,
@@ -970,7 +981,9 @@ fn generate_service_id_trait_impls() -> proc_macro2::TokenStream {
 ///
 /// Assuming we have the following service container struct:
 ///
-/// ```rust
+/// ```rust,ignore
+/// use overwatch::OpaqueServiceHandle;
+///
 /// struct MyServices {
 ///     database: OpaqueServiceHandle<DatabaseService>,
 ///     api: OpaqueServiceHandle<ApiService>,
@@ -979,7 +992,9 @@ fn generate_service_id_trait_impls() -> proc_macro2::TokenStream {
 ///
 /// The function will generate code similar to:
 ///
-/// ```rust
+/// ```rust,ignore
+/// use overwatch::services::AsServiceId;
+///
 /// impl AsServiceId<DatabaseService> for RuntimeServiceId {
 ///     const SERVICE_ID: Self = RuntimeServiceId::Database;
 /// }
@@ -991,7 +1006,9 @@ fn generate_service_id_trait_impls() -> proc_macro2::TokenStream {
 ///
 /// For services with generic parameters:
 ///
-/// ```rust
+/// ```rust,ignore
+/// use overwatch::OpaqueServiceHandle;
+///
 /// struct MyServices {
 ///     cache: OpaqueServiceHandle<CacheService<String, u64>>,
 /// }
@@ -999,7 +1016,9 @@ fn generate_service_id_trait_impls() -> proc_macro2::TokenStream {
 ///
 /// It will generate:
 ///
-/// ```rust
+/// ```rust,ignore
+/// use overwatch::services::AsServiceId;
+///
 /// impl AsServiceId<CacheService<String, u64>> for RuntimeServiceId {
 ///     const SERVICE_ID: Self = RuntimeServiceId::Cache;
 /// }
