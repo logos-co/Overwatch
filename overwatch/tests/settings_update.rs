@@ -40,7 +40,7 @@ impl ServiceCore<RuntimeServiceId> for SettingsService {
     }
 
     async fn run(mut self) -> Result<(), overwatch::DynError> {
-        let settings_reader = self.service_resources_handle.settings_updater.notifier();
+        let settings_reader = self.service_resources_handle.settings_handle.notifier();
         let print = async move {
             let mut asserted = false;
             for _ in 0..10 {
