@@ -1,7 +1,9 @@
 use std::{
     any::Any,
     fmt::Debug,
+    mem,
     pin::Pin,
+    sync::mpsc as sync_mpsc,
     task::{Context, Poll},
 };
 
@@ -21,20 +23,55 @@ pub enum RelayError {
     Receiver(Box<dyn Debug + Send + Sync>),
 }
 
+#[derive(Error, Debug)]
+pub enum ServiceError {
+    #[error("Couldn't start service")]
+    Start,
+    #[error("Couldn't stop service")]
+    Stop,
+}
+
 /// Message wrapper type.
 pub type AnyMessage = Box<dyn Any + Send + 'static>;
 
-/// Result type when creating a relay connection.
-pub type RelayResult = Result<AnyMessage, RelayError>;
+/// Channel to retrieve the consumer of the relay connection.
+/// The intended usage is oneshot-like, but having them as mpsc simplifies
+/// reusing the relay when a service is stopped and started.
+// TODO: Update this name to something more meaningful. E.g.:
+//  InboundConsumerSender
+// TODO: Try async
+pub type ConsumerSender<Message> = sync_mpsc::Sender<Receiver<Message>>;
+pub type ConsumerReceiver<Message> = sync_mpsc::Receiver<Receiver<Message>>;
 
 /// Channel receiver of a relay connection.
 #[derive(Debug)]
 pub struct InboundRelay<Message> {
     receiver: Receiver<Message>,
+    /// Sender to return the consumer to the caller
+    /// This is used to maintain a single consumer while being able to reuse it
+    /// when the same service is stopped and started.
+    consumer_sender: ConsumerSender<Message>,
+    /// Size of the relay buffer, used for consistency in a hack in Drop to
+    /// return the receiver
+    buffer_size: usize,
     _stats: (), // placeholder
 }
 
 impl<Message> InboundRelay<Message> {
+    #[must_use]
+    pub const fn new(
+        receiver: Receiver<Message>,
+        consumer_sender: ConsumerSender<Message>,
+        buffer_size: usize,
+    ) -> Self {
+        Self {
+            receiver,
+            consumer_sender,
+            buffer_size,
+            _stats: (),
+        }
+    }
+
     /// Receive a message from the relay connections
     pub async fn recv(&mut self) -> Option<Message> {
         self.receiver.recv().await
@@ -49,10 +86,42 @@ impl<Message> Stream for InboundRelay<Message> {
     }
 }
 
+impl<Message> Drop for InboundRelay<Message> {
+    fn drop(&mut self) {
+        let Self {
+            receiver,
+            consumer_sender,
+            buffer_size,
+            ..
+        } = self;
+
+        // Instantiate a fake receiver to swap with the original one
+        // This is a hack to take ownership of the receiver, required to send it back
+        let (_sender, mut swapped_receiver) = channel(*buffer_size);
+        mem::swap(&mut swapped_receiver, receiver);
+
+        // Instantiate a fake return sender to swap with the original one
+        // This is a hack to take ownership of the sender, required to call `send`
+        let (mut swapped_consumer_sender, _oneshot_rx) = sync_mpsc::channel();
+        mem::swap(&mut swapped_consumer_sender, consumer_sender);
+
+        if let Err(error) = swapped_consumer_sender.send(swapped_receiver) {
+            error!("Failed returning receiver: {error}. This is expected if the `ServiceRunner` has been killed.");
+        }
+    }
+}
+
 /// Channel sender of a relay connection.
 pub struct OutboundRelay<Message> {
     sender: Sender<Message>,
     _stats: (), // placeholder
+}
+
+impl<Message> OutboundRelay<Message> {
+    #[must_use]
+    pub const fn new(sender: Sender<Message>) -> Self {
+        Self { sender, _stats: () }
+    }
 }
 
 impl<Message> Clone for OutboundRelay<Message> {
@@ -103,16 +172,24 @@ where
     }
 }
 
-/// Relay channel builder.
-// TODO: make buffer_size const?
-#[must_use]
-pub fn relay<Message>(buffer_size: usize) -> (InboundRelay<Message>, OutboundRelay<Message>) {
-    let (sender, receiver) = channel(buffer_size);
-    (
-        InboundRelay {
-            receiver,
-            _stats: (),
-        },
-        OutboundRelay { sender, _stats: () },
-    )
+pub struct Relay<Message> {
+    pub inbound_relay: InboundRelay<Message>,
+    pub outbound_relay: OutboundRelay<Message>,
+    pub consumer_sender: ConsumerSender<Message>,
+    pub consumer_receiver: ConsumerReceiver<Message>,
+}
+
+impl<Message> Relay<Message> {
+    // TODO: make buffer_size const?
+    #[must_use]
+    pub fn new(buffer_size: usize) -> Self {
+        let (sender, receiver) = channel(buffer_size);
+        let (consumer_sender, consumer_receiver) = sync_mpsc::channel();
+        Self {
+            inbound_relay: InboundRelay::new(receiver, consumer_sender.clone(), buffer_size),
+            outbound_relay: OutboundRelay::new(sender),
+            consumer_sender,
+            consumer_receiver,
+        }
+    }
 }

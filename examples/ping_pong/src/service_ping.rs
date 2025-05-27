@@ -2,7 +2,7 @@ use std::time::Duration;
 
 use overwatch::{
     services::{ServiceCore, ServiceData},
-    DynError, OpaqueServiceStateHandle,
+    DynError, OpaqueServiceResourcesHandle,
 };
 use tokio::time::sleep;
 
@@ -16,7 +16,7 @@ use crate::{
 };
 
 pub struct PingService {
-    service_state_handle: OpaqueServiceStateHandle<Self, RuntimeServiceId>,
+    service_resources_handle: OpaqueServiceResourcesHandle<Self, RuntimeServiceId>,
     initial_state: <Self as ServiceData>::State,
 }
 
@@ -30,23 +30,23 @@ impl ServiceData for PingService {
 #[async_trait::async_trait]
 impl ServiceCore<RuntimeServiceId> for PingService {
     fn init(
-        service_state_handle: OpaqueServiceStateHandle<Self, RuntimeServiceId>,
+        service_resources_handle: OpaqueServiceResourcesHandle<Self, RuntimeServiceId>,
         initial_state: Self::State,
     ) -> Result<Self, DynError> {
         Ok(Self {
-            service_state_handle,
+            service_resources_handle,
             initial_state,
         })
     }
 
     async fn run(self) -> Result<(), DynError> {
         let Self {
-            service_state_handle,
+            service_resources_handle,
             initial_state,
         } = self;
 
-        let mut inbound_relay = service_state_handle.inbound_relay;
-        let pong_outbound_relay = service_state_handle
+        let mut inbound_relay = service_resources_handle.inbound_relay;
+        let pong_outbound_relay = service_resources_handle
             .overwatch_handle
             .relay::<PongService>()
             .await?;
@@ -63,8 +63,8 @@ impl ServiceCore<RuntimeServiceId> for PingService {
                     match message {
                         PingMessage::Pong => {
                             pong_count += 1;
-                            service_state_handle.state_updater.update(
-                                Self::State { pong_count }
+                            service_resources_handle.state_updater.update(
+                                Some(Self::State { pong_count })
                             );
                             println!("Received Pong. Total: {pong_count}");
                         }
@@ -79,7 +79,7 @@ impl ServiceCore<RuntimeServiceId> for PingService {
             }
         }
 
-        service_state_handle.overwatch_handle.shutdown().await;
+        service_resources_handle.overwatch_handle.shutdown().await;
         Ok(())
     }
 }

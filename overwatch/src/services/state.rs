@@ -1,9 +1,9 @@
 use std::{convert::Infallible, marker::PhantomData, pin::Pin, sync::Arc};
 
 use async_trait::async_trait;
-use futures::StreamExt;
-use tokio::sync::watch::{channel, Receiver, Ref, Sender};
-use tokio_stream::wrappers::WatchStream;
+use futures::FutureExt;
+use tokio::sync::watch::{channel, Receiver, Sender};
+use tokio_stream::{wrappers::WatchStream, StreamExt};
 use tracing::error;
 
 /// Service state initialization traits.
@@ -31,7 +31,7 @@ pub trait ServiceState: Sized {
     ///
     /// # Errors
     ///
-    /// The generated [`Error`].
+    /// The generated [`Error`](Self::Error).
     fn from_settings(settings: &Self::Settings) -> Result<Self, Self::Error>;
 }
 
@@ -63,7 +63,7 @@ pub trait StateOperator {
     ///
     /// # Errors
     ///
-    /// The implementer's [`LoadError`].
+    /// The implementer's [`Self::LoadError`].
     fn try_load(
         settings: &<Self::State as ServiceState>::Settings,
     ) -> Result<Option<Self::State>, Self::LoadError>;
@@ -80,10 +80,10 @@ pub trait StateOperator {
 #[derive(Copy)]
 pub struct NoOperator<StateInput>(PhantomData<*const StateInput>);
 
-/// `NoOperator` does not actually hold anything and is thus Sync.
+/// `NoOperator` does not hold anything and is thus Sync.
 ///
 /// Note that we don't use `PhantomData<StateInput>` as that would suggest we
-/// indeed hold an instance of [`StateOperator::State`].    
+/// indeed hold an instance of [`StateOperator::State`].
 ///
 /// [Ownership and the drop check](https://doc.rust-lang.org/std/marker/struct.PhantomData.html#ownership-and-the-drop-check)
 unsafe impl<StateInput> Send for NoOperator<StateInput> {}
@@ -144,15 +144,30 @@ impl<Settings> ServiceState for NoState<Settings> {
     }
 }
 
+pub(crate) mod fuse {
+    use tokio::sync::broadcast;
+    const CAPACITY: usize = 1;
+
+    pub type Signal = ();
+    pub type Sender = broadcast::Sender<Signal>;
+    pub type Receiver = broadcast::Receiver<Signal>;
+    pub fn channel() -> (Sender, Receiver) {
+        broadcast::channel(CAPACITY)
+    }
+}
+
 /// Receiver part of the state handling mechanism.
 ///
 /// A [`StateHandle`] watches a stream of incoming states and triggers the
 /// attached operator handling method over it.
 pub struct StateHandle<State, Operator> {
-    watcher: StateWatcher<State>,
+    watcher: StateWatcher<Option<State>>,
     operator: Operator,
+    operator_fuse_receiver: fuse::Receiver,
 }
 
+// Clone must be used carefully. It's very likely `Operator` will be a
+// `StateOperator`, which are likely behaving in as if they were singletons.
 // Clone is implemented manually because auto deriving introduces an unnecessary
 // Clone bound on T.
 impl<State, Operator> Clone for StateHandle<State, Operator>
@@ -163,19 +178,92 @@ where
         Self {
             watcher: self.watcher.clone(),
             operator: self.operator.clone(),
+            operator_fuse_receiver: self.operator_fuse_receiver.resubscribe(),
         }
     }
 }
 
 impl<State, Operator> StateHandle<State, Operator> {
-    pub fn new(initial_state: State, operator: Operator) -> (Self, StateUpdater<State>) {
+    pub const fn watcher(&self) -> &StateWatcher<Option<State>> {
+        &self.watcher
+    }
+
+    pub const fn operator(&self) -> &Operator {
+        &self.operator
+    }
+}
+
+impl<State, Operator> StateHandle<State, Operator>
+where
+    State: Clone,
+{
+    pub fn new(
+        operator: Operator,
+        initial_state: Option<State>,
+        operator_fuse_receiver: fuse::Receiver,
+    ) -> (Self, StateUpdater<State>) {
         let (sender, receiver) = channel(initial_state);
         let watcher = StateWatcher { receiver };
         let updater = StateUpdater {
             sender: Arc::new(sender),
         };
 
-        (Self { watcher, operator }, updater)
+        (
+            Self {
+                watcher,
+                operator,
+                operator_fuse_receiver,
+            },
+            updater,
+        )
+    }
+}
+
+impl<State, Operator> StateHandle<State, Operator>
+where
+    State: Clone + Send + Sync + 'static,
+    Operator: StateOperator<State = State>,
+{
+    /// Wait for new state updates and run the operator handling method.    
+    pub async fn run(self) {
+        let Self {
+            watcher,
+            mut operator,
+            mut operator_fuse_receiver,
+        } = self;
+
+        let mut state_stream = WatchStream::new(watcher.receiver);
+        loop {
+            tokio::select! {
+                 _ = operator_fuse_receiver.recv() => {
+                     dbg!("StateHandle's Operator loop received a fuse signal.");
+                     break;
+                 }
+                Some(state) = state_stream.next() => {
+                    dbg!("StateHandle's Stream received a state. Forwarding to Operator.");
+                    Self::process_state(&mut operator, state).await;
+                }
+            }
+        }
+
+        Self::teardown(state_stream, operator).await;
+    }
+
+    async fn teardown(mut state_stream: WatchStream<Option<State>>, mut operator: Operator) {
+        dbg!("Attempting to fetch the last state from StateHandle's Stream.");
+        if let Some(last_state) = state_stream.next().now_or_never().flatten() {
+            dbg!("StateHandle's Stream received the last state. Forwarding to Operator.");
+            Self::process_state(&mut operator, last_state).await;
+        }
+        dbg!("StateHandle's Operator loop finished.");
+    }
+
+    async fn process_state(operator: &mut Operator, state: Option<State>) {
+        if let Some(state) = state {
+            operator.run(state).await;
+        } else {
+            dbg!("StateHandle's Stream received None. Not forwarding to StateOperator.");
+        }
     }
 }
 
@@ -183,7 +271,7 @@ impl<State, Operator> StateHandle<State, Operator> {
 ///
 /// Update the current state and notifies the [`StateHandle`].
 pub struct StateUpdater<State> {
-    sender: Arc<Sender<State>>,
+    sender: Arc<Sender<Option<State>>>,
 }
 
 // Clone is implemented manually because auto deriving introduces an unnecessary
@@ -198,14 +286,16 @@ impl<State> Clone for StateUpdater<State> {
 
 impl<State> StateUpdater<State> {
     /// Send a new state and notify the [`StateWatcher`].
-    pub fn update(&self, new_state: State) {
-        self.sender.send(new_state).unwrap_or_else(|_e| {
-            error!("Error updating state");
+    ///
+    /// `None` values won't be forwarded to the [`StateOperator`].
+    pub fn update(&self, new_state: Option<State>) {
+        self.sender.send(new_state).unwrap_or_else(|error| {
+            error!("Error updating State: {error}");
         });
     }
 }
 
-/// Wrapper over [`Receiver`].
+/// Receiver part of the state handling mechanism.
 pub struct StateWatcher<State> {
     receiver: Receiver<State>,
 }
@@ -220,43 +310,11 @@ impl<State> Clone for StateWatcher<State> {
     }
 }
 
-impl<State> StateWatcher<State>
-where
-    State: Clone,
-{
-    /// Get a copy of the most updated state.
-    #[must_use]
-    pub fn state_cloned(&self) -> State {
-        self.receiver.borrow().clone()
-    }
-}
-
 impl<State> StateWatcher<State> {
-    /// Get a [`Ref`] to the last state, this blocks incoming updates until the
-    /// `Ref` is dropped.
-    ///
-    /// Use with caution.
+    /// Get the internal [`Receiver`].
     #[must_use]
-    pub fn state_ref(&self) -> Ref<State> {
-        self.receiver.borrow()
-    }
-}
-
-impl<State, Operator> StateHandle<State, Operator>
-where
-    State: Clone + Send + Sync + 'static,
-    Operator: StateOperator<State = State>,
-{
-    /// Wait for new state updates and run the operator handling method.    
-    pub async fn run(self) {
-        let Self {
-            watcher,
-            mut operator,
-        } = self;
-        let mut state_stream = WatchStream::new(watcher.receiver);
-        while let Some(state) = state_stream.next().await {
-            operator.run(state).await;
-        }
+    pub const fn receiver(&self) -> &Receiver<State> {
+        &self.receiver
     }
 }
 
@@ -267,7 +325,7 @@ mod test {
     use async_trait::async_trait;
     use tokio::{io, io::AsyncWriteExt, time::sleep};
 
-    use crate::services::state::{ServiceState, StateHandle, StateOperator, StateUpdater};
+    use crate::services::state::{fuse, ServiceState, StateHandle, StateOperator, StateUpdater};
 
     #[derive(Clone)]
     struct UsizeCounter(usize);
@@ -311,17 +369,21 @@ mod test {
     #[tokio::test]
     #[should_panic(expected = "assertion failed: value < 10")]
     async fn state_stream_collects() {
+        let (_operator_fuse_sender, operator_fuse_receiver) = fuse::channel();
+        let initial_state = UsizeCounter::from_settings(&()).unwrap();
         let (handle, updater): (
             StateHandle<UsizeCounter, PanicOnGreaterThanTen>,
             StateUpdater<UsizeCounter>,
         ) = StateHandle::new(
-            UsizeCounter::from_settings(&()).unwrap(),
             PanicOnGreaterThanTen::from_settings(&()),
+            Some(initial_state),
+            operator_fuse_receiver,
         );
+
         tokio::task::spawn(async move {
             sleep(Duration::from_millis(50)).await;
             for i in 0..15 {
-                updater.update(UsizeCounter(i));
+                updater.update(Some(UsizeCounter(i)));
                 sleep(Duration::from_millis(50)).await;
             }
         });

@@ -3,7 +3,7 @@ use overwatch::{
         state::{NoOperator, NoState},
         ServiceCore, ServiceData,
     },
-    DynError, OpaqueServiceStateHandle,
+    DynError, OpaqueServiceResourcesHandle,
 };
 
 use crate::{
@@ -13,7 +13,7 @@ use crate::{
 };
 
 pub struct PongService {
-    service_state_handle: OpaqueServiceStateHandle<Self, RuntimeServiceId>,
+    service_resources_handle: OpaqueServiceResourcesHandle<Self, RuntimeServiceId>,
 }
 
 impl ServiceData for PongService {
@@ -26,21 +26,21 @@ impl ServiceData for PongService {
 #[async_trait::async_trait]
 impl ServiceCore<RuntimeServiceId> for PongService {
     fn init(
-        service_state_handle: OpaqueServiceStateHandle<Self, RuntimeServiceId>,
+        service_resources_handle: OpaqueServiceResourcesHandle<Self, RuntimeServiceId>,
         _initial_state: Self::State,
     ) -> Result<Self, DynError> {
         Ok(Self {
-            service_state_handle,
+            service_resources_handle,
         })
     }
 
     async fn run(self) -> Result<(), DynError> {
         let Self {
-            service_state_handle,
+            service_resources_handle,
         } = self;
 
-        let mut inbound_relay = service_state_handle.inbound_relay;
-        let ping_outbound_relay = service_state_handle
+        let mut inbound_relay = service_resources_handle.inbound_relay;
+        let ping_outbound_relay = service_resources_handle
             .overwatch_handle
             .relay::<PingService>()
             .await?;

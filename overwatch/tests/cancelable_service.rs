@@ -11,14 +11,11 @@ use overwatch::{
         state::{NoOperator, NoState},
         AsServiceId, ServiceCore, ServiceData,
     },
-    DynError, OpaqueServiceStateHandle,
+    DynError, OpaqueServiceResourcesHandle,
 };
 use tokio::time::sleep;
-use tokio_stream::StreamExt;
 
-pub struct CancellableService {
-    service_state: OpaqueServiceStateHandle<Self, RuntimeServiceId>,
-}
+pub struct CancellableService;
 
 impl ServiceData for CancellableService {
     type Settings = ();
@@ -30,37 +27,24 @@ impl ServiceData for CancellableService {
 #[async_trait::async_trait]
 impl ServiceCore<RuntimeServiceId> for CancellableService {
     fn init(
-        service_state: OpaqueServiceStateHandle<Self, RuntimeServiceId>,
+        _service_resources_handle: OpaqueServiceResourcesHandle<Self, RuntimeServiceId>,
         _initial_state: Self::State,
     ) -> Result<Self, DynError> {
-        Ok(Self { service_state })
+        Ok(Self {})
     }
 
     async fn run(self) -> Result<(), DynError> {
-        let mut lifecycle_stream = self.service_state.lifecycle_handle.message_stream();
+        let mut cumulative_time = Duration::from_millis(0);
         let mut interval = tokio::time::interval(Duration::from_millis(200));
+
         loop {
-            tokio::select! {
-                msg = lifecycle_stream.next() => {
-                    match msg {
-                        Some(LifecycleMessage::Shutdown(reply)) => {
-                            reply.send(()).unwrap();
-                            break;
-                        }
-                        Some(LifecycleMessage::Kill) => {
-                            break;
-                        }
-                        _ => {
-                            unimplemented!();
-                        }
-                    }
-                }
-                _ =  interval.tick() =>  {
-                    println!("Waiting to be killed 💀");
-                }
-            }
+            println!("Waiting to be killed 💀");
+            cumulative_time += interval.tick().await.elapsed();
+            assert!(
+                cumulative_time <= Duration::from_secs(2),
+                "Timeout while waiting to be killed."
+            );
         }
-        Ok(())
     }
 }
 
@@ -74,20 +58,24 @@ fn run_overwatch_then_shutdown_service_and_kill() {
     let settings = CancelableServicesServiceSettings { cancelable: () };
     let overwatch = OverwatchRunner::<CancelableServices>::run(settings, None).unwrap();
     let handle = overwatch.handle().clone();
-    let (sender, mut receiver) = tokio::sync::broadcast::channel(1);
+    handle
+        .runtime()
+        .block_on(handle.start_service::<CancellableService>())
+        .expect("service to start successfully.");
+    let (sender, receiver) = tokio::sync::oneshot::channel();
     overwatch.spawn(async move {
         sleep(Duration::from_millis(500)).await;
         let _ = handle
             .send(OverwatchCommand::ServiceLifeCycle(
                 ServiceLifeCycleCommand {
                     service_id: RuntimeServiceId::SERVICE_ID,
-                    msg: LifecycleMessage::Shutdown(sender),
+                    msg: LifecycleMessage::Stop(sender),
                 },
             ))
             .await;
         // wait service finished
-        receiver.recv().await.unwrap();
-        handle.kill().await;
+        receiver.await.unwrap();
+        handle.shutdown().await;
     });
     overwatch.wait_finished();
 }

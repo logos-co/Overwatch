@@ -7,18 +7,33 @@ pub mod services;
 pub mod utils;
 
 pub type DynError = Box<dyn std::error::Error + Send + Sync + 'static>;
-pub type OpaqueServiceHandle<S, RuntimeServiceId> = services::handle::ServiceHandle<
+
+pub type OpaqueServiceRunner<S, RuntimeServiceId> = services::runner::ServiceRunner<
     <S as ServiceData>::Message,
     <S as ServiceData>::Settings,
     <S as ServiceData>::State,
+    <S as ServiceData>::StateOperator,
     RuntimeServiceId,
 >;
-pub type OpaqueServiceStateHandle<S, RuntimeServiceId> = services::handle::ServiceStateHandle<
+pub type OpaqueServiceHandle<S> = services::handle::ServiceHandle<
     <S as ServiceData>::Message,
     <S as ServiceData>::Settings,
     <S as ServiceData>::State,
-    RuntimeServiceId,
+    <S as ServiceData>::StateOperator,
 >;
+pub type OpaqueServiceRunnerHandle<S> = services::runner::ServiceRunnerHandle<
+    <S as ServiceData>::Message,
+    <S as ServiceData>::Settings,
+    <S as ServiceData>::State,
+    <S as ServiceData>::StateOperator,
+>;
+pub type OpaqueServiceResourcesHandle<S, RuntimeServiceId> =
+    services::resources::ServiceResourcesHandle<
+        <S as ServiceData>::Message,
+        <S as ServiceData>::Settings,
+        <S as ServiceData>::State,
+        RuntimeServiceId,
+    >;
 
 #[cfg(feature = "derive")]
 pub use overwatch_derive::*;

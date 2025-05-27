@@ -8,19 +8,19 @@ use overwatch::{
         status::{ServiceStatus, StatusWatcher},
         ServiceCore, ServiceData,
     },
-    DynError, OpaqueServiceStateHandle,
+    DynError, OpaqueServiceResourcesHandle,
 };
 
 pub struct AwaitService1 {
-    service_state: OpaqueServiceStateHandle<Self, RuntimeServiceId>,
+    service_resources_handle: OpaqueServiceResourcesHandle<Self, RuntimeServiceId>,
 }
 
 pub struct AwaitService2 {
-    service_state: OpaqueServiceStateHandle<Self, RuntimeServiceId>,
+    service_resources_handle: OpaqueServiceResourcesHandle<Self, RuntimeServiceId>,
 }
 
 pub struct AwaitService3 {
-    service_state: OpaqueServiceStateHandle<Self, RuntimeServiceId>,
+    service_resources_handle: OpaqueServiceResourcesHandle<Self, RuntimeServiceId>,
 }
 
 impl ServiceData for AwaitService1 {
@@ -47,23 +47,17 @@ impl ServiceData for AwaitService3 {
 #[async_trait::async_trait]
 impl ServiceCore<RuntimeServiceId> for AwaitService1 {
     fn init(
-        service_state: OpaqueServiceStateHandle<Self, RuntimeServiceId>,
+        service_resources_handle: OpaqueServiceResourcesHandle<Self, RuntimeServiceId>,
         _initial_state: Self::State,
     ) -> Result<Self, DynError> {
-        Ok(Self { service_state })
+        Ok(Self {
+            service_resources_handle,
+        })
     }
 
     async fn run(self) -> Result<(), DynError> {
-        println!("Initialized 1");
-        self.service_state
-            .status_handle
-            .updater()
-            .update(ServiceStatus::Running);
+        self.service_resources_handle.status_updater.notify_ready();
         tokio::time::sleep(Duration::from_millis(100)).await;
-        self.service_state
-            .status_handle
-            .updater()
-            .update(ServiceStatus::Stopped);
         Ok(())
     }
 }
@@ -71,39 +65,35 @@ impl ServiceCore<RuntimeServiceId> for AwaitService1 {
 #[async_trait::async_trait]
 impl ServiceCore<RuntimeServiceId> for AwaitService2 {
     fn init(
-        service_state: OpaqueServiceStateHandle<Self, RuntimeServiceId>,
+        service_resources_handle: OpaqueServiceResourcesHandle<Self, RuntimeServiceId>,
         _initial_state: Self::State,
     ) -> Result<Self, DynError> {
-        Ok(Self { service_state })
+        Ok(Self {
+            service_resources_handle,
+        })
     }
 
     async fn run(self) -> Result<(), DynError> {
-        self.service_state
-            .status_handle
-            .updater()
-            .update(ServiceStatus::Running);
+        self.service_resources_handle.status_updater.notify_ready();
 
         let mut watcher: StatusWatcher = self
-            .service_state
+            .service_resources_handle
             .overwatch_handle
             .status_watcher::<AwaitService1>()
             .await;
 
         watcher
-            .wait_for(ServiceStatus::Running, Some(Duration::from_millis(50)))
+            .wait_for(ServiceStatus::Ready, Some(Duration::from_millis(50)))
             .await
             .unwrap();
 
-        println!("Initialized 2");
         tokio::time::sleep(Duration::from_millis(100)).await;
+
         watcher
             .wait_for(ServiceStatus::Stopped, Some(Duration::from_millis(50)))
             .await
             .unwrap();
-        self.service_state
-            .status_handle
-            .updater()
-            .update(ServiceStatus::Stopped);
+
         Ok(())
     }
 }
@@ -111,39 +101,35 @@ impl ServiceCore<RuntimeServiceId> for AwaitService2 {
 #[async_trait::async_trait]
 impl ServiceCore<RuntimeServiceId> for AwaitService3 {
     fn init(
-        service_state: OpaqueServiceStateHandle<Self, RuntimeServiceId>,
+        service_resources_handle: OpaqueServiceResourcesHandle<Self, RuntimeServiceId>,
         _initial_state: Self::State,
     ) -> Result<Self, DynError> {
-        Ok(Self { service_state })
+        Ok(Self {
+            service_resources_handle,
+        })
     }
 
     async fn run(self) -> Result<(), DynError> {
-        self.service_state
-            .status_handle
-            .updater()
-            .update(ServiceStatus::Running);
+        self.service_resources_handle.status_updater.notify_ready();
 
         let mut watcher: StatusWatcher = self
-            .service_state
+            .service_resources_handle
             .overwatch_handle
             .status_watcher::<AwaitService2>()
             .await;
 
         watcher
-            .wait_for(ServiceStatus::Running, Some(Duration::from_millis(50)))
+            .wait_for(ServiceStatus::Ready, Some(Duration::from_millis(50)))
             .await
             .unwrap();
 
-        println!("Initialized 3");
         tokio::time::sleep(Duration::from_millis(100)).await;
+
         watcher
             .wait_for(ServiceStatus::Stopped, Some(Duration::from_millis(50)))
             .await
             .unwrap();
-        self.service_state
-            .status_handle
-            .updater()
-            .update(ServiceStatus::Stopped);
+
         Ok(())
     }
 }
@@ -164,6 +150,8 @@ fn sequenced_services_startup() {
     };
     let overwatch = OverwatchRunner::<SequenceServices>::run(settings, None).unwrap();
     let handle = overwatch.handle().clone();
+
+    handle.runtime().block_on(handle.start_all_services());
 
     overwatch.spawn(async move {
         tokio::time::sleep(Duration::from_secs(1)).await;

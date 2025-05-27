@@ -2,7 +2,7 @@ use tokio::sync::oneshot;
 
 use crate::{
     overwatch::AnySettings,
-    services::{life_cycle::LifecycleMessage, relay::RelayResult, status::StatusWatcher},
+    services::{life_cycle::LifecycleMessage, relay::AnyMessage, status::StatusWatcher},
 };
 
 #[derive(Debug)]
@@ -27,7 +27,7 @@ impl<Message> ReplyChannel<Message> {
 #[derive(Debug)]
 pub struct RelayCommand<RuntimeServiceId> {
     pub(crate) service_id: RuntimeServiceId,
-    pub(crate) reply_channel: ReplyChannel<RelayResult>,
+    pub(crate) reply_channel: ReplyChannel<AnyMessage>,
 }
 
 /// Command for requesting
@@ -47,11 +47,27 @@ pub struct ServiceLifeCycleCommand<RuntimeServiceId> {
     pub msg: LifecycleMessage,
 }
 
-/// [`Overwatch`](crate::overwatch::Overwatch) lifecycle related commands.
+/// Command for managing [`Overwatch`](crate::overwatch::Overwatch)
+/// lifecycle.
+// TODO: Due to the variant's names a broader `OverwatchCommand` might be more suitable.
 #[derive(Debug)]
 pub enum OverwatchLifeCycleCommand {
+    /// Starts all `Service`s associated to an
+    /// [`Overwatch`](crate::overwatch::Overwatch) instance.
+    StartAllServices,
+    /// Stops all `Service`s associated to an
+    /// [`Overwatch`](crate::overwatch::Overwatch) instance.
+    StopAllServices,
+    /// Shuts down [`Overwatch`](crate::overwatch::Overwatch), sending the
+    /// `finish_runner_signal`
+    /// to [`Overwatch`](crate::overwatch::Overwatch). It's the signal which
+    /// [`Overwatch::wait_finished`](crate::overwatch::Overwatch::wait_finished)
+    /// awaits.
+    ///
+    /// This message is final: It stops all `Service`s (and their respective
+    /// [`ServiceRunner`](crate::services::runner::ServiceRunner)s) so
+    /// `Service`s can't be started again.
     Shutdown,
-    Kill,
 }
 
 /// [`Overwatch`](crate::overwatch::Overwatch) settings update command.

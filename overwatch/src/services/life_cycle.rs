@@ -1,39 +1,77 @@
-use std::{default::Default, error::Error};
+use std::{
+    default::Default,
+    pin::Pin,
+    task::{Context, Poll},
+};
 
-use futures::Stream;
-use tokio::sync::broadcast::{channel, Receiver, Sender};
-use tokio_stream::StreamExt;
+use futures::{Stream, StreamExt};
+use tokio::sync::mpsc::{channel, Sender};
+use tokio_stream::wrappers::ReceiverStream;
 
-use crate::DynError;
+use crate::{utils::finished_signal, DynError};
 
-/// Type alias for an empty signal.
-pub type FinishedSignal = ();
+#[derive(Eq, PartialEq)]
+pub enum LifecyclePhase {
+    Started,
+    Stopped,
+}
 
-#[derive(Clone, Debug)]
+/// Message type for `Service` lifecycle events.
+#[derive(Debug)]
 pub enum LifecycleMessage {
-    /// Holds a sender from a broadcast channel. This is used to signal when the
-    /// service has finished handling the shutdown process.
-    Shutdown(Sender<FinishedSignal>),
-    Kill,
+    /// Starts the `Service`.
+    ///
+    /// If the `Service` has been stopped with [`LifecycleMessage::Stop`], it
+    /// will be restarted.
+    ///
+    /// # Arguments
+    ///
+    /// - [`finished_signal::Sender`]: A [`finished_signal::Signal`] will be
+    ///   sent through the associated channel upon completion of the task.
+    Start(finished_signal::Sender),
+
+    /// Stops the `Service`.
+    ///
+    /// Inner `Service` operations are not guaranteed to be completed.
+    /// Despite that, `Service`s stopped this way can be restarted (from a
+    /// previously saved point or from the default initial state) by sending
+    /// a [`LifecycleMessage::Start`].
+    ///
+    /// # Arguments
+    ///
+    /// - [`finished_signal::Sender`]: A [`finished_signal::Signal`] will be
+    ///   sent through the associated channel upon completion of the task.
+    Stop(finished_signal::Sender),
+}
+
+#[derive(Clone)]
+pub struct LifecycleNotifier {
+    sender: Sender<LifecycleMessage>,
+}
+
+impl LifecycleNotifier {
+    #[must_use]
+    pub const fn new(sender: Sender<LifecycleMessage>) -> Self {
+        Self { sender }
+    }
+
+    /// Send a [`LifecycleMessage`] to the `Service`.
+    ///
+    /// # Errors
+    ///
+    /// If the message cannot be sent to the service.
+    pub async fn send(&self, msg: LifecycleMessage) -> Result<(), DynError> {
+        self.sender
+            .send(msg)
+            .await
+            .map_err(|e| Box::new(e) as DynError)
+    }
 }
 
 /// Handle for lifecycle communications with a `Service`.
 pub struct LifecycleHandle {
-    message_channel: Receiver<LifecycleMessage>,
-    notifier: Sender<LifecycleMessage>,
-}
-
-impl Clone for LifecycleHandle {
-    fn clone(&self) -> Self {
-        Self {
-            // `resubscribe` gives access only to newly produced events, not already enqueued ones.
-            // This is acceptable for two reasons:
-            // - Signals that were lost were no longer relevant at the time they were produced.
-            // - The entity holding the handle was likely no longer active.
-            message_channel: self.message_channel.resubscribe(),
-            notifier: self.notifier.clone(),
-        }
-    }
+    stream: ReceiverStream<LifecycleMessage>,
+    notifier: LifecycleNotifier,
 }
 
 /// A handle to manage [`LifecycleMessage`]s for a `Service`.
@@ -46,33 +84,27 @@ impl Clone for LifecycleHandle {
 impl LifecycleHandle {
     #[must_use]
     pub fn new() -> Self {
-        let (notifier, message_channel) = channel(1);
+        let (sender, receiver) = channel(1);
         Self {
-            message_channel,
-            notifier,
+            stream: ReceiverStream::new(receiver),
+            notifier: LifecycleNotifier::new(sender),
         }
     }
 
-    /// Incoming [`LifecycleMessage`] stream for the `Service`.
+    /// Returns the internal [`LifecycleNotifier`] to the `Service`.
     ///
-    /// Note that messages are not buffered: Different calls to this method
-    /// could yield different messages depending on when the method is
-    /// called.
-    pub fn message_stream(&self) -> impl Stream<Item = LifecycleMessage> {
-        tokio_stream::wrappers::BroadcastStream::new(self.message_channel.resubscribe())
-            .filter_map(Result::ok)
+    /// This can be cloned.
+    #[must_use]
+    pub const fn notifier(&self) -> &LifecycleNotifier {
+        &self.notifier
     }
+}
 
-    /// Send a [`LifecycleMessage`] to the `Service`.
-    ///
-    /// # Errors
-    ///
-    /// If the message cannot be sent to the service.
-    pub fn send(&self, msg: LifecycleMessage) -> Result<(), DynError> {
-        self.notifier
-            .send(msg)
-            .map(|_| ())
-            .map_err(|e| Box::new(e) as Box<dyn Error + Send + Sync + 'static>)
+impl Stream for LifecycleHandle {
+    type Item = LifecycleMessage;
+
+    fn poll_next(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Option<Self::Item>> {
+        self.stream.poll_next_unpin(cx)
     }
 }
 
