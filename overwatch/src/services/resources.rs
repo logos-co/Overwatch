@@ -12,6 +12,7 @@ use crate::{
         },
         status::{handle::ServiceAPI, StatusHandle, StatusUpdater},
     },
+    DynError,
 };
 
 /// Core resources for a `Service`.
@@ -137,14 +138,13 @@ where
     /// # Panics
     ///
     /// If the [`InboundRelay`]'s receiver cannot be retrieved from the channel.
-    pub fn rebuild_inbound_relay(&mut self) -> Result<(), String> {
+    pub fn rebuild_inbound_relay(&mut self) -> Result<(), DynError> {
         if self.inbound_relay.is_some() {
-            return Err(String::from("Inbound relay already exists."));
+            return Err(DynError::from("Inbound relay already exists."));
         }
-        let inbound_relay_receiver = self
-            .inbound_relay_receiver
-            .recv()
-            .map_err(|error| format!("Failed to retrieve the InboundRelay's receiver: {error}"))?;
+        let inbound_relay_receiver = self.inbound_relay_receiver.recv().unwrap_or_else(|error| {
+            panic!("Failed to retrieve the InboundRelay's receiver: {error}")
+        });
         let inbound_relay = InboundRelay::new(
             inbound_relay_receiver,
             self.inbound_relay_sender.clone(),
@@ -184,11 +184,11 @@ where
     /// If the [`InboundRelay`] is not set in the `ServiceResources`.
     pub fn as_handle(
         &mut self,
-    ) -> Result<ServiceResourcesHandle<Message, Settings, State, RuntimeServiceId>, String> {
+    ) -> Result<ServiceResourcesHandle<Message, Settings, State, RuntimeServiceId>, DynError> {
         let inbound_relay = self
             .inbound_relay
             .take()
-            .ok_or_else(|| String::from("InboundRelay is not set in the ServiceResources."))?;
+            .ok_or_else(|| DynError::from("InboundRelay is not set in the ServiceResources."))?;
 
         Ok(ServiceResourcesHandle {
             inbound_relay,
