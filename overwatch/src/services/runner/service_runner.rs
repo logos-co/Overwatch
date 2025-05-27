@@ -7,10 +7,10 @@ use tracing::{error, info};
 use crate::{
     overwatch::handle::OverwatchHandle,
     services::{
-        handle::ServiceHandle,
-        life_cycle::LifecycleMessage,
+        lifecycle::LifecycleMessage,
         resources::ServiceResources,
         runner::ServiceRunnerHandle,
+        service_handle::ServiceHandle,
         state::{ServiceState, StateOperator},
         ServiceCore,
     },

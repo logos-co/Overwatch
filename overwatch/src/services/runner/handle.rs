@@ -1,6 +1,6 @@
 use tokio::task::JoinHandle;
 
-use crate::services::handle::ServiceHandle;
+use crate::services::service_handle::ServiceHandle;
 
 pub struct ServiceRunnerHandle<Message, Settings, State, StateOperator> {
     service_handle: ServiceHandle<Message, Settings, State, StateOperator>,
