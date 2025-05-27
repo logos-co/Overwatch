@@ -50,7 +50,7 @@ pub struct InboundRelay<Message> {
     /// Sender to return the receiver to the caller
     /// This is used to maintain a single [`InboundRelay`] throughout the
     /// lifetime of a `Service`, so other services can maintain their relay.
-    inbound_relay_sender: InboundRelaySender<Message>,
+    relay_sender: InboundRelaySender<Message>,
     /// Size of the relay buffer, used for consistency in a hack in Drop to
     /// return the receiver
     buffer_size: usize,
@@ -61,12 +61,12 @@ impl<Message> InboundRelay<Message> {
     #[must_use]
     pub const fn new(
         receiver: Receiver<Message>,
-        inbound_relay_sender: InboundRelaySender<Message>,
+        relay_sender: InboundRelaySender<Message>,
         buffer_size: usize,
     ) -> Self {
         Self {
             receiver,
-            inbound_relay_sender,
+            relay_sender,
             buffer_size,
             _stats: (),
         }
@@ -90,7 +90,7 @@ impl<Message> Drop for InboundRelay<Message> {
     fn drop(&mut self) {
         let Self {
             receiver,
-            inbound_relay_sender,
+            relay_sender,
             buffer_size,
             ..
         } = self;
@@ -103,7 +103,7 @@ impl<Message> Drop for InboundRelay<Message> {
         // Instantiate a fake return sender to swap with the original one
         // This is a hack to take ownership of the sender, required to call `send`
         let (mut swapped_inbound_relay, _oneshot_rx) = sync_mpsc::channel();
-        mem::swap(&mut swapped_inbound_relay, inbound_relay_sender);
+        mem::swap(&mut swapped_inbound_relay, relay_sender);
 
         if let Err(error) = swapped_inbound_relay.send(swapped_receiver) {
             error!("Failed returning receiver: {error}. This is expected if the `ServiceRunner` has been killed.");
