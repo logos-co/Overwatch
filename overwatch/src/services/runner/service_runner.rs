@@ -8,33 +8,19 @@ use crate::{
     overwatch::handle::OverwatchHandle,
     services::{
         handle::ServiceHandle,
-        life_cycle::{LifecycleMessage, LifecyclePhase},
+        life_cycle::LifecycleMessage,
         resources::ServiceResources,
+        runner::ServiceRunnerHandle,
         state::{ServiceState, StateOperator},
         ServiceCore,
     },
     utils::finished_signal,
 };
 
-pub struct ServiceRunnerHandle<Message, Settings, State, StateOperator> {
-    service_handle: ServiceHandle<Message, Settings, State, StateOperator>,
-    runner_join_handle: JoinHandle<()>,
-}
-
-impl<Message, Settings, State, StateOperator>
-    ServiceRunnerHandle<Message, Settings, State, StateOperator>
-{
-    pub const fn service_handle(&self) -> &ServiceHandle<Message, Settings, State, StateOperator> {
-        &self.service_handle
-    }
-
-    pub const fn runner_join_handle(&self) -> &JoinHandle<()> {
-        &self.runner_join_handle
-    }
-
-    pub fn runner_join_handle_owned(self) -> JoinHandle<()> {
-        self.runner_join_handle
-    }
+#[derive(PartialEq, Eq)]
+enum ServiceLifecyclePhase {
+    Started,
+    Stopped,
 }
 
 /// Executor for a `Service`.
@@ -42,7 +28,7 @@ impl<Message, Settings, State, StateOperator>
 /// Contains all the necessary information to run a `Service`.
 pub struct ServiceRunner<Message, Settings, State, StateOperator, RuntimeServiceId> {
     service_resources: ServiceResources<Message, Settings, State, StateOperator, RuntimeServiceId>,
-    service_lifecycle_phase: LifecyclePhase,
+    service_lifecycle_phase: ServiceLifecyclePhase,
 }
 
 impl<Message, Settings, State, StateOp, RuntimeServiceId>
@@ -68,7 +54,7 @@ where
             ServiceResources::new(settings, overwatch_handle, relay_buffer_size);
         Self {
             service_resources,
-            service_lifecycle_phase: LifecyclePhase::Stopped,
+            service_lifecycle_phase: ServiceLifecyclePhase::Stopped,
         }
     }
 }
@@ -100,10 +86,7 @@ where
         let runtime = self.service_resources.overwatch_handle().runtime().clone();
         let runner_join_handle = runtime.spawn(self.run_::<Service>());
 
-        ServiceRunnerHandle {
-            service_handle,
-            runner_join_handle,
-        }
+        ServiceRunnerHandle::new(service_handle, runner_join_handle)
     }
 
     async fn run_<Service>(self)
@@ -124,7 +107,7 @@ where
         while let Some(lifecycle_message) = service_resources.lifecycle_handle_mut().next().await {
             match lifecycle_message {
                 LifecycleMessage::Start(finished_signal_sender) => {
-                    if service_lifecycle_phase == LifecyclePhase::Started {
+                    if service_lifecycle_phase == ServiceLifecyclePhase::Started {
                         info!("Service is already running.");
                     } else {
                         Self::handle_start::<Service>(
@@ -132,7 +115,7 @@ where
                             &mut service_task_handle,
                             &mut state_handle_task_handle,
                         );
-                        service_lifecycle_phase = LifecyclePhase::Started;
+                        service_lifecycle_phase = ServiceLifecyclePhase::Started;
                     }
 
                     // TODO: Sending a different signal could be handy to differentiate whether
@@ -145,7 +128,7 @@ where
                     }
                 }
                 LifecycleMessage::Stop(finished_signal_sender) => {
-                    if service_lifecycle_phase == LifecyclePhase::Stopped {
+                    if service_lifecycle_phase == ServiceLifecyclePhase::Stopped {
                         info!("Service is already stopped.");
                     } else {
                         Self::handle_stop(
@@ -154,7 +137,7 @@ where
                             &mut service_resources,
                         )
                         .await;
-                        service_lifecycle_phase = LifecyclePhase::Stopped;
+                        service_lifecycle_phase = ServiceLifecyclePhase::Stopped;
                     }
 
                     // TODO: Sending a different signal could be handy to differentiate whether
