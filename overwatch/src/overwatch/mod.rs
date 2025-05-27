@@ -99,7 +99,7 @@ mod test {
             Ok(())
         }
 
-        async fn start_list(
+        async fn start_sequence(
             &mut self,
             _service_ids: &[Self::RuntimeServiceId],
         ) -> Result<(), Error> {
@@ -114,7 +114,7 @@ mod test {
             Ok(())
         }
 
-        async fn stop_list(
+        async fn stop_sequence(
             &mut self,
             _service_ids: &[Self::RuntimeServiceId],
         ) -> Result<(), Error> {

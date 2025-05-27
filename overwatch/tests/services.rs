@@ -208,7 +208,7 @@ fn test_start_list() {
 
     overwatch
         .runtime()
-        .block_on(overwatch.handle().start_service_list(services));
+        .block_on(overwatch.handle().start_service_sequence(services));
 
     let status_watcher_a = overwatch
         .runtime()
@@ -303,7 +303,7 @@ fn test_stop_list() {
     ];
     overwatch
         .runtime()
-        .block_on(overwatch.handle().stop_service_list(services));
+        .block_on(overwatch.handle().stop_service_sequence(services));
 
     // Because stop_service_list does not have a synchronisation mechanism,
     // we need to wait for the status to change, as the services may take some time

@@ -348,10 +348,10 @@ fn generate_services_impl(
     let services_settings_identifier = service_settings_identifier_from(services_identifier);
     let impl_new = generate_new_impl(fields);
     let impl_start = generate_start_impl(fields);
-    let impl_start_list = generate_start_list_impl(fields);
+    let impl_start_sequence = generate_start_sequence_impl(fields);
     let impl_start_all = generate_start_all_impl(fields);
     let impl_stop = generate_stop_impl(fields);
-    let impl_stop_list = generate_stop_list_impl(fields);
+    let impl_stop_sequence = generate_stop_sequence_impl(fields);
     let impl_stop_all = generate_stop_all_impl(fields);
     let impl_teardown = generate_teardown_impl(fields);
     let impl_relay = generate_request_relay_impl(fields);
@@ -372,13 +372,13 @@ fn generate_services_impl(
 
             #impl_start
 
-            #impl_start_list
+            #impl_start_sequence
 
             #impl_start_all
 
             #impl_stop
 
-            #impl_stop_list
+            #impl_stop_sequence
 
             #impl_stop_all
 
@@ -490,7 +490,8 @@ fn generate_start_impl(fields: &Punctuated<Field, Comma>) -> proc_macro2::TokenS
     }
 }
 
-/// Generates the `start_list` method implementation for the `Services` trait.
+/// Generates the `start_sequence` method implementation for the `Services`
+/// trait.
 ///
 /// This function creates code to start a list of services identified by their
 /// `RuntimeServiceId`.
@@ -501,8 +502,8 @@ fn generate_start_impl(fields: &Punctuated<Field, Comma>) -> proc_macro2::TokenS
 ///
 /// # Returns
 ///
-/// A token stream containing the `start_list` method implementation.
-fn generate_start_list_impl(fields: &Punctuated<Field, Comma>) -> proc_macro2::TokenStream {
+/// A token stream containing the `start_sequence` method implementation.
+fn generate_start_sequence_impl(fields: &Punctuated<Field, Comma>) -> proc_macro2::TokenStream {
     let instrumentation = get_default_instrumentation();
 
     let var_services_len = Ident::new("services_len", Span::call_site());
@@ -533,7 +534,7 @@ fn generate_start_list_impl(fields: &Punctuated<Field, Comma>) -> proc_macro2::T
 
     quote! {
         #instrumentation
-        async fn start_list(&mut self, service_ids: &[Self::RuntimeServiceId]) -> ::core::result::Result<(), ::overwatch::overwatch::Error> {
+        async fn start_sequence(&mut self, service_ids: &[Self::RuntimeServiceId]) -> ::core::result::Result<(), ::overwatch::overwatch::Error> {
             let #var_services_len = service_ids.len();
             #call_create_finished_signal_channels;
 
@@ -628,7 +629,8 @@ fn generate_stop_impl(fields: &Punctuated<Field, Comma>) -> proc_macro2::TokenSt
     }
 }
 
-/// Generates the `stop_list` method implementation for the `Services` trait.
+/// Generates the `stop_sequence` method implementation for the `Services`
+/// trait.
 ///
 /// This function creates code to stop a list of services identified by their
 /// `RuntimeServiceId`.
@@ -639,8 +641,8 @@ fn generate_stop_impl(fields: &Punctuated<Field, Comma>) -> proc_macro2::TokenSt
 ///
 /// # Returns
 ///
-/// A token stream containing the `stop_list` method implementation.
-fn generate_stop_list_impl(fields: &Punctuated<Field, Comma>) -> proc_macro2::TokenStream {
+/// A token stream containing the `stop_sequence` method implementation.
+fn generate_stop_sequence_impl(fields: &Punctuated<Field, Comma>) -> proc_macro2::TokenStream {
     let instrumentation = get_default_instrumentation();
 
     let var_services_len = Ident::new("services_len", Span::call_site());
@@ -671,7 +673,7 @@ fn generate_stop_list_impl(fields: &Punctuated<Field, Comma>) -> proc_macro2::To
 
     quote! {
         #instrumentation
-        async fn stop_list(&mut self, service_ids: &[Self::RuntimeServiceId]) -> ::core::result::Result<(), ::overwatch::overwatch::Error> {
+        async fn stop_sequence(&mut self, service_ids: &[Self::RuntimeServiceId]) -> ::core::result::Result<(), ::overwatch::overwatch::Error> {
             let #var_services_len = service_ids.len();
             #call_create_finished_signal_channels;
 

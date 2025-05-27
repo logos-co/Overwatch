@@ -112,8 +112,8 @@ where
                     }
                 }
                 OverwatchCommand::OverwatchLifeCycle(command) => match command {
-                    OverwatchLifeCycleCommand::StartServiceList(service_ids) => {
-                        if let Err(e) = services.start_list(service_ids.as_slice()).await {
+                    OverwatchLifeCycleCommand::StartServiceSequence(service_ids) => {
+                        if let Err(e) = services.start_sequence(service_ids.as_slice()).await {
                             error!(error=?e, "Error starting services: {service_ids:#?}");
                         }
                     }
@@ -122,8 +122,8 @@ where
                             error!(error=?e, "Error starting all services.");
                         }
                     }
-                    OverwatchLifeCycleCommand::StopServiceList(service_ids) => {
-                        if let Err(e) = services.stop_list(service_ids.as_slice()).await {
+                    OverwatchLifeCycleCommand::StopServiceSequence(service_ids) => {
+                        if let Err(e) = services.stop_sequence(service_ids.as_slice()).await {
                             error!(error=?e, "Error stopping services: {service_ids:#?}");
                         }
                     }

@@ -163,12 +163,15 @@ where
     /// # Errors
     ///
     /// Fails silently if the start signal cannot be sent.
-    pub async fn start_service_list(&self, service_ids: impl Into<Vec<RuntimeServiceId>>) {
-        let service_ids: Vec<RuntimeServiceId> = service_ids.into();
+    pub async fn start_service_sequence(
+        &self,
+        service_ids: impl IntoIterator<Item = RuntimeServiceId>,
+    ) {
+        let service_ids = service_ids.into_iter().collect::<Vec<RuntimeServiceId>>();
         info!("Starting services: {:?}", service_ids);
         let _: Result<(), _> = self
             .send(OverwatchCommand::OverwatchLifeCycle(
-                OverwatchLifeCycleCommand::StartServiceList(service_ids),
+                OverwatchLifeCycleCommand::StartServiceSequence(service_ids),
             ))
             .await
             .map_err(|e| dbg!(e));
@@ -233,12 +236,15 @@ where
     /// # Errors
     ///
     /// Fails silently if the stop signal cannot be sent.
-    pub async fn stop_service_list(&self, service_ids: impl Into<Vec<RuntimeServiceId>>) {
-        let service_ids: Vec<RuntimeServiceId> = service_ids.into();
+    pub async fn stop_service_sequence(
+        &self,
+        service_ids: impl IntoIterator<Item = RuntimeServiceId>,
+    ) {
+        let service_ids = service_ids.into_iter().collect::<Vec<RuntimeServiceId>>();
         info!("Stopping services: {:?}", service_ids);
         let _: Result<(), _> = self
             .send(OverwatchCommand::OverwatchLifeCycle(
-                OverwatchLifeCycleCommand::StopServiceList(service_ids),
+                OverwatchLifeCycleCommand::StopServiceSequence(service_ids),
             ))
             .await
             .map_err(|e| dbg!(e));
