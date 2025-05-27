@@ -154,6 +154,28 @@ where
 
     /// Send a start signal to the
     /// [`OverwatchRunner`](crate::overwatch::OverwatchRunner) signaling it
+    /// to start a list of services.
+    ///
+    /// # Arguments
+    ///
+    /// `service_ids` - A list of service IDs to start.
+    ///
+    /// # Errors
+    ///
+    /// Fails silently if the start signal cannot be sent.
+    pub async fn start_service_list(&self, service_ids: impl Into<Vec<RuntimeServiceId>>) {
+        let service_ids: Vec<RuntimeServiceId> = service_ids.into();
+        info!("Starting services: {:?}", service_ids);
+        let _: Result<(), _> = self
+            .send(OverwatchCommand::OverwatchLifeCycle(
+                OverwatchLifeCycleCommand::StartServiceList(service_ids),
+            ))
+            .await
+            .map_err(|e| dbg!(e));
+    }
+
+    /// Send a start signal to the
+    /// [`OverwatchRunner`](crate::overwatch::OverwatchRunner) signaling it
     /// to start all services.
     ///
     /// # Errors
@@ -198,6 +220,28 @@ where
             ServiceError::Stop
         })?;
         Ok(())
+    }
+
+    /// Send a stop signal to the
+    /// [`OverwatchRunner`](crate::overwatch::OverwatchRunner)
+    /// signaling it to stop a list of services.
+    ///
+    /// # Arguments
+    ///
+    /// `service_ids` - A list of service IDs to stop.
+    ///
+    /// # Errors
+    ///
+    /// Fails silently if the stop signal cannot be sent.
+    pub async fn stop_service_list(&self, service_ids: impl Into<Vec<RuntimeServiceId>>) {
+        let service_ids: Vec<RuntimeServiceId> = service_ids.into();
+        info!("Stopping services: {:?}", service_ids);
+        let _: Result<(), _> = self
+            .send(OverwatchCommand::OverwatchLifeCycle(
+                OverwatchLifeCycleCommand::StopServiceList(service_ids),
+            ))
+            .await
+            .map_err(|e| dbg!(e));
     }
 
     pub async fn stop_all_services(&self) {
