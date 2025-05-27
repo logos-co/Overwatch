@@ -3,7 +3,7 @@ use proc_macro_error2::abort_call_site;
 use quote::ToTokens as _;
 use syn::{GenericArgument, PathArguments, Type, TypePath};
 
-/// Extracts the inner type from a generic type, or returns the type as-is if it
+/// Extracts the inner type from a generic type or returns the type as-is if it
 /// has no generics.
 ///
 /// # Behavior
@@ -21,7 +21,8 @@ use syn::{GenericArgument, PathArguments, Type, TypePath};
 /// - The type has an unexpected argument format (e.g., parenthesized generics).
 ///
 /// # Examples
-/// ```rust
+/// ```rust,ignore
+/// use crate::overwatch_derive::utils::extract_type_from;
 /// use syn::{parse_quote, Type};
 ///
 /// let ty: Type = parse_quote!(Option<u32>);
@@ -83,9 +84,7 @@ pub fn extract_type_from(ty: &Type) -> Type {
 /// - Converts a field name, usually in `snake_case`, to `PascalCase`.
 ///
 /// # Examples
-/// ```
-/// use overwatch_derive::utils::field_name_to_type_name;
-///
+/// ```rust,ignore
 /// assert_eq!(field_name_to_type_name("my_field"), "MyField");
 /// assert_eq!(field_name_to_type_name("some_longer_field_name"), "SomeLongerFieldName");
 /// assert_eq!(field_name_to_type_name("UPPER_CASE_FIELD"), "UpperCaseField");

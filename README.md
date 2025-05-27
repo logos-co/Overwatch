@@ -41,25 +41,25 @@ components. It combines the flexibility of microservices with the simplicity of 
 ## Table of Contents
 
 - [Overwatch](#overwatch)
-  - [Table of Contents](#table-of-contents)
-  - [Requirements](#requirements)
-  - [Quick Start](#quick-start)
-  - [Features](#features)
-  - [Design Goals](#design-goals)
-    - [**Modularity**](#modularity)
-    - [**Single Responsibility**](#single-responsibility)
-    - [**Observability**](#observability)
-  - [Components](#components)
-    - [**Overwatch**](#overwatch-1)
-    - [**Services**](#services)
-  - [Project Structure](#project-structure)
-  - [Development Workflow](#development-workflow)
-    - [**Running Tests**](#running-tests)
-    - [**Running Examples**](#running-examples)
-    - [**Generating Documentation**](#generating-documentation)
-  - [Contributing](#contributing)
-  - [License](#license)
-  - [Community](#community)
+    - [Table of Contents](#table-of-contents)
+    - [Requirements](#requirements)
+    - [Quick Start](#quick-start)
+    - [Features](#features)
+    - [Design Goals](#design-goals)
+        - [**Modularity**](#modularity)
+        - [**Single Responsibility**](#single-responsibility)
+        - [**Observability**](#observability)
+    - [Components](#components)
+        - [**Overwatch**](#overwatch-1)
+        - [**Services**](#services)
+    - [Project Structure](#project-structure)
+    - [Development Workflow](#development-workflow)
+        - [**Running Tests**](#running-tests)
+        - [**Running Examples**](#running-examples)
+        - [**Generating Documentation**](#generating-documentation)
+    - [Contributing](#contributing)
+    - [License](#license)
+    - [Community](#community)
 
 ## Requirements
 
@@ -77,9 +77,9 @@ overwatch-derive = "1"
 
 Here's a simple example to get you started:
 
-```rust ignore
+```rust compile_fail
 // This example is for illustration purposes only and is not meant to compile.
-// There's parts of the code that are required to be implemented by the user.
+// There are parts of the code that are required to be implemented by the user.
 // Please refer to the examples directory for working code. 
 
 use overwatch::{
