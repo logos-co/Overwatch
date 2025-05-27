@@ -12,8 +12,6 @@ use tokio::{
     runtime::{Handle, Runtime},
     task::JoinHandle,
 };
-#[cfg(feature = "instrumentation")]
-use tracing::instrument;
 
 use crate::{
     overwatch::handle::OverwatchHandle,

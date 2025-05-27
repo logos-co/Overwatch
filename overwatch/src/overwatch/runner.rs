@@ -1,6 +1,8 @@
 use std::fmt::Debug;
 
 use tokio::{runtime::Runtime, sync::mpsc::Receiver};
+#[cfg(feature = "instrumentation")]
+use tracing::instrument;
 use tracing::{error, info};
 
 use crate::{
