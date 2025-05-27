@@ -10,8 +10,7 @@ use tokio_stream::wrappers::ReceiverStream;
 
 use crate::{utils::finished_signal, DynError};
 
-#[expect(clippy::derive_partial_eq_without_eq, reason = "Not needed")]
-#[derive(PartialEq)]
+#[derive(Eq, PartialEq)]
 pub enum LifecyclePhase {
     Started,
     Stopped,
