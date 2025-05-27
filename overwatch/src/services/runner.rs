@@ -31,6 +31,10 @@ impl<Message, Settings, State, StateOperator>
     pub const fn runner_join_handle(&self) -> &JoinHandle<()> {
         &self.runner_join_handle
     }
+
+    pub fn runner_join_handle_owned(self) -> JoinHandle<()> {
+        self.runner_join_handle
+    }
 }
 
 /// Executor for a `Service`.
@@ -93,7 +97,7 @@ where
         StateOp: Clone,
     {
         let service_handle = ServiceHandle::from(&self.service_resources);
-        let runtime = self.service_resources.overwatch_handle.runtime().clone();
+        let runtime = self.service_resources.overwatch_handle().runtime().clone();
         let runner_join_handle = runtime.spawn(self.run_::<Service>());
 
         ServiceRunnerHandle {
@@ -117,7 +121,7 @@ where
         let mut service_task_handle: Option<_> = None;
         let mut state_handle_task_handle: Option<_> = None;
 
-        while let Some(lifecycle_message) = service_resources.lifecycle_handle.next().await {
+        while let Some(lifecycle_message) = service_resources.lifecycle_handle_mut().next().await {
             match lifecycle_message {
                 LifecycleMessage::Start(finished_signal_sender) => {
                     if service_lifecycle_phase == LifecyclePhase::Started {
@@ -187,12 +191,9 @@ where
             }
         };
 
-        let inbound_relay = service_resources
-            .inbound_relay
-            .take()
-            .expect("Failed to retrieve inbound relay.");
-
-        let service_resources_handle = service_resources.to_handle(inbound_relay);
+        let service_resources_handle = service_resources.as_handle().unwrap_or_else(|error| {
+            panic!("Failed to create the ServiceResourcesHandle: {error}");
+        });
         let service = match Service::init(service_resources_handle, initial_state.clone()) {
             Ok(service) => service,
             Err(error) => {
@@ -205,7 +206,7 @@ where
             .update(Some(initial_state));
 
         service_resources
-            .status_handle
+            .status_handle()
             .service_runner_updater()
             .notify_starting();
 
@@ -227,10 +228,10 @@ where
             + 'static,
         StateOp: StateOperator<State = State> + Clone,
     {
-        let runtime = service_resources.overwatch_handle.runtime().clone();
+        let runtime = service_resources.overwatch_handle().runtime().clone();
         let service_task = Self::create_service_run_task(service, service_resources);
         *service_task_handle = Some(runtime.spawn(service_task));
-        let state_handle_task = service_resources.state_handle.clone().run();
+        let state_handle_task = service_resources.state_handle().clone().run();
         *state_handle_task_handle = Some(runtime.spawn(state_handle_task));
     }
 
@@ -244,7 +245,7 @@ where
         StateOp: Clone,
     {
         let task = service.run();
-        let lifecycle_notifier = service_resources.lifecycle_handle.notifier().clone();
+        let lifecycle_notifier = service_resources.lifecycle_handle().notifier().clone();
 
         // Receiver is ignored because it's pointless:
         // - If we wait for it, the Stop message will eventually abort it before the
@@ -308,13 +309,13 @@ where
         .await;
 
         service_resources
-            .retrieve_inbound_relay_consumer()
+            .rebuild_inbound_relay()
             .unwrap_or_else(|error| {
-                panic!("Failed to retrieve inbound relay consumer: {error}");
+                panic!("Could not rebuild the InboundRelay: {error}");
             });
 
         service_resources
-            .status_handle
+            .status_handle()
             .service_runner_updater()
             .notify_stopped();
     }

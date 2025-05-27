@@ -52,10 +52,10 @@ pub struct ServiceLifeCycleCommand<RuntimeServiceId> {
 // TODO: Due to the variant's names a broader `OverwatchCommand` might be more suitable.
 #[derive(Debug)]
 pub enum OverwatchLifeCycleCommand {
-    /// Starts all `Service`s associated to an
+    /// Starts all `Service`s associated with an
     /// [`Overwatch`](crate::overwatch::Overwatch) instance.
     StartAllServices,
-    /// Stops all `Service`s associated to an
+    /// Stops all `Service`s associated with an
     /// [`Overwatch`](crate::overwatch::Overwatch) instance.
     StopAllServices,
     /// Shuts down [`Overwatch`](crate::overwatch::Overwatch), sending the

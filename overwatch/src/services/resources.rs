@@ -5,13 +5,14 @@ use crate::{
     services::{
         handle::ServiceHandle,
         life_cycle::LifecycleHandle,
-        relay::{ConsumerReceiver, ConsumerSender, InboundRelay, OutboundRelay, Relay},
+        relay::{InboundRelay, InboundRelayReceiver, InboundRelaySender, OutboundRelay, Relay},
         settings::SettingsHandle,
         state::{
             fuse, ServiceState, StateHandle, StateOperator as StateOperatorTrait, StateUpdater,
         },
         status::{handle::ServiceAPI, StatusHandle, StatusUpdater},
     },
+    DynError,
 };
 
 /// Core resources for a `Service`.
@@ -20,22 +21,22 @@ use crate::{
 /// [`ServiceRunner`](crate::services::runner::ServiceRunner).
 pub struct ServiceResources<Message, Settings, State, StateOperator, RuntimeServiceId> {
     // Overwatch
-    pub overwatch_handle: OverwatchHandle<RuntimeServiceId>,
+    overwatch_handle: OverwatchHandle<RuntimeServiceId>,
     // Status
-    pub status_handle: StatusHandle,
+    status_handle: StatusHandle,
     // Settings
-    pub settings_handle: SettingsHandle<Settings>,
+    settings_handle: SettingsHandle<Settings>,
     // State
-    pub state_handle: StateHandle<State, StateOperator>,
+    state_handle: StateHandle<State, StateOperator>,
     state_updater: StateUpdater<State>,
     operator_fuse_sender: fuse::Sender,
     // Lifecycle
-    pub lifecycle_handle: LifecycleHandle,
+    lifecycle_handle: LifecycleHandle,
     // Relay
-    pub inbound_relay: Option<InboundRelay<Message>>,
-    pub outbound_relay: OutboundRelay<Message>,
-    pub consumer_sender: ConsumerSender<Message>,
-    pub consumer_receiver: ConsumerReceiver<Message>,
+    inbound_relay: Option<InboundRelay<Message>>,
+    outbound_relay: OutboundRelay<Message>,
+    inbound_relay_sender: InboundRelaySender<Message>,
+    inbound_relay_receiver: InboundRelayReceiver<Message>,
     relay_buffer_size: usize,
 }
 
@@ -66,8 +67,8 @@ where
         let Relay {
             inbound_relay,
             outbound_relay,
-            consumer_sender,
-            consumer_receiver,
+            inbound_relay_sender,
+            inbound_relay_receiver,
         } = relay;
 
         Self {
@@ -80,39 +81,38 @@ where
             lifecycle_handle,
             inbound_relay: Some(inbound_relay),
             outbound_relay,
-            consumer_sender,
-            consumer_receiver,
+            inbound_relay_sender,
+            inbound_relay_receiver,
             relay_buffer_size,
         }
     }
 
-    /// Create a new [`ServiceResourcesHandle`] from the current
-    /// `ServiceResources`.
-    ///
-    /// # Parameters
-    ///
-    /// * `inbound_relay`: The relay the service will use to receive messages.
-    ///   Due to the singleton nature of the inbound relay, if the recipient
-    ///   service is being restarted, then the relay should be the same one
-    ///   returned by the previous instance when it was stopped. This ensures
-    ///   the new instance will maintain communication with other services who
-    ///   opened a relay to the previous instance.
-    #[must_use]
-    pub fn to_handle(
-        &self,
-        inbound_relay: InboundRelay<Message>,
-    ) -> ServiceResourcesHandle<Message, Settings, State, RuntimeServiceId> {
-        ServiceResourcesHandle {
-            inbound_relay,
-            status_updater: self.status_handle.service_updater().clone(),
-            overwatch_handle: self.overwatch_handle.clone(),
-            settings_handle: self.settings_handle.clone(),
-            state_updater: self.state_updater.clone(),
-        }
+    pub const fn overwatch_handle(&self) -> &OverwatchHandle<RuntimeServiceId> {
+        &self.overwatch_handle
+    }
+
+    pub const fn status_handle(&self) -> &StatusHandle {
+        &self.status_handle
+    }
+
+    pub const fn settings_handle(&self) -> &SettingsHandle<Settings> {
+        &self.settings_handle
+    }
+
+    pub const fn state_handle(&self) -> &StateHandle<State, StateOperator> {
+        &self.state_handle
     }
 
     pub const fn state_updater(&self) -> &StateUpdater<State> {
         &self.state_updater
+    }
+
+    pub const fn lifecycle_handle(&self) -> &LifecycleHandle {
+        &self.lifecycle_handle
+    }
+
+    pub const fn lifecycle_handle_mut(&mut self) -> &mut LifecycleHandle {
+        &mut self.lifecycle_handle
     }
 
     pub const fn relay_buffer_size(&self) -> usize {
@@ -123,31 +123,31 @@ where
         &self.operator_fuse_sender
     }
 
-    /// Retrieves the inbound relay consumer from the channel.
+    /// Retrieves the [`InboundRelay`]'s receiver from the channel and rebuilds
+    /// a new [`InboundRelay`].
     ///
-    /// Only one inbound relay exists at a time.
+    /// Only one [`InboundRelay`] exists at a time for a given `Service`.
     ///
     /// This function must be called only if awaiting a `Service` to be Dropped,
-    /// which is when the inbound relay consumer is returned.
+    /// which is when the [`InboundRelay`]'s receiver is returned.
     ///
     /// # Errors
     ///
-    /// If the inbound relay already exists in [`ServiceResources`].
+    /// If the [`InboundRelay`] already exists in [`ServiceResources`].
     ///
     /// # Panics
     ///
-    /// If the consumer cannot be retrieved from the channel.
-    pub fn retrieve_inbound_relay_consumer(&mut self) -> Result<(), String> {
+    /// If the [`InboundRelay`]'s receiver cannot be retrieved from the channel.
+    pub fn rebuild_inbound_relay(&mut self) -> Result<(), DynError> {
         if self.inbound_relay.is_some() {
-            return Err(String::from("Inbound relay already exists."));
+            return Err(DynError::from("Inbound relay already exists."));
         }
-        let inbound_consumer = self
-            .consumer_receiver
-            .recv()
-            .map_err(|error| format!("Failed to receive the InboundRelay consumer: {error}"))?;
+        let inbound_relay_receiver = self.inbound_relay_receiver.recv().unwrap_or_else(|error| {
+            panic!("Failed to retrieve the InboundRelay's receiver: {error}")
+        });
         let inbound_relay = InboundRelay::new(
-            inbound_consumer,
-            self.consumer_sender.clone(),
+            inbound_relay_receiver,
+            self.inbound_relay_sender.clone(),
             self.relay_buffer_size(),
         );
         self.inbound_relay = Some(inbound_relay);
@@ -172,6 +172,31 @@ where
             info!("Couldn't load state from Operator. Creating from settings.");
             State::from_settings(&settings)
         }
+    }
+
+    /// Create a new [`ServiceResourcesHandle`](ServiceResourcesHandle) from the
+    /// current `ServiceResources`.
+    ///
+    /// It requires `inbound_relay` to be set.
+    ///
+    /// # Errors
+    ///
+    /// If the [`InboundRelay`] is not set in the `ServiceResources`.
+    pub fn as_handle(
+        &mut self,
+    ) -> Result<ServiceResourcesHandle<Message, Settings, State, RuntimeServiceId>, DynError> {
+        let inbound_relay = self
+            .inbound_relay
+            .take()
+            .ok_or_else(|| DynError::from("InboundRelay is not set in the ServiceResources."))?;
+
+        Ok(ServiceResourcesHandle {
+            inbound_relay,
+            status_updater: self.status_handle.service_updater().clone(),
+            overwatch_handle: self.overwatch_handle.clone(),
+            settings_handle: self.settings_handle.clone(),
+            state_updater: self.state_updater.clone(),
+        })
     }
 }
 
