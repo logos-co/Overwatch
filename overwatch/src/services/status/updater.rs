@@ -76,6 +76,7 @@ impl StatusUpdater<ServiceAPI> {
     /// Shorthand for sending a [`ServiceStatus::Ready`] message.
     ///
     /// # Notes
+    ///
     /// - Calling this method multiple times has no additional effect.
     /// - Ideally, because this is used by the `Service`, it would take
     ///   ownership of the `StatusUpdater` so that it can only be used once.
