@@ -71,7 +71,13 @@ impl StatusUpdater<ServiceRunnerAPI> {
 
 impl StatusUpdater<ServiceAPI> {
     /// Shorthand for sending a [`ServiceStatus::Ready`] message.
-    pub fn notify_ready(self) {
+    ///
+    /// # Note
+    ///
+    /// Ideally, because this is used by the `Service`, it would take
+    /// ownership of the `StatusUpdater` so that it can only be used once.
+    /// However, this triggers partial move issues in a lot of scenarios.
+    pub fn notify_ready(&self) {
         self.send(ServiceStatus::Ready);
     }
 }
