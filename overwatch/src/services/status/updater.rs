@@ -57,6 +57,8 @@ impl<API> StatusUpdater<API> {
     }
 }
 
+/// [`StatusUpdater`] implementation for the
+/// [`ServiceRunner`](crate::services::runner::ServiceRunner).
 impl StatusUpdater<ServiceRunnerAPI> {
     /// Shorthand for sending a [`ServiceStatus::Starting`] message.
     pub fn notify_starting(&self) {
@@ -69,9 +71,17 @@ impl StatusUpdater<ServiceRunnerAPI> {
     }
 }
 
+/// [`StatusUpdater`] implementation for the `Service`.
 impl StatusUpdater<ServiceAPI> {
     /// Shorthand for sending a [`ServiceStatus::Ready`] message.
-    pub fn notify_ready(self) {
+    ///
+    /// # Notes
+    ///
+    /// - Calling this method multiple times has no additional effect.
+    /// - Ideally, because this is used by the `Service`, it would take
+    ///   ownership of the `StatusUpdater` so that it can only be used once.
+    ///   However, this triggers partial move issues in a lot of scenarios.
+    pub fn notify_ready(&self) {
         self.send(ServiceStatus::Ready);
     }
 }
