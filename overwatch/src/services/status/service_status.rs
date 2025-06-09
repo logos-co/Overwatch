@@ -19,11 +19,11 @@ pub enum ServiceStatus {
 impl Display for ServiceStatus {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         use ServiceStatus::{Ready, Starting, Stopped};
-
-        match self {
-            Starting => write!(f, "ServiceStatus::Starting"),
-            Ready => write!(f, "ServiceStatus::Ready"),
-            Stopped => write!(f, "ServiceStatus::Stopped"),
-        }
+        let service_status = match self {
+            Starting => "ServiceStatus::Starting",
+            Ready => "ServiceStatus::Ready",
+            Stopped => "ServiceStatus::Stopped",
+        };
+        write!(f, "{service_status}")
     }
 }
