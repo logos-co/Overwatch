@@ -2,6 +2,7 @@ use std::sync::Arc;
 
 use futures::FutureExt;
 use tokio_stream::StreamExt;
+use tracing::debug;
 
 use crate::services::state::{channel, fuse, StateOperator, StateUpdater, StateWatcher, Stream};
 
@@ -86,29 +87,29 @@ where
         loop {
             tokio::select! {
                  _ = operator_fuse_receiver.recv() => {
-                     dbg!("StateHandle's Operator loop received a fuse signal.");
+                     debug!("StateHandle's Operator loop received a fuse signal.");
                      break;
                  }
                 Some(state) = state_stream.next() => {
-                    dbg!("StateHandle's Stream received a state. Forwarding to Operator.");
+                    debug!("StateHandle's Stream received a state. Forwarding to Operator.");
                     Self::process_state(&mut operator, state).await;
                 }
             }
         }
 
-        dbg!("Attempting to fetch the last state from StateHandle's Stream.");
+        debug!("Attempting to fetch the last state from StateHandle's Stream.");
         if let Some(last_state) = state_stream.next().now_or_never().flatten() {
-            dbg!("StateHandle's Stream received the last state. Forwarding to Operator.");
+            debug!("StateHandle's Stream received the last state. Forwarding to Operator.");
             Self::process_state(&mut operator, last_state).await;
         }
-        dbg!("StateHandle's Operator loop finished.");
+        debug!("StateHandle's Operator loop finished.");
     }
 
     async fn process_state(operator: &mut Operator, state: Option<State>) {
         if let Some(state) = state {
             operator.run(state).await;
         } else {
-            dbg!("StateHandle's Stream received None. Not forwarding to StateOperator.");
+            debug!("StateHandle's Stream received None. Not forwarding to StateOperator.");
         }
     }
 }

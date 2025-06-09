@@ -6,7 +6,7 @@ use tokio::{
 };
 #[cfg(feature = "instrumentation")]
 use tracing::instrument;
-use tracing::{error, info};
+use tracing::{debug, error, info};
 
 use crate::{
     overwatch::{
@@ -142,11 +142,11 @@ where
         ))
         .await
         .map_err(|e| {
-            dbg!(e);
+            debug!("{e:?}");
             ServiceError::Start
         })?;
         receiver.await.map_err(|e| {
-            dbg!(e);
+            debug!("{e:?}");
             ServiceError::Start
         })?;
         Ok(())
@@ -174,7 +174,7 @@ where
                 OverwatchLifeCycleCommand::StartServiceSequence(service_ids),
             ))
             .await
-            .map_err(|e| dbg!(e));
+            .map_err(|e| debug!("{e:?}"));
     }
 
     /// Send a start signal to the
@@ -191,7 +191,7 @@ where
                 OverwatchLifeCycleCommand::StartAllServices,
             ))
             .await
-            .map_err(|e| dbg!(e));
+            .map_err(|e| debug!("{e:?}"));
     }
 
     /// Send a stop signal to the specified service.
@@ -215,11 +215,11 @@ where
         ))
         .await
         .map_err(|e| {
-            dbg!(e);
+            debug!("{e:?}");
             ServiceError::Stop
         })?;
         receiver.await.map_err(|e| {
-            dbg!(e);
+            debug!("{e:?}");
             ServiceError::Stop
         })?;
         Ok(())
@@ -247,7 +247,7 @@ where
                 OverwatchLifeCycleCommand::StopServiceSequence(service_ids),
             ))
             .await
-            .map_err(|e| dbg!(e));
+            .map_err(|e| debug!("{e:?}"));
     }
 
     pub async fn stop_all_services(&self) {
@@ -257,7 +257,7 @@ where
                 OverwatchLifeCycleCommand::StopAllServices,
             ))
             .await
-            .map_err(|e| dbg!(e));
+            .map_err(|e| debug!("{e:?}"));
     }
 
     /// Send a shutdown signal to the
@@ -279,7 +279,7 @@ where
                 OverwatchLifeCycleCommand::Shutdown,
             ))
             .await
-            .map_err(|e| dbg!(e));
+            .map_err(|e| debug!("{e:?}"));
     }
 
     /// Send an overwatch command to the
