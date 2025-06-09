@@ -2,7 +2,7 @@ use std::{fmt::Display, future::Future};
 
 use tokio::task::JoinHandle;
 use tokio_stream::StreamExt;
-use tracing::{error, info};
+use tracing::{debug, error, info};
 
 use crate::{
     overwatch::handle::OverwatchHandle,
@@ -121,9 +121,8 @@ where
                     // TODO: Sending a different signal could be handy to differentiate whether
                     //  the service was already started or not.
                     if let Err(error) = finished_signal_sender.send(()) {
-                        dbg!(
-                            "Error while sending the LifecycleMessage::Start signal: {}.",
-                            error
+                        debug!(
+                            "Error while sending the LifecycleMessage::Start signal: {error:?}.",
                         );
                     }
                 }
@@ -143,7 +142,7 @@ where
                     // TODO: Sending a different signal could be handy to differentiate whether
                     //  the service was already stopped or not.
                     if let Err(error) = finished_signal_sender.send(()) {
-                        dbg!("Error while sending the LifecycleMessage::Stop finished signal: {}. Likely due to the receiver being already dropped in the Service::run task.", error);
+                        debug!("Error while sending the LifecycleMessage::Stop finished signal: {error:?}. Likely due to the receiver being already dropped in the Service::run task.");
                     }
                 }
             }
