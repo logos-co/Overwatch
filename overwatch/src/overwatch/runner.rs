@@ -112,32 +112,47 @@ where
                     }
                 }
                 OverwatchCommand::OverwatchLifeCycle(command) => match command {
-                    OverwatchLifeCycleCommand::StartServiceSequence(service_ids) => {
-                        if let Err(e) = services.start_sequence(service_ids.as_slice()).await {
-                            error!(error=?e, "Error starting services: {service_ids:#?}");
+                    OverwatchLifeCycleCommand::StartServiceSequence(service_ids, sender) => {
+                        if let Err(error) = services.start_sequence(service_ids.as_slice()).await {
+                            error!(error=?error, "Error starting services: {service_ids:#?}");
+                        }
+                        if let Err(error) = sender.send(()) {
+                            error!(error=?error, "Error sending StartServiceSequence finished signal.");
                         }
                     }
-                    OverwatchLifeCycleCommand::StartAllServices => {
-                        if let Err(e) = services.start_all().await {
-                            error!(error=?e, "Error starting all services.");
+                    OverwatchLifeCycleCommand::StartAllServices(sender) => {
+                        if let Err(error) = services.start_all().await {
+                            error!(error=?error, "Error starting all services.");
+                        }
+                        if let Err(error) = sender.send(()) {
+                            error!(error=?error, "Error sending StartAllServices finished signal.");
                         }
                     }
-                    OverwatchLifeCycleCommand::StopServiceSequence(service_ids) => {
-                        if let Err(e) = services.stop_sequence(service_ids.as_slice()).await {
-                            error!(error=?e, "Error stopping services: {service_ids:#?}");
+                    OverwatchLifeCycleCommand::StopServiceSequence(service_ids, sender) => {
+                        if let Err(error) = services.stop_sequence(service_ids.as_slice()).await {
+                            error!(error=?error, "Error stopping services: {service_ids:#?}");
+                        }
+                        if let Err(error) = sender.send(()) {
+                            error!(error=?error, "Error sending StopServiceSequence finished signal.");
                         }
                     }
-                    OverwatchLifeCycleCommand::StopAllServices => {
-                        if let Err(e) = services.stop_all().await {
-                            error!(error=?e, "Error stopping all services.");
+                    OverwatchLifeCycleCommand::StopAllServices(sender) => {
+                        if let Err(error) = services.stop_all().await {
+                            error!(error=?error, "Error stopping all services.");
+                        }
+                        if let Err(error) = sender.send(()) {
+                            error!(error=?error, "Error sending StopAllServices finished signal.");
                         }
                     }
-                    OverwatchLifeCycleCommand::Shutdown => {
-                        if let Err(e) = services.stop_all().await {
-                            error!(error=?e, "Error stopping all services during teardown.");
+                    OverwatchLifeCycleCommand::Shutdown(sender) => {
+                        if let Err(error) = services.stop_all().await {
+                            error!(error=?error, "Error stopping all services during teardown.");
                         }
-                        if let Err(e) = services.teardown().await {
-                            error!(error=?e, "Error tearing down services.");
+                        if let Err(error) = services.teardown().await {
+                            error!(error=?error, "Error tearing down services.");
+                        }
+                        if let Err(error) = sender.send(()) {
+                            error!(error=?error, "Error sending Shutdown finished signal.");
                         }
                         break;
                     }

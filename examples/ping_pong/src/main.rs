@@ -35,7 +35,8 @@ fn main() {
     println!("Starting overwatch service");
     ping_pong
         .runtime()
-        .block_on(overwatch_handle.start_all_services());
+        .block_on(overwatch_handle.start_all_services())
+        .expect("Error starting overwatch service");
 
     ping_pong.wait_finished();
 }

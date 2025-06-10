@@ -79,7 +79,7 @@ impl ServiceCore<RuntimeServiceId> for PingService {
             }
         }
 
-        service_resources_handle.overwatch_handle.shutdown().await;
+        let _ = service_resources_handle.overwatch_handle.shutdown().await;
         Ok(())
     }
 }

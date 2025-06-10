@@ -19,3 +19,11 @@ pub enum ServiceError {
     #[error("Couldn't stop service")]
     Stop,
 }
+
+#[derive(Error, Debug)]
+pub enum OverwatchError {
+    #[error("C")]
+    Service(ServiceError),
+    #[error("Couldn't shutdown Overwatch")]
+    Shutdown,
+}

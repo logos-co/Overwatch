@@ -18,10 +18,11 @@ use crate::{
     },
     services::{
         lifecycle::LifecycleMessage,
-        relay::{OutboundRelay, RelayError, ServiceError},
+        relay::{errors::OverwatchError, OutboundRelay, RelayError, ServiceError},
         status::StatusWatcher,
         AsServiceId, ServiceData,
     },
+    utils::finished_signal,
 };
 
 /// Handler object over the main [`crate::overwatch::Overwatch`] runner.
@@ -93,6 +94,7 @@ where
     /// Request a [`StatusWatcher`] for a service
     ///
     /// # Panics
+    ///
     /// If the service watcher is not available, although this should never
     /// happen.
     pub async fn status_watcher<Service>(&self) -> StatusWatcher
@@ -121,19 +123,24 @@ where
         })
     }
 
-    /// Send a start signal to the specified service.
+    /// Send an [`OverwatchLifeCycleCommand::StartService`] command to the
+    /// [`OverwatchRunner`](crate::overwatch::OverwatchRunner).
+    ///
+    /// # Arguments
+    ///
+    /// * `Service` - The service type to start.
     ///
     /// # Errors
     ///
-    /// If the start signal cannot be successfully delivered to the specified
-    /// service.
+    /// If the command cannot be sent, or if the
+    /// [`Signal`](finished_signal::Signal) is not received.
     pub async fn start_service<Service>(&self) -> Result<(), ServiceError>
     where
         RuntimeServiceId: AsServiceId<Service>,
     {
-        info!("Starting service with ID {}", RuntimeServiceId::SERVICE_ID);
+        info!("Starting Service with ID {}", RuntimeServiceId::SERVICE_ID);
 
-        let (sender, receiver) = tokio::sync::oneshot::channel();
+        let (sender, receiver) = finished_signal::channel();
         self.send(OverwatchCommand::ServiceLifeCycle(
             ServiceLifeCycleCommand {
                 service_id: RuntimeServiceId::SERVICE_ID,
@@ -141,70 +148,84 @@ where
             },
         ))
         .await
-        .map_err(|e| {
-            debug!("{e:?}");
+        .map_err(|_error| ServiceError::Start)?;
+
+        receiver.await.map_err(|error| {
+            debug!("{error:?}");
             ServiceError::Start
-        })?;
-        receiver.await.map_err(|e| {
-            debug!("{e:?}");
-            ServiceError::Start
-        })?;
-        Ok(())
+        })
     }
 
-    /// Send a start signal to the
-    /// [`OverwatchRunner`](crate::overwatch::OverwatchRunner) signaling it
-    /// to start a list of services.
+    /// Send an [`OverwatchLifeCycleCommand::StartServiceSequence`] command to
+    /// the [`OverwatchRunner`](crate::overwatch::OverwatchRunner).
     ///
     /// # Arguments
     ///
-    /// `service_ids` - A list of service IDs to start.
+    /// * `service_ids` - A list of service IDs to start.
     ///
     /// # Errors
     ///
-    /// Fails silently if the start signal cannot be sent.
+    /// If the command cannot be sent, or if the
+    /// [`Signal`](finished_signal::Signal) is not received.
     pub async fn start_service_sequence(
         &self,
         service_ids: impl IntoIterator<Item = RuntimeServiceId>,
-    ) {
+    ) -> Result<(), ServiceError> {
         let service_ids = service_ids.into_iter().collect::<Vec<RuntimeServiceId>>();
-        info!("Starting services: {:?}", service_ids);
-        let _: Result<(), _> = self
-            .send(OverwatchCommand::OverwatchLifeCycle(
-                OverwatchLifeCycleCommand::StartServiceSequence(service_ids),
-            ))
-            .await
-            .map_err(|e| debug!("{e:?}"));
+        info!("Starting Service Sequence with IDs: {:?}", service_ids);
+
+        let (sender, receiver) = finished_signal::channel();
+        self.send(OverwatchCommand::OverwatchLifeCycle(
+            OverwatchLifeCycleCommand::StartServiceSequence(service_ids, sender),
+        ))
+        .await
+        .map_err(|_error| ServiceError::Start)?;
+
+        receiver.await.map_err(|error| {
+            debug!("{error:?}");
+            ServiceError::Start
+        })
     }
 
-    /// Send a start signal to the
-    /// [`OverwatchRunner`](crate::overwatch::OverwatchRunner) signaling it
-    /// to start all services.
+    /// Send an [`OverwatchLifeCycleCommand::StartAllServices`] command to the
+    /// [`OverwatchRunner`](crate::overwatch::OverwatchRunner).
     ///
     /// # Errors
     ///
-    /// Fails silently if the start signal cannot be sent.
-    pub async fn start_all_services(&self) {
+    /// If the command cannot be sent, or if the
+    /// [`Signal`](finished_signal::Signal) is not received.
+    pub async fn start_all_services(&self) -> Result<(), ServiceError> {
         info!("Starting all services");
-        let _: Result<(), _> = self
-            .send(OverwatchCommand::OverwatchLifeCycle(
-                OverwatchLifeCycleCommand::StartAllServices,
-            ))
-            .await
-            .map_err(|e| debug!("{e:?}"));
+
+        let (sender, receiver) = finished_signal::channel();
+        self.send(OverwatchCommand::OverwatchLifeCycle(
+            OverwatchLifeCycleCommand::StartAllServices(sender),
+        ))
+        .await
+        .map_err(|_error| ServiceError::Start)?;
+
+        receiver.await.map_err(|error| {
+            debug!("{error:?}");
+            ServiceError::Start
+        })
     }
 
-    /// Send a stop signal to the specified service.
+    /// Send an [`OverwatchLifeCycleCommand::StopService`] command to the
+    /// [`OverwatchRunner`](crate::overwatch::OverwatchRunner).
+    ///
+    /// # Arguments
+    ///
+    /// * `Service` - The service type to stop.
     ///
     /// # Errors
     ///
-    /// If the stop signal cannot be successfully delivered to the specified
-    /// service.
+    /// If the stop signal cannot be sent, or if the
+    /// [`Signal`](finished_signal::Signal) is not received.
     pub async fn stop_service<Service>(&self) -> Result<(), ServiceError>
     where
         RuntimeServiceId: AsServiceId<Service>,
     {
-        info!("Stopping service with ID {}", RuntimeServiceId::SERVICE_ID);
+        info!("Stopping Service with ID {}", RuntimeServiceId::SERVICE_ID);
 
         let (sender, receiver) = tokio::sync::oneshot::channel();
         self.send(OverwatchCommand::ServiceLifeCycle(
@@ -214,55 +235,70 @@ where
             },
         ))
         .await
-        .map_err(|e| {
-            debug!("{e:?}");
+        .map_err(|_error| ServiceError::Stop)?;
+
+        receiver.await.map_err(|error| {
+            debug!("{error:?}");
             ServiceError::Stop
-        })?;
-        receiver.await.map_err(|e| {
-            debug!("{e:?}");
-            ServiceError::Stop
-        })?;
-        Ok(())
+        })
     }
 
-    /// Send a stop signal to the
-    /// [`OverwatchRunner`](crate::overwatch::OverwatchRunner)
-    /// signaling it to stop a list of services.
+    /// Send an [`OverwatchLifeCycleCommand::StopServiceSequence`] command to
+    /// the [`OverwatchRunner`](crate::overwatch::OverwatchRunner).
     ///
     /// # Arguments
     ///
-    /// `service_ids` - A list of service IDs to stop.
+    /// * `service_ids` - A list of service IDs to stop.
     ///
     /// # Errors
     ///
-    /// Fails silently if the stop signal cannot be sent.
+    /// If the stop signal cannot be sent, or if the
+    /// [`Signal`](finished_signal::Signal) is not received.
     pub async fn stop_service_sequence(
         &self,
         service_ids: impl IntoIterator<Item = RuntimeServiceId>,
-    ) {
+    ) -> Result<(), ServiceError> {
         let service_ids = service_ids.into_iter().collect::<Vec<RuntimeServiceId>>();
-        info!("Stopping services: {:?}", service_ids);
-        let _: Result<(), _> = self
-            .send(OverwatchCommand::OverwatchLifeCycle(
-                OverwatchLifeCycleCommand::StopServiceSequence(service_ids),
-            ))
-            .await
-            .map_err(|e| debug!("{e:?}"));
+        info!("Stopping Service Sequence with IDs: {:?}", service_ids);
+
+        let (sender, receiver) = finished_signal::channel();
+        self.send(OverwatchCommand::OverwatchLifeCycle(
+            OverwatchLifeCycleCommand::StopServiceSequence(service_ids, sender),
+        ))
+        .await
+        .map_err(|_error| ServiceError::Stop)?;
+
+        receiver.await.map_err(|error| {
+            debug!("{error:?}");
+            ServiceError::Stop
+        })
     }
 
-    pub async fn stop_all_services(&self) {
+    /// Send an [`OverwatchLifeCycleCommand::StopAllServices`] command to the
+    /// [`OverwatchRunner`](crate::overwatch::OverwatchRunner).
+    ///
+    /// # Errors
+    ///
+    /// If the command cannot be sent, or if the
+    /// [`Signal`](finished_signal::Signal) is not received.
+    pub async fn stop_all_services(&self) -> Result<(), ServiceError> {
         info!("Stopping all services");
-        let _: Result<(), _> = self
-            .send(OverwatchCommand::OverwatchLifeCycle(
-                OverwatchLifeCycleCommand::StopAllServices,
-            ))
-            .await
-            .map_err(|e| debug!("{e:?}"));
+
+        let (sender, receiver) = finished_signal::channel();
+        self.send(OverwatchCommand::OverwatchLifeCycle(
+            OverwatchLifeCycleCommand::StopAllServices(sender),
+        ))
+        .await
+        .map_err(|_error| ServiceError::Stop)?;
+
+        receiver.await.map_err(|error| {
+            debug!("{error:?}");
+            ServiceError::Stop
+        })
     }
 
-    /// Send a shutdown signal to the
-    /// [`OverwatchRunner`](crate::overwatch::OverwatchRunner) signaling it
-    /// to stop all services.
+    /// Send an [`OverwatchLifeCycleCommand::Shutdown`] command to the
+    /// [`OverwatchRunner`](crate::overwatch::OverwatchRunner).
     ///
     /// This triggers sending the `finish_runner_signal` to
     /// [`Overwatch`](crate::overwatch::Overwatch). It's the signal which
@@ -271,18 +307,25 @@ where
     ///
     /// # Errors
     ///
-    /// Fails silently if the shutdown signal cannot be sent.
-    pub async fn shutdown(&self) {
+    /// If the command cannot be sent, or if the
+    /// [`Signal`](finished_signal::Signal) is not received.
+    pub async fn shutdown(&self) -> Result<(), OverwatchError> {
         info!("Shutting down Overwatch");
-        let _: Result<(), _> = self
-            .send(OverwatchCommand::OverwatchLifeCycle(
-                OverwatchLifeCycleCommand::Shutdown,
-            ))
-            .await
-            .map_err(|e| debug!("{e:?}"));
+
+        let (sender, receiver) = finished_signal::channel();
+        self.send(OverwatchCommand::OverwatchLifeCycle(
+            OverwatchLifeCycleCommand::Shutdown(sender),
+        ))
+        .await
+        .map_err(|_error| OverwatchError::Shutdown)?;
+
+        receiver.await.map_err(|error| {
+            debug!("{error:?}");
+            OverwatchError::Shutdown
+        })
     }
 
-    /// Send an overwatch command to the
+    /// Send a command to the
     /// [`OverwatchRunner`](crate::overwatch::OverwatchRunner).
     ///
     /// # Errors
@@ -297,9 +340,9 @@ where
         &self,
         command: OverwatchCommand<RuntimeServiceId>,
     ) -> Result<(), SendError<OverwatchCommand<RuntimeServiceId>>> {
-        self.sender.send(command).await.map_err(|e| {
-            error!(error=?e, "Error sending overwatch command");
-            e
+        self.sender.send(command).await.map_err(|error| {
+            error!(error=?error, "Error while sending an Overwatch command");
+            error
         })
     }
 
