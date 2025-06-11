@@ -195,7 +195,7 @@ fn test_start() {
     assert_eq!(status_watcher_b.current(), ServiceStatus::Stopped);
     assert_eq!(status_watcher_c.current(), ServiceStatus::Stopped);
 
-    overwatch.runtime().block_on(overwatch.handle().shutdown());
+    let _ = overwatch.runtime().block_on(overwatch.handle().shutdown());
 }
 
 #[test]
@@ -206,7 +206,7 @@ fn test_start_list() {
         <RuntimeServiceId as AsServiceId<ServiceB>>::SERVICE_ID,
     ];
 
-    overwatch
+    let _ = overwatch
         .runtime()
         .block_on(overwatch.handle().start_service_sequence(services));
 
@@ -224,13 +224,13 @@ fn test_start_list() {
     assert_eq!(status_watcher_b.current(), ServiceStatus::Ready);
     assert_eq!(status_watcher_c.current(), ServiceStatus::Stopped);
 
-    overwatch.runtime().block_on(overwatch.handle().shutdown());
+    let _ = overwatch.runtime().block_on(overwatch.handle().shutdown());
 }
 
 #[test]
 fn test_start_all() {
     let overwatch = initialize();
-    overwatch
+    let _ = overwatch
         .runtime()
         .block_on(overwatch.handle().start_all_services());
 
@@ -248,13 +248,13 @@ fn test_start_all() {
     assert_eq!(status_watcher_b.current(), ServiceStatus::Ready);
     assert_eq!(status_watcher_c.current(), ServiceStatus::Ready);
 
-    overwatch.runtime().block_on(overwatch.handle().shutdown());
+    let _ = overwatch.runtime().block_on(overwatch.handle().shutdown());
 }
 
 #[test]
 fn test_stop() {
     let overwatch = initialize();
-    overwatch
+    let _ = overwatch
         .runtime()
         .block_on(overwatch.handle().start_all_services());
 
@@ -277,13 +277,13 @@ fn test_stop() {
     assert_eq!(status_watcher_b.current(), ServiceStatus::Ready);
     assert_eq!(status_watcher_c.current(), ServiceStatus::Ready);
 
-    overwatch.runtime().block_on(overwatch.handle().shutdown());
+    let _ = overwatch.runtime().block_on(overwatch.handle().shutdown());
 }
 
 #[test]
 fn test_stop_list() {
     let overwatch = initialize();
-    overwatch
+    let _ = overwatch
         .runtime()
         .block_on(overwatch.handle().start_all_services());
 
@@ -301,7 +301,7 @@ fn test_stop_list() {
         <RuntimeServiceId as AsServiceId<ServiceA>>::SERVICE_ID,
         <RuntimeServiceId as AsServiceId<ServiceB>>::SERVICE_ID,
     ];
-    overwatch
+    let _ = overwatch
         .runtime()
         .block_on(overwatch.handle().stop_service_sequence(services));
 
@@ -316,13 +316,13 @@ fn test_stop_list() {
     assert_eq!(status_watcher_b.current(), ServiceStatus::Stopped);
     assert_eq!(status_watcher_c.current(), ServiceStatus::Ready);
 
-    overwatch.runtime().block_on(overwatch.handle().shutdown());
+    let _ = overwatch.runtime().block_on(overwatch.handle().shutdown());
 }
 
 #[test]
 fn test_stop_all() {
     let overwatch = initialize();
-    overwatch
+    let _ = overwatch
         .runtime()
         .block_on(overwatch.handle().start_all_services());
 
@@ -336,7 +336,7 @@ fn test_stop_all() {
         .runtime()
         .block_on(overwatch.handle().status_watcher::<ServiceC>());
 
-    overwatch
+    let _ = overwatch
         .runtime()
         .block_on(overwatch.handle().stop_all_services());
 
@@ -352,5 +352,5 @@ fn test_stop_all() {
     assert_eq!(status_watcher_b.current(), ServiceStatus::Stopped);
     assert_eq!(status_watcher_c.current(), ServiceStatus::Stopped);
 
-    overwatch.runtime().block_on(overwatch.handle().shutdown());
+    let _ = overwatch.runtime().block_on(overwatch.handle().shutdown());
 }

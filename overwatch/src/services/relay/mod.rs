@@ -37,7 +37,7 @@ pub mod inbound_relay_retriever {
     }
 }
 
-pub use errors::{RelayError, ServiceError};
+pub use errors::RelayError;
 pub use inbound::InboundRelay;
 pub use outbound::OutboundRelay;
 

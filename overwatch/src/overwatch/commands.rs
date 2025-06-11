@@ -3,6 +3,7 @@ use tokio::sync::oneshot;
 use crate::{
     overwatch::AnySettings,
     services::{lifecycle::LifecycleMessage, relay::AnyMessage, status::StatusWatcher},
+    utils::finished_signal,
 };
 
 #[derive(Debug)]
@@ -49,21 +50,20 @@ pub struct ServiceLifeCycleCommand<RuntimeServiceId> {
 
 /// Command for managing [`Overwatch`](crate::overwatch::Overwatch)
 /// lifecycle.
-// TODO: Due to the variant's names a broader `OverwatchCommand` might be more suitable.
 #[derive(Debug)]
 pub enum OverwatchLifeCycleCommand<RuntimeServiceId> {
     /// Starts a sequence of `Service`s associated with an
     /// [`Overwatch`](crate::overwatch::Overwatch) instance.
-    StartServiceSequence(Vec<RuntimeServiceId>),
+    StartServiceSequence(Vec<RuntimeServiceId>, finished_signal::Sender),
     /// Starts all `Service`s associated with an
     /// [`Overwatch`](crate::overwatch::Overwatch) instance.
-    StartAllServices,
+    StartAllServices(finished_signal::Sender),
     /// Stops a sequence of `Service`s associated with an
     /// [`Overwatch`](crate::overwatch::Overwatch) instance.
-    StopServiceSequence(Vec<RuntimeServiceId>),
+    StopServiceSequence(Vec<RuntimeServiceId>, finished_signal::Sender),
     /// Stops all `Service`s associated with an
     /// [`Overwatch`](crate::overwatch::Overwatch) instance.
-    StopAllServices,
+    StopAllServices(finished_signal::Sender),
     /// Shuts down [`Overwatch`](crate::overwatch::Overwatch), sending the
     /// `finish_runner_signal`
     /// to [`Overwatch`](crate::overwatch::Overwatch). It's the signal which
@@ -73,7 +73,7 @@ pub enum OverwatchLifeCycleCommand<RuntimeServiceId> {
     /// This message is final: It stops all `Service`s (and their respective
     /// [`ServiceRunner`](crate::services::runner::ServiceRunner)s) so
     /// `Service`s can't be started again.
-    Shutdown,
+    Shutdown(finished_signal::Sender),
 }
 
 /// [`Overwatch`](crate::overwatch::Overwatch) settings update command.
@@ -81,6 +81,11 @@ pub enum OverwatchLifeCycleCommand<RuntimeServiceId> {
 pub struct SettingsCommand(pub(crate) AnySettings);
 
 /// [`Overwatch`](crate::overwatch::Overwatch) tasks related commands.
+// TODO: I'm not too convinced about having the two lifecycle variants, `ServiceLifeCycle` and
+//  `OverwatchLifeCycle`. It made sense before, but currently they overlap:
+//  `ServiceLifeCycleCommand` contains commands directed towards a single `Service`, while
+//  `OverwatchLifeCycleCommand` contains commands directed towards multiple `Service`s or the
+//  entire `Overwatch` instance. I think merging them would slightly lower the cognitive load.
 #[derive(Debug)]
 pub enum OverwatchCommand<RuntimeServiceId> {
     Relay(RelayCommand<RuntimeServiceId>),

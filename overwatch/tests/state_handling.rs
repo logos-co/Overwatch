@@ -124,7 +124,7 @@ fn state_update_service() {
 
     overwatch.spawn(async move {
         sleep(Duration::from_secs(1)).await;
-        handle.shutdown().await;
+        let _ = handle.shutdown().await;
     });
     overwatch.wait_finished();
 }

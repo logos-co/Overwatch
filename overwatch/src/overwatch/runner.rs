@@ -96,54 +96,62 @@ where
             info!(command = ?command, "Overwatch command received");
             match command {
                 OverwatchCommand::Relay(relay_command) => {
-                    Self::handle_relay(&mut services, relay_command);
+                    Self::handle_relay_command(&mut services, relay_command);
                 }
                 OverwatchCommand::Status(status_command) => {
-                    Self::handle_status(&services, status_command);
+                    Self::handle_status_command(&services, status_command);
                 }
                 OverwatchCommand::ServiceLifeCycle(msg) => {
-                    let ServiceLifeCycleCommand {
-                        service_id,
-                        msg: lifecycle_msg,
-                    } = msg;
-                    let lifecycle_notifier = services.get_service_lifecycle_notifier(&service_id);
-                    if let Err(e) = lifecycle_notifier.send(lifecycle_msg).await {
-                        error!(e);
-                    }
+                    Self::handle_service_lifecycle_command(&mut services, msg).await;
                 }
                 OverwatchCommand::OverwatchLifeCycle(command) => match command {
-                    OverwatchLifeCycleCommand::StartServiceSequence(service_ids) => {
-                        if let Err(e) = services.start_sequence(service_ids.as_slice()).await {
-                            error!(error=?e, "Error starting services: {service_ids:#?}");
+                    OverwatchLifeCycleCommand::StartServiceSequence(service_ids, sender) => {
+                        if let Err(error) = services.start_sequence(service_ids.as_slice()).await {
+                            error!(error=?error, "Error starting services: {service_ids:#?}");
+                        }
+                        if let Err(error) = sender.send(()) {
+                            error!(error=?error, "Error sending StartServiceSequence finished signal.");
                         }
                     }
-                    OverwatchLifeCycleCommand::StartAllServices => {
-                        if let Err(e) = services.start_all().await {
-                            error!(error=?e, "Error starting all services.");
+                    OverwatchLifeCycleCommand::StartAllServices(sender) => {
+                        if let Err(error) = services.start_all().await {
+                            error!(error=?error, "Error starting all services.");
+                        }
+                        if let Err(error) = sender.send(()) {
+                            error!(error=?error, "Error sending StartAllServices finished signal.");
                         }
                     }
-                    OverwatchLifeCycleCommand::StopServiceSequence(service_ids) => {
-                        if let Err(e) = services.stop_sequence(service_ids.as_slice()).await {
-                            error!(error=?e, "Error stopping services: {service_ids:#?}");
+                    OverwatchLifeCycleCommand::StopServiceSequence(service_ids, sender) => {
+                        if let Err(error) = services.stop_sequence(service_ids.as_slice()).await {
+                            error!(error=?error, "Error stopping services: {service_ids:#?}");
+                        }
+                        if let Err(error) = sender.send(()) {
+                            error!(error=?error, "Error sending StopServiceSequence finished signal.");
                         }
                     }
-                    OverwatchLifeCycleCommand::StopAllServices => {
-                        if let Err(e) = services.stop_all().await {
-                            error!(error=?e, "Error stopping all services.");
+                    OverwatchLifeCycleCommand::StopAllServices(sender) => {
+                        if let Err(error) = services.stop_all().await {
+                            error!(error=?error, "Error stopping all services.");
+                        }
+                        if let Err(error) = sender.send(()) {
+                            error!(error=?error, "Error sending StopAllServices finished signal.");
                         }
                     }
-                    OverwatchLifeCycleCommand::Shutdown => {
-                        if let Err(e) = services.stop_all().await {
-                            error!(error=?e, "Error stopping all services during teardown.");
+                    OverwatchLifeCycleCommand::Shutdown(sender) => {
+                        if let Err(error) = services.stop_all().await {
+                            error!(error=?error, "Error stopping all services during teardown.");
                         }
-                        if let Err(e) = services.teardown().await {
-                            error!(error=?e, "Error tearing down services.");
+                        if let Err(error) = services.teardown().await {
+                            error!(error=?error, "Error tearing down services.");
+                        }
+                        if let Err(error) = sender.send(()) {
+                            error!(error=?error, "Error sending Shutdown finished signal.");
                         }
                         break;
                     }
                 },
                 OverwatchCommand::Settings(settings) => {
-                    Self::handle_settings_update(&mut services, settings);
+                    Self::handle_settings_command(&mut services, settings);
                 }
             }
         }
@@ -153,29 +161,47 @@ where
             .expect("Overwatch run finish signal to be sent properly");
     }
 
-    fn handle_relay(
+    /// Handle a [`RelayCommand`].
+    ///
+    /// # Arguments
+    ///
+    /// * `services`: The [`Services`] instance to handle the command for.
+    /// * `RelayCommand`: The command to handle.
+    fn handle_relay_command(
         services: &mut ServicesImpl,
-        command: RelayCommand<ServicesImpl::RuntimeServiceId>,
-    ) {
-        let RelayCommand {
+        RelayCommand {
             service_id,
             reply_channel,
-        } = command;
-        // Send the requested reply channel result to the requesting service
+        }: RelayCommand<ServicesImpl::RuntimeServiceId>,
+    ) {
         if let Err(e) = reply_channel.reply(services.request_relay(&service_id)) {
             info!(error=?e, "Error requesting relay for service {service_id:#?}");
         }
     }
 
-    fn handle_settings_update(services: &mut ServicesImpl, command: SettingsCommand) {
-        let SettingsCommand(settings) = command;
+    /// Handle a [`StatusCommand`].
+    ///
+    /// # Arguments
+    ///
+    /// * `services`: The [`Services`] instance to handle the command for.
+    /// * `SettingsCommand`: The command to handle.
+    fn handle_settings_command(
+        services: &mut ServicesImpl,
+        SettingsCommand(settings): SettingsCommand,
+    ) {
         let Ok(settings) = settings.downcast::<ServicesImpl::Settings>() else {
             unreachable!("Statically should always be of the correct type");
         };
         services.update_settings(*settings);
     }
 
-    fn handle_status(
+    /// Handle a [`StatusCommand`].
+    ///
+    /// # Arguments
+    ///
+    /// * `services`: The [`Services`] instance to handle the command for.
+    /// * `StatusCommand`: The command to handle.
+    fn handle_status_command(
         services: &ServicesImpl,
         StatusCommand {
             service_id,
@@ -185,6 +211,31 @@ where
         let watcher = services.request_status_watcher(&service_id);
         if reply_channel.reply(watcher).is_err() {
             error!("Error reporting back status watcher for service: {service_id:#?}");
+        }
+    }
+
+    /// Handle a [`ServiceLifeCycleCommand`].
+    ///
+    /// # Arguments
+    ///
+    /// * `services`: The [`Services`] instance to handle the command for.
+    /// * `ServiceLifeCycleCommand`: The command to handle.
+    ///
+    /// # Notes
+    ///
+    /// * Because this method is async and takes a `ServicesImpl` reference, it
+    ///   would need to propagate `Sync` traits. To avoid this, we use a `&mut
+    ///   ServicesImpl` reference.
+    #[expect(clippy::needless_pass_by_ref_mut)]
+    async fn handle_service_lifecycle_command(
+        services: &mut ServicesImpl,
+        ServiceLifeCycleCommand { service_id, msg }: ServiceLifeCycleCommand<
+            ServicesImpl::RuntimeServiceId,
+        >,
+    ) {
+        let lifecycle_notifier = services.get_service_lifecycle_notifier(&service_id);
+        if let Err(e) = lifecycle_notifier.send(msg).await {
+            error!(e);
         }
     }
 }

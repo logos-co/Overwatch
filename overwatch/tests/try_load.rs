@@ -91,7 +91,7 @@ impl ServiceCore<RuntimeServiceId> for TryLoad {
             .get_updated_settings()
             .origin_sender;
         sender.send(String::from("Service::run")).unwrap();
-        service_resources_handle.overwatch_handle.shutdown().await;
+        let _ = service_resources_handle.overwatch_handle.shutdown().await;
         Ok(())
     }
 }

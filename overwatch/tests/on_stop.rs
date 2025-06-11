@@ -78,7 +78,7 @@ fn on_stop() {
 
     let handle = overwatch.handle();
     let runtime = handle.runtime();
-    runtime.block_on(handle.start_all_services());
+    let _ = runtime.block_on(handle.start_all_services());
 
     // Wait until the service is alive to stop it
     is_alive_receiver
@@ -86,13 +86,13 @@ fn on_stop() {
         .expect("Failed to receive the is_alive signal");
 
     // Stop all services
-    runtime.block_on(handle.stop_all_services());
+    let _ = runtime.block_on(handle.stop_all_services());
 
     // Wait for the on_stop signal (sent from `Drop`)
     on_stop_receiver
         .recv()
         .expect("Failed to receive the on_stop signal");
 
-    runtime.block_on(handle.shutdown());
+    let _ = runtime.block_on(handle.shutdown());
     overwatch.wait_finished();
 }

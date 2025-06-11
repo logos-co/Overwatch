@@ -249,6 +249,6 @@ fn test_lifecycle() {
     };
     assert_eq!(state_value, 3);
 
-    runtime.block_on(handle.shutdown());
+    let _ = runtime.block_on(handle.shutdown());
     app.wait_finished();
 }

@@ -84,7 +84,7 @@ fn settings_service_update_settings() {
 
     overwatch.spawn(async move {
         sleep(Duration::from_secs(1)).await;
-        handle2.shutdown().await;
+        let _ = handle2.shutdown().await;
     });
 
     overwatch.wait_finished();

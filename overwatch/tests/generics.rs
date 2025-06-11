@@ -126,7 +126,7 @@ fn derive_generic_service() {
     let handle = overwatch.handle().clone();
     overwatch.spawn(async move {
         sleep(Duration::from_secs(1)).await;
-        handle.shutdown().await;
+        let _ = handle.shutdown().await;
     });
     overwatch.wait_finished();
 }
