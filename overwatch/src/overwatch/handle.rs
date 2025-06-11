@@ -125,7 +125,7 @@ where
         })
     }
 
-    /// Send an [`OverwatchCommand::StartService`] command to the
+    /// Send a [`ServiceLifecycleCommand::StartService`] command to the
     /// [`OverwatchRunner`](crate::overwatch::OverwatchRunner).
     ///
     /// # Arguments
@@ -160,7 +160,7 @@ where
         })
     }
 
-    /// Send an [`OverwatchCommand::StartServiceSequence`] command to
+    /// Send a [`ServiceLifecycleCommand::StartServiceSequence`] command to
     /// the [`OverwatchRunner`](crate::overwatch::OverwatchRunner).
     ///
     /// # Arguments
@@ -196,7 +196,7 @@ where
         })
     }
 
-    /// Send an [`OverwatchCommand::StartAllServices`] command to the
+    /// Send a [`ServiceLifecycleCommand::StartAllServices`] command to the
     /// [`OverwatchRunner`](crate::overwatch::OverwatchRunner).
     ///
     /// # Errors
@@ -221,7 +221,7 @@ where
         })
     }
 
-    /// Send an [`OverwatchCommand::StopService`] command to the
+    /// Send a [`ServiceLifecycleCommand::StopService`] command to the
     /// [`OverwatchRunner`](crate::overwatch::OverwatchRunner).
     ///
     /// # Arguments
@@ -256,7 +256,7 @@ where
         })
     }
 
-    /// Send an [`OverwatchCommand::StopServiceSequence`] command to
+    /// Send a [`ServiceLifecycleCommand::StopServiceSequence`] command to
     /// the [`OverwatchRunner`](crate::overwatch::OverwatchRunner).
     ///
     /// # Arguments
@@ -292,7 +292,7 @@ where
         })
     }
 
-    /// Send an [`OverwatchCommand::StopAllServices`] command to the
+    /// Send a [`ServiceLifecycleCommand::StopAllServices`] command to the
     /// [`OverwatchRunner`](crate::overwatch::OverwatchRunner).
     ///
     /// # Errors
@@ -317,7 +317,7 @@ where
         })
     }
 
-    /// Send an [`OverwatchCommand::Shutdown`] command to the
+    /// Send a [`ServiceLifecycleCommand::Shutdown`] command to the
     /// [`OverwatchRunner`](crate::overwatch::OverwatchRunner).
     ///
     /// This triggers sending the `finish_runner_signal` to
