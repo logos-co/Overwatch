@@ -151,7 +151,7 @@ mod test {
 
         overwatch.spawn(async move {
             sleep(Duration::from_millis(500)).await;
-            handle.shutdown().await;
+            let _ = handle.shutdown().await;
         });
 
         overwatch.wait_finished();
@@ -164,7 +164,7 @@ mod test {
 
         overwatch.spawn(async move {
             sleep(Duration::from_millis(500)).await;
-            handle.shutdown().await;
+            let _ = handle.shutdown().await;
         });
 
         overwatch.wait_finished();

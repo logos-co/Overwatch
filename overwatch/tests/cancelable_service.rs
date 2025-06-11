@@ -75,7 +75,7 @@ fn run_overwatch_then_shutdown_service_and_kill() {
             .await;
         // wait service finished
         receiver.await.unwrap();
-        handle.shutdown().await;
+        let _ = handle.shutdown().await;
     });
     overwatch.wait_finished();
 }
