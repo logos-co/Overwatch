@@ -8,11 +8,12 @@ use tracing::{error, info};
 use crate::{
     overwatch::{
         commands::{
-            OverwatchCommand, OverwatchLifeCycleCommand, RelayCommand, ServiceLifeCycleCommand,
-            SettingsCommand, StatusCommand,
+            OverwatchCommand, OverwatchLifecycleCommand, RelayCommand, ServiceAllCommand,
+            ServiceLifecycleCommand, ServiceSequenceCommand, ServiceSingleCommand, SettingsCommand,
+            StatusCommand,
         },
         handle::OverwatchHandle,
-        Overwatch, Services,
+        Error, Overwatch, Services,
     },
     utils::{finished_signal, runtime::default_multithread_runtime},
     DynError,
@@ -101,43 +102,15 @@ where
                 OverwatchCommand::Status(status_command) => {
                     Self::handle_status_command(&services, status_command);
                 }
-                OverwatchCommand::ServiceLifeCycle(msg) => {
-                    Self::handle_service_lifecycle_command(&mut services, msg).await;
+                OverwatchCommand::ServiceLifecycle(service_lifecycle_command) => {
+                    Self::handle_service_lifecycle_command(
+                        &mut services,
+                        service_lifecycle_command,
+                    )
+                    .await;
                 }
-                OverwatchCommand::OverwatchLifeCycle(command) => match command {
-                    OverwatchLifeCycleCommand::StartServiceSequence(service_ids, sender) => {
-                        if let Err(error) = services.start_sequence(service_ids.as_slice()).await {
-                            error!(error=?error, "Error starting services: {service_ids:#?}");
-                        }
-                        if let Err(error) = sender.send(()) {
-                            error!(error=?error, "Error sending StartServiceSequence finished signal.");
-                        }
-                    }
-                    OverwatchLifeCycleCommand::StartAllServices(sender) => {
-                        if let Err(error) = services.start_all().await {
-                            error!(error=?error, "Error starting all services.");
-                        }
-                        if let Err(error) = sender.send(()) {
-                            error!(error=?error, "Error sending StartAllServices finished signal.");
-                        }
-                    }
-                    OverwatchLifeCycleCommand::StopServiceSequence(service_ids, sender) => {
-                        if let Err(error) = services.stop_sequence(service_ids.as_slice()).await {
-                            error!(error=?error, "Error stopping services: {service_ids:#?}");
-                        }
-                        if let Err(error) = sender.send(()) {
-                            error!(error=?error, "Error sending StopServiceSequence finished signal.");
-                        }
-                    }
-                    OverwatchLifeCycleCommand::StopAllServices(sender) => {
-                        if let Err(error) = services.stop_all().await {
-                            error!(error=?error, "Error stopping all services.");
-                        }
-                        if let Err(error) = sender.send(()) {
-                            error!(error=?error, "Error sending StopAllServices finished signal.");
-                        }
-                    }
-                    OverwatchLifeCycleCommand::Shutdown(sender) => {
+                OverwatchCommand::OverwatchLifecycle(command) => match command {
+                    OverwatchLifecycleCommand::Shutdown(sender) => {
                         if let Err(error) = services.stop_all().await {
                             error!(error=?error, "Error stopping all services during teardown.");
                         }
@@ -155,7 +128,9 @@ where
                 }
             }
         }
+
         // Signal that we finished execution
+        info!("OverwatchRunner finished execution, sending the finish signal.");
         finish_signal_sender
             .send(())
             .expect("Overwatch run finish signal to be sent properly");
@@ -214,28 +189,100 @@ where
         }
     }
 
-    /// Handle a [`ServiceLifeCycleCommand`].
+    /// Handle a [`ServiceLifecycleCommand`].
     ///
     /// # Arguments
     ///
     /// * `services`: The [`Services`] instance to handle the command for.
-    /// * `ServiceLifeCycleCommand`: The command to handle.
+    /// * `command`: The command to handle.
     ///
     /// # Notes
     ///
     /// * Because this method is async and takes a `ServicesImpl` reference, it
     ///   would need to propagate `Sync` traits. To avoid this, we use a `&mut
     ///   ServicesImpl` reference.
-    #[expect(clippy::needless_pass_by_ref_mut)]
     async fn handle_service_lifecycle_command(
         services: &mut ServicesImpl,
-        ServiceLifeCycleCommand { service_id, msg }: ServiceLifeCycleCommand<
-            ServicesImpl::RuntimeServiceId,
-        >,
+        command: ServiceLifecycleCommand<ServicesImpl::RuntimeServiceId>,
     ) {
-        let lifecycle_notifier = services.get_service_lifecycle_notifier(&service_id);
-        if let Err(e) = lifecycle_notifier.send(msg).await {
-            error!(e);
+        match command {
+            ServiceLifecycleCommand::StartService(ServiceSingleCommand { service_id, sender }) => {
+                handle_service_lifecycle_command_operation(
+                    services.start(&service_id),
+                    sender,
+                    "StartService",
+                )
+                .await;
+            }
+            ServiceLifecycleCommand::StartServiceSequence(ServiceSequenceCommand {
+                service_ids,
+                sender,
+            }) => {
+                handle_service_lifecycle_command_operation(
+                    services.start_sequence(service_ids.as_slice()),
+                    sender,
+                    "StartServiceSequence",
+                )
+                .await;
+            }
+            ServiceLifecycleCommand::StartAllServices(ServiceAllCommand { sender }) => {
+                handle_service_lifecycle_command_operation(
+                    services.start_all(),
+                    sender,
+                    "StartAllServices",
+                )
+                .await;
+            }
+            ServiceLifecycleCommand::StopService(ServiceSingleCommand { service_id, sender }) => {
+                handle_service_lifecycle_command_operation(
+                    services.stop(&service_id),
+                    sender,
+                    "StopService",
+                )
+                .await;
+            }
+            ServiceLifecycleCommand::StopServiceSequence(ServiceSequenceCommand {
+                service_ids,
+                sender,
+            }) => {
+                handle_service_lifecycle_command_operation(
+                    services.stop_sequence(service_ids.as_slice()),
+                    sender,
+                    "StopServiceSequence",
+                )
+                .await;
+            }
+            ServiceLifecycleCommand::StopAllServices(ServiceAllCommand { sender }) => {
+                handle_service_lifecycle_command_operation(
+                    services.stop_all(),
+                    sender,
+                    "StopAllServices",
+                )
+                .await;
+            }
         }
+    }
+}
+
+/// Handle a [`ServiceLifecycleCommand`] operation.
+///
+/// # Arguments
+///
+/// * `operation`: The operation to run. A future which should return a
+///   `Result<(), Error>`.
+/// * `sender`: The sender for the finished signal.
+/// * `operation_name`: The name of the operation, used for logging purposes.
+async fn handle_service_lifecycle_command_operation<F>(
+    operation: F,
+    sender: finished_signal::Sender,
+    operation_name: &str,
+) where
+    F: std::future::Future<Output = Result<(), Error>> + Send,
+{
+    if let Err(error) = operation.await {
+        error!(error=?error, "Error while running {operation_name} operation.");
+    }
+    if let Err(error) = sender.send(()) {
+        error!(error=?error, "Error while sending the finished signal for {operation_name} operation.");
     }
 }
