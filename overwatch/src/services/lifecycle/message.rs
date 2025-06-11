@@ -1,6 +1,7 @@
 use crate::utils::finished_signal;
 
-/// Message type for `Service` lifecycle events.
+/// Message type for
+/// [`LifecycleHandle`](crate::services::lifecycle::handle::LifecycleHandle).
 #[derive(Debug)]
 pub enum LifecycleMessage {
     /// Starts the `Service`.
