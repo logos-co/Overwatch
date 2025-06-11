@@ -96,13 +96,13 @@ where
             info!(command = ?command, "Overwatch command received");
             match command {
                 OverwatchCommand::Relay(relay_command) => {
-                    Self::handle_relay(&mut services, relay_command);
+                    Self::handle_relay_command(&mut services, relay_command);
                 }
                 OverwatchCommand::Status(status_command) => {
-                    Self::handle_status(&services, status_command);
+                    Self::handle_status_command(&services, status_command);
                 }
                 OverwatchCommand::ServiceLifeCycle(msg) => {
-                    Self::handle_service_lifecycle(&mut services, msg).await;
+                    Self::handle_service_lifecycle_command(&mut services, msg).await;
                 }
                 OverwatchCommand::OverwatchLifeCycle(command) => match command {
                     OverwatchLifeCycleCommand::StartServiceSequence(service_ids, sender) => {
@@ -151,7 +151,7 @@ where
                     }
                 },
                 OverwatchCommand::Settings(settings) => {
-                    Self::handle_settings_update(&mut services, settings);
+                    Self::handle_settings_command(&mut services, settings);
                 }
             }
         }
@@ -161,29 +161,47 @@ where
             .expect("Overwatch run finish signal to be sent properly");
     }
 
-    fn handle_relay(
+    /// Handle a [`RelayCommand`].
+    ///
+    /// # Arguments
+    ///
+    /// * `services`: The [`Services`] instance to handle the command for.
+    /// * `RelayCommand`: The command to handle.
+    fn handle_relay_command(
         services: &mut ServicesImpl,
-        command: RelayCommand<ServicesImpl::RuntimeServiceId>,
-    ) {
-        let RelayCommand {
+        RelayCommand {
             service_id,
             reply_channel,
-        } = command;
-        // Send the requested reply channel result to the requesting service
+        }: RelayCommand<ServicesImpl::RuntimeServiceId>,
+    ) {
         if let Err(e) = reply_channel.reply(services.request_relay(&service_id)) {
             info!(error=?e, "Error requesting relay for service {service_id:#?}");
         }
     }
 
-    fn handle_settings_update(services: &mut ServicesImpl, command: SettingsCommand) {
-        let SettingsCommand(settings) = command;
+    /// Handle a [`StatusCommand`].
+    ///
+    /// # Arguments
+    ///
+    /// * `services`: The [`Services`] instance to handle the command for.
+    /// * `SettingsCommand`: The command to handle.
+    fn handle_settings_command(
+        services: &mut ServicesImpl,
+        SettingsCommand(settings): SettingsCommand,
+    ) {
         let Ok(settings) = settings.downcast::<ServicesImpl::Settings>() else {
             unreachable!("Statically should always be of the correct type");
         };
         services.update_settings(*settings);
     }
 
-    fn handle_status(
+    /// Handle a [`StatusCommand`].
+    ///
+    /// # Arguments
+    ///
+    /// * `services`: The [`Services`] instance to handle the command for.
+    /// * `StatusCommand`: The command to handle.
+    fn handle_status_command(
         services: &ServicesImpl,
         StatusCommand {
             service_id,
@@ -209,7 +227,7 @@ where
     ///   would need to propagate `Sync` traits. To avoid this, we use a `&mut
     ///   ServicesImpl` reference.
     #[expect(clippy::needless_pass_by_ref_mut)]
-    async fn handle_service_lifecycle(
+    async fn handle_service_lifecycle_command(
         services: &mut ServicesImpl,
         ServiceLifeCycleCommand { service_id, msg }: ServiceLifeCycleCommand<
             ServicesImpl::RuntimeServiceId,
