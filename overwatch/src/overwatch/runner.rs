@@ -13,7 +13,7 @@ use crate::{
             StatusCommand,
         },
         handle::OverwatchHandle,
-        Overwatch, Services,
+        Error, Overwatch, Services,
     },
     utils::{finished_signal, runtime::default_multithread_runtime},
     DynError,
@@ -130,7 +130,7 @@ where
         }
 
         // Signal that we finished execution
-        info!("OverwatchRunner finished execution, sending finish signal.");
+        info!("OverwatchRunner finished execution, sending the finish signal.");
         finish_signal_sender
             .send(())
             .expect("Overwatch run finish signal to be sent properly");
@@ -189,65 +189,100 @@ where
         }
     }
 
+    /// Handle a [`ServiceLifecycleCommand`].
+    ///
+    /// # Arguments
+    ///
+    /// * `services`: The [`Services`] instance to handle the command for.
+    /// * `command`: The command to handle.
+    ///
+    /// # Notes
+    ///
+    /// * Because this method is async and takes a `ServicesImpl` reference, it
+    ///   would need to propagate `Sync` traits. To avoid this, we use a `&mut
+    ///   ServicesImpl` reference.
     async fn handle_service_lifecycle_command(
         services: &mut ServicesImpl,
         command: ServiceLifecycleCommand<ServicesImpl::RuntimeServiceId>,
     ) {
         match command {
             ServiceLifecycleCommand::StartService(ServiceSingleCommand { service_id, sender }) => {
-                if let Err(error) = services.start(&service_id).await {
-                    error!(error=?error, "Error starting service: {service_id:#?}");
-                }
-                if let Err(error) = sender.send(()) {
-                    error!(error=?error, "Error sending StartService finished signal.");
-                }
+                handle_service_lifecycle_command_operation(
+                    services.start(&service_id),
+                    sender,
+                    "StartService",
+                )
+                .await;
             }
             ServiceLifecycleCommand::StartServiceSequence(ServiceSequenceCommand {
                 service_ids,
                 sender,
             }) => {
-                if let Err(error) = services.start_sequence(service_ids.as_slice()).await {
-                    error!(error=?error, "Error starting services: {service_ids:#?}");
-                }
-                if let Err(error) = sender.send(()) {
-                    error!(error=?error, "Error sending StartServiceSequence finished signal.");
-                }
+                handle_service_lifecycle_command_operation(
+                    services.start_sequence(service_ids.as_slice()),
+                    sender,
+                    "StartServiceSequence",
+                )
+                .await;
             }
             ServiceLifecycleCommand::StartAllServices(ServiceAllCommand { sender }) => {
-                if let Err(error) = services.start_all().await {
-                    error!(error=?error, "Error starting all services.");
-                }
-                if let Err(error) = sender.send(()) {
-                    error!(error=?error, "Error sending StartAllServices finished signal.");
-                }
+                handle_service_lifecycle_command_operation(
+                    services.start_all(),
+                    sender,
+                    "StartAllServices",
+                )
+                .await;
             }
             ServiceLifecycleCommand::StopService(ServiceSingleCommand { service_id, sender }) => {
-                if let Err(error) = services.stop(&service_id).await {
-                    error!(error=?error, "Error stopping service: {service_id:#?}");
-                }
-                if let Err(error) = sender.send(()) {
-                    error!(error=?error, "Error sending StopService finished signal.");
-                }
+                handle_service_lifecycle_command_operation(
+                    services.stop(&service_id),
+                    sender,
+                    "StopService",
+                )
+                .await;
             }
             ServiceLifecycleCommand::StopServiceSequence(ServiceSequenceCommand {
                 service_ids,
                 sender,
             }) => {
-                if let Err(error) = services.stop_sequence(service_ids.as_slice()).await {
-                    error!(error=?error, "Error stopping services: {service_ids:#?}");
-                }
-                if let Err(error) = sender.send(()) {
-                    error!(error=?error, "Error sending StopServiceSequence finished signal.");
-                }
+                handle_service_lifecycle_command_operation(
+                    services.stop_sequence(service_ids.as_slice()),
+                    sender,
+                    "StopServiceSequence",
+                )
+                .await;
             }
             ServiceLifecycleCommand::StopAllServices(ServiceAllCommand { sender }) => {
-                if let Err(error) = services.stop_all().await {
-                    error!(error=?error, "Error stopping all services.");
-                }
-                if let Err(error) = sender.send(()) {
-                    error!(error=?error, "Error sending StopAllServices finished signal.");
-                }
+                handle_service_lifecycle_command_operation(
+                    services.stop_all(),
+                    sender,
+                    "StopAllServices",
+                )
+                .await;
             }
         }
+    }
+}
+
+/// Handle a [`ServiceLifecycleCommand`] operation.
+///
+/// # Arguments
+///
+/// * `operation`: The operation to run. A future which should return a
+///   `Result<(), Error>`.
+/// * `sender`: The sender for the finished signal.
+/// * `operation_name`: The name of the operation, used for logging purposes.
+async fn handle_service_lifecycle_command_operation<F>(
+    operation: F,
+    sender: finished_signal::Sender,
+    operation_name: &str,
+) where
+    F: std::future::Future<Output = Result<(), Error>> + Send,
+{
+    if let Err(error) = operation.await {
+        error!(error=?error, "Error while running {operation_name} operation.");
+    }
+    if let Err(error) = sender.send(()) {
+        error!(error=?error, "Error while sending the finished signal for {operation_name} operation.");
     }
 }
