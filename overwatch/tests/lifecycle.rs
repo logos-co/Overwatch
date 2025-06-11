@@ -9,15 +9,14 @@ use std::{
 use async_trait::async_trait;
 use overwatch::{
     overwatch::{
-        commands::{OverwatchCommand, ServiceLifeCycleCommand},
+        commands::{OverwatchCommand, ServiceLifecycleCommand, ServiceSingleCommand},
         handle::OverwatchHandle,
         OverwatchRunner,
     },
     services::{
-        lifecycle::LifecycleMessage,
         resources::ServiceResourcesHandle,
         state::{ServiceState, StateOperator},
-        ServiceCore, ServiceData,
+        AsServiceId, ServiceCore, ServiceData,
     },
     DynError, OpaqueServiceResourcesHandle,
 };
@@ -145,14 +144,11 @@ struct App {
 fn send_lifecycle_message(
     runtime: &Handle,
     handle: &OverwatchHandle<RuntimeServiceId>,
-    msg: LifecycleMessage,
+    service_lifecycle_command: ServiceLifecycleCommand<RuntimeServiceId>,
 ) {
     runtime
-        .block_on(handle.send(OverwatchCommand::ServiceLifeCycle(
-            ServiceLifeCycleCommand {
-                service_id: RuntimeServiceId::LifecycleService,
-                msg,
-            },
+        .block_on(handle.send(OverwatchCommand::ServiceLifecycle(
+            service_lifecycle_command,
         )))
         .unwrap();
 }
@@ -183,7 +179,14 @@ fn test_lifecycle() {
 
     // Start the Service
     let (lifecycle_sender, lifecycle_receiver) = oneshot::channel();
-    send_lifecycle_message(runtime, handle, LifecycleMessage::Start(lifecycle_sender));
+    send_lifecycle_message(
+        runtime,
+        handle,
+        ServiceLifecycleCommand::StartService(ServiceSingleCommand {
+            service_id: <RuntimeServiceId as AsServiceId<LifecycleService>>::SERVICE_ID,
+            sender: lifecycle_sender,
+        }),
+    );
     runtime.block_on(lifecycle_receiver).unwrap();
 
     // Check the initial value is sent from within the Service
@@ -200,7 +203,14 @@ fn test_lifecycle() {
 
     // Stop the Service
     let (lifecycle_sender, lifecycle_receiver) = oneshot::channel();
-    send_lifecycle_message(runtime, handle, LifecycleMessage::Stop(lifecycle_sender));
+    send_lifecycle_message(
+        runtime,
+        handle,
+        ServiceLifecycleCommand::StopService(ServiceSingleCommand {
+            service_id: <RuntimeServiceId as AsServiceId<LifecycleService>>::SERVICE_ID,
+            sender: lifecycle_sender,
+        }),
+    );
     runtime.block_on(lifecycle_receiver).unwrap();
 
     // Check that the Service hasn't sent any messages
@@ -216,7 +226,14 @@ fn test_lifecycle() {
 
     // Start the Service again
     let (lifecycle_sender, lifecycle_receiver) = oneshot::channel();
-    send_lifecycle_message(runtime, handle, LifecycleMessage::Start(lifecycle_sender));
+    send_lifecycle_message(
+        runtime,
+        handle,
+        ServiceLifecycleCommand::StartService(ServiceSingleCommand {
+            service_id: <RuntimeServiceId as AsServiceId<LifecycleService>>::SERVICE_ID,
+            sender: lifecycle_sender,
+        }),
+    );
     runtime.block_on(lifecycle_receiver).unwrap();
 
     // Check the initial value is sent from within the Service
@@ -233,7 +250,14 @@ fn test_lifecycle() {
 
     // Stop the Service again
     let (lifecycle_sender, lifecycle_receiver) = oneshot::channel();
-    send_lifecycle_message(runtime, handle, LifecycleMessage::Stop(lifecycle_sender));
+    send_lifecycle_message(
+        runtime,
+        handle,
+        ServiceLifecycleCommand::StopService(ServiceSingleCommand {
+            service_id: <RuntimeServiceId as AsServiceId<LifecycleService>>::SERVICE_ID,
+            sender: lifecycle_sender,
+        }),
+    );
     runtime.block_on(lifecycle_receiver).unwrap();
 
     // Check that the Service hasn't sent any messages

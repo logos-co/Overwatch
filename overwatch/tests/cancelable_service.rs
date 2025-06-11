@@ -3,11 +3,10 @@ use std::time::Duration;
 use overwatch::{
     derive_services,
     overwatch::{
-        commands::{OverwatchCommand, ServiceLifeCycleCommand},
+        commands::{OverwatchCommand, ServiceLifecycleCommand, ServiceSingleCommand},
         OverwatchRunner,
     },
     services::{
-        lifecycle::LifecycleMessage,
         state::{NoOperator, NoState},
         AsServiceId, ServiceCore, ServiceData,
     },
@@ -65,16 +64,17 @@ fn run_overwatch_then_shutdown_service_and_kill() {
     let (sender, receiver) = tokio::sync::oneshot::channel();
     overwatch.spawn(async move {
         sleep(Duration::from_millis(500)).await;
-        let _ = handle
-            .send(OverwatchCommand::ServiceLifeCycle(
-                ServiceLifeCycleCommand {
-                    service_id: RuntimeServiceId::SERVICE_ID,
-                    msg: LifecycleMessage::Stop(sender),
-                },
-            ))
-            .await;
-        // wait service finished
+        let command = OverwatchCommand::ServiceLifecycle(ServiceLifecycleCommand::StopService(
+            ServiceSingleCommand {
+                service_id: RuntimeServiceId::SERVICE_ID,
+                sender,
+            },
+        ));
+
+        let _ = handle.send(command).await;
+        // Wait until the service is stopped
         receiver.await.unwrap();
+
         let _ = handle.shutdown().await;
     });
     overwatch.wait_finished();
