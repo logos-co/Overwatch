@@ -102,14 +102,7 @@ where
                     Self::handle_status(&services, status_command);
                 }
                 OverwatchCommand::ServiceLifeCycle(msg) => {
-                    let ServiceLifeCycleCommand {
-                        service_id,
-                        msg: lifecycle_msg,
-                    } = msg;
-                    let lifecycle_notifier = services.get_service_lifecycle_notifier(&service_id);
-                    if let Err(e) = lifecycle_notifier.send(lifecycle_msg).await {
-                        error!(e);
-                    }
+                    Self::handle_service_lifecycle(&mut services, msg).await;
                 }
                 OverwatchCommand::OverwatchLifeCycle(command) => match command {
                     OverwatchLifeCycleCommand::StartServiceSequence(service_ids, sender) => {
@@ -200,6 +193,31 @@ where
         let watcher = services.request_status_watcher(&service_id);
         if reply_channel.reply(watcher).is_err() {
             error!("Error reporting back status watcher for service: {service_id:#?}");
+        }
+    }
+
+    /// Handle a [`ServiceLifeCycleCommand`].
+    ///
+    /// # Arguments
+    ///
+    /// * `services`: The [`Services`] instance to handle the command for.
+    /// * `ServiceLifeCycleCommand`: The command to handle.
+    ///
+    /// # Notes
+    ///
+    /// * Because this method is async and takes a `ServicesImpl` reference, it
+    ///   would need to propagate `Sync` traits. To avoid this, we use a `&mut
+    ///   ServicesImpl` reference.
+    #[expect(clippy::needless_pass_by_ref_mut)]
+    async fn handle_service_lifecycle(
+        services: &mut ServicesImpl,
+        ServiceLifeCycleCommand { service_id, msg }: ServiceLifeCycleCommand<
+            ServicesImpl::RuntimeServiceId,
+        >,
+    ) {
+        let lifecycle_notifier = services.get_service_lifecycle_notifier(&service_id);
+        if let Err(e) = lifecycle_notifier.send(msg).await {
+            error!(e);
         }
     }
 }
