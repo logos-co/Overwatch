@@ -11,19 +11,3 @@ pub enum RelayError {
     #[error("receiver failed due to {0:?}")]
     Receiver(Box<dyn Debug + Send + Sync>),
 }
-
-#[derive(Error, Debug)]
-pub enum ServiceError {
-    #[error("Couldn't start service")]
-    Start,
-    #[error("Couldn't stop service")]
-    Stop,
-}
-
-#[derive(Error, Debug)]
-pub enum OverwatchError {
-    #[error("C")]
-    Service(ServiceError),
-    #[error("Couldn't shutdown Overwatch")]
-    Shutdown,
-}

@@ -14,11 +14,12 @@ use crate::{
             OverwatchCommand, OverwatchLifeCycleCommand, RelayCommand, ReplyChannel,
             ServiceLifeCycleCommand, SettingsCommand, StatusCommand,
         },
-        Services,
+        errors::OverwatchLifecycleError,
+        Error, Services,
     },
     services::{
-        lifecycle::LifecycleMessage,
-        relay::{errors::OverwatchError, OutboundRelay, RelayError, ServiceError},
+        lifecycle::{LifecycleMessage, ServiceLifecycleError},
+        relay::{OutboundRelay, RelayError},
         status::StatusWatcher,
         AsServiceId, ServiceData,
     },
@@ -134,7 +135,7 @@ where
     ///
     /// If the command cannot be sent, or if the
     /// [`Signal`](finished_signal::Signal) is not received.
-    pub async fn start_service<Service>(&self) -> Result<(), ServiceError>
+    pub async fn start_service<Service>(&self) -> Result<(), Error>
     where
         RuntimeServiceId: AsServiceId<Service>,
     {
@@ -148,11 +149,11 @@ where
             },
         ))
         .await
-        .map_err(|_error| ServiceError::Start)?;
+        .map_err(|_error| ServiceLifecycleError::Start)?;
 
         receiver.await.map_err(|error| {
             debug!("{error:?}");
-            ServiceError::Start
+            ServiceLifecycleError::Start.into()
         })
     }
 
@@ -170,7 +171,7 @@ where
     pub async fn start_service_sequence(
         &self,
         service_ids: impl IntoIterator<Item = RuntimeServiceId>,
-    ) -> Result<(), ServiceError> {
+    ) -> Result<(), Error> {
         let service_ids = service_ids.into_iter().collect::<Vec<RuntimeServiceId>>();
         info!("Starting Service Sequence with IDs: {:?}", service_ids);
 
@@ -179,11 +180,11 @@ where
             OverwatchLifeCycleCommand::StartServiceSequence(service_ids, sender),
         ))
         .await
-        .map_err(|_error| ServiceError::Start)?;
+        .map_err(|_error| ServiceLifecycleError::StartSequence)?;
 
         receiver.await.map_err(|error| {
             debug!("{error:?}");
-            ServiceError::Start
+            ServiceLifecycleError::StartSequence.into()
         })
     }
 
@@ -194,7 +195,7 @@ where
     ///
     /// If the command cannot be sent, or if the
     /// [`Signal`](finished_signal::Signal) is not received.
-    pub async fn start_all_services(&self) -> Result<(), ServiceError> {
+    pub async fn start_all_services(&self) -> Result<(), Error> {
         info!("Starting all services");
 
         let (sender, receiver) = finished_signal::channel();
@@ -202,11 +203,11 @@ where
             OverwatchLifeCycleCommand::StartAllServices(sender),
         ))
         .await
-        .map_err(|_error| ServiceError::Start)?;
+        .map_err(|_error| ServiceLifecycleError::StartAll)?;
 
         receiver.await.map_err(|error| {
             debug!("{error:?}");
-            ServiceError::Start
+            ServiceLifecycleError::StartAll.into()
         })
     }
 
@@ -221,7 +222,7 @@ where
     ///
     /// If the stop signal cannot be sent, or if the
     /// [`Signal`](finished_signal::Signal) is not received.
-    pub async fn stop_service<Service>(&self) -> Result<(), ServiceError>
+    pub async fn stop_service<Service>(&self) -> Result<(), Error>
     where
         RuntimeServiceId: AsServiceId<Service>,
     {
@@ -235,11 +236,11 @@ where
             },
         ))
         .await
-        .map_err(|_error| ServiceError::Stop)?;
+        .map_err(|_error| ServiceLifecycleError::Stop)?;
 
         receiver.await.map_err(|error| {
             debug!("{error:?}");
-            ServiceError::Stop
+            ServiceLifecycleError::Stop.into()
         })
     }
 
@@ -257,7 +258,7 @@ where
     pub async fn stop_service_sequence(
         &self,
         service_ids: impl IntoIterator<Item = RuntimeServiceId>,
-    ) -> Result<(), ServiceError> {
+    ) -> Result<(), Error> {
         let service_ids = service_ids.into_iter().collect::<Vec<RuntimeServiceId>>();
         info!("Stopping Service Sequence with IDs: {:?}", service_ids);
 
@@ -266,11 +267,11 @@ where
             OverwatchLifeCycleCommand::StopServiceSequence(service_ids, sender),
         ))
         .await
-        .map_err(|_error| ServiceError::Stop)?;
+        .map_err(|_error| ServiceLifecycleError::StopSequence)?;
 
         receiver.await.map_err(|error| {
             debug!("{error:?}");
-            ServiceError::Stop
+            ServiceLifecycleError::StopSequence.into()
         })
     }
 
@@ -281,7 +282,7 @@ where
     ///
     /// If the command cannot be sent, or if the
     /// [`Signal`](finished_signal::Signal) is not received.
-    pub async fn stop_all_services(&self) -> Result<(), ServiceError> {
+    pub async fn stop_all_services(&self) -> Result<(), Error> {
         info!("Stopping all services");
 
         let (sender, receiver) = finished_signal::channel();
@@ -289,11 +290,11 @@ where
             OverwatchLifeCycleCommand::StopAllServices(sender),
         ))
         .await
-        .map_err(|_error| ServiceError::Stop)?;
+        .map_err(|_error| ServiceLifecycleError::StopAll)?;
 
         receiver.await.map_err(|error| {
             debug!("{error:?}");
-            ServiceError::Stop
+            ServiceLifecycleError::StopAll.into()
         })
     }
 
@@ -309,7 +310,7 @@ where
     ///
     /// If the command cannot be sent, or if the
     /// [`Signal`](finished_signal::Signal) is not received.
-    pub async fn shutdown(&self) -> Result<(), OverwatchError> {
+    pub async fn shutdown(&self) -> Result<(), Error> {
         info!("Shutting down Overwatch");
 
         let (sender, receiver) = finished_signal::channel();
@@ -317,11 +318,11 @@ where
             OverwatchLifeCycleCommand::Shutdown(sender),
         ))
         .await
-        .map_err(|_error| OverwatchError::Shutdown)?;
+        .map_err(|_error| OverwatchLifecycleError::Shutdown)?;
 
         receiver.await.map_err(|error| {
             debug!("{error:?}");
-            OverwatchError::Shutdown
+            OverwatchLifecycleError::Shutdown.into()
         })
     }
 
