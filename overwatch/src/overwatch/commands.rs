@@ -50,7 +50,6 @@ pub struct ServiceLifeCycleCommand<RuntimeServiceId> {
 
 /// Command for managing [`Overwatch`](crate::overwatch::Overwatch)
 /// lifecycle.
-// TODO: Due to the variant's names a broader `OverwatchCommand` might be more suitable.
 #[derive(Debug)]
 pub enum OverwatchLifeCycleCommand<RuntimeServiceId> {
     /// Starts a sequence of `Service`s associated with an
@@ -82,6 +81,11 @@ pub enum OverwatchLifeCycleCommand<RuntimeServiceId> {
 pub struct SettingsCommand(pub(crate) AnySettings);
 
 /// [`Overwatch`](crate::overwatch::Overwatch) tasks related commands.
+// TODO: I'm not too convinced about having the two lifecycle variants, `ServiceLifeCycle` and
+//  `OverwatchLifeCycle`. It made sense before, but currently they overlap:
+//  `ServiceLifeCycleCommand` contains commands directed towards a single `Service`, while
+//  `OverwatchLifeCycleCommand` contains commands directed towards multiple `Service`s or the
+//  entire `Overwatch` instance. I think merging them would slightly lower the cognitive load.
 #[derive(Debug)]
 pub enum OverwatchCommand<RuntimeServiceId> {
     Relay(RelayCommand<RuntimeServiceId>),
