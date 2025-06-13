@@ -365,6 +365,7 @@ fn generate_services_impl(
     let impl_stop_sequence = generate_stop_sequence_impl(fields);
     let impl_stop_all = generate_stop_all_impl(fields);
     let impl_teardown = generate_teardown_impl(fields);
+    let impl_ids = generate_ids_impl(fields);
     let impl_relay = generate_request_relay_impl(fields);
     let impl_status = generate_request_status_watcher_impl(fields);
     let impl_update_settings = generate_update_settings_impl(fields);
@@ -394,6 +395,8 @@ fn generate_services_impl(
             #impl_stop_all
 
             #impl_teardown
+
+            #impl_ids
 
             #impl_relay
 
@@ -773,6 +776,36 @@ fn generate_teardown_impl(fields: &Punctuated<Field, Comma>) -> proc_macro2::Tok
             # (#call_await_service_runner_join_handles)*
 
             Ok::<(), ::overwatch::overwatch::Error>(())
+        }
+    }
+}
+
+/// Generates the `ids` method implementation for the `Services` trait.
+///
+/// This function creates code to retrieve the `RuntimeServiceId` for each
+/// service defined in the struct. It returns a [`Vec`] of `RuntimeServiceId`s.
+///
+/// # Arguments
+///
+/// * `fields` - The fields of the services struct
+///
+/// # Returns
+///
+/// A token stream containing the `ids` method implementation.
+fn generate_ids_impl(fields: &Punctuated<Field, Comma>) -> proc_macro2::TokenStream {
+    let instrumentation = get_default_instrumentation();
+
+    let service_ids = fields.iter().map(|field| {
+        let type_id = utils::extract_type_from(&field.ty);
+        quote! {
+            <Self::RuntimeServiceId as ::overwatch::services::AsServiceId<#type_id>>::SERVICE_ID
+        }
+    });
+
+    quote! {
+        #instrumentation
+        fn ids(&self) -> Vec<Self::RuntimeServiceId> {
+            vec![ #( #service_ids ),* ]
         }
     }
 }
