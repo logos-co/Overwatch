@@ -7,7 +7,7 @@ use crate::{
 };
 
 #[derive(Debug)]
-pub(crate) struct ReplyChannel<Message>(pub(crate) oneshot::Sender<Message>);
+pub struct ReplyChannel<Message>(pub(crate) oneshot::Sender<Message>);
 
 impl<Message> From<oneshot::Sender<Message>> for ReplyChannel<Message> {
     fn from(sender: oneshot::Sender<Message>) -> Self {
@@ -16,6 +16,9 @@ impl<Message> From<oneshot::Sender<Message>> for ReplyChannel<Message> {
 }
 
 impl<Message> ReplyChannel<Message> {
+    /// Sends a reply message back to the requester.
+    ///
+    /// # Errors
     pub fn reply(self, message: Message) -> Result<(), Message> {
         self.0.send(message)
     }
@@ -81,10 +84,11 @@ pub enum ServiceLifecycleCommand<RuntimeServiceId> {
     StopAllServices(ServiceAllCommand),
 }
 
-/// Command for managing [`Overwatch`](overwatch::Overwatch)
-/// lifecycle.
+/// Command for everything [`Overwatch`](overwatch::Overwatch)-level operations.
 #[derive(Debug)]
-pub enum OverwatchLifecycleCommand {
+pub enum OverwatchManagementCommand<RuntimeServiceId> {
+    /// Retrieves the list of all the `Service`s' `RuntimeServiceId`s
+    RetrieveServiceIds(ReplyChannel<Vec<RuntimeServiceId>>),
     /// Shuts down [`Overwatch`](overwatch::Overwatch), sending the
     /// `finish_runner_signal`
     /// to [`Overwatch`](overwatch::Overwatch). It's the signal which
@@ -107,6 +111,6 @@ pub enum OverwatchCommand<RuntimeServiceId> {
     Relay(RelayCommand<RuntimeServiceId>),
     Status(StatusCommand<RuntimeServiceId>),
     ServiceLifecycle(ServiceLifecycleCommand<RuntimeServiceId>),
-    OverwatchLifecycle(OverwatchLifecycleCommand),
+    OverwatchManagement(OverwatchManagementCommand<RuntimeServiceId>),
     Settings(SettingsCommand),
 }

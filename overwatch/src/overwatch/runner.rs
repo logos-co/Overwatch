@@ -8,7 +8,7 @@ use tracing::{error, info};
 use crate::{
     overwatch::{
         commands::{
-            OverwatchCommand, OverwatchLifecycleCommand, RelayCommand, ServiceAllCommand,
+            OverwatchCommand, OverwatchManagementCommand, RelayCommand, ServiceAllCommand,
             ServiceLifecycleCommand, ServiceSequenceCommand, ServiceSingleCommand, SettingsCommand,
             StatusCommand,
         },
@@ -109,8 +109,13 @@ where
                     )
                     .await;
                 }
-                OverwatchCommand::OverwatchLifecycle(command) => match command {
-                    OverwatchLifecycleCommand::Shutdown(sender) => {
+                OverwatchCommand::OverwatchManagement(command) => match command {
+                    OverwatchManagementCommand::RetrieveServiceIds(reply_channel) => {
+                        if let Err(e) = reply_channel.reply(services.ids()) {
+                            error!(error=?e, "Error replying with service IDs.");
+                        }
+                    }
+                    OverwatchManagementCommand::Shutdown(sender) => {
                         if let Err(error) = services.stop_all().await {
                             error!(error=?error, "Error stopping all services during teardown.");
                         }

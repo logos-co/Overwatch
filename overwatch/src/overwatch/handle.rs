@@ -11,11 +11,11 @@ use tracing::{debug, error, info};
 use crate::{
     overwatch::{
         commands::{
-            OverwatchCommand, OverwatchLifecycleCommand, RelayCommand, ReplyChannel,
+            OverwatchCommand, OverwatchManagementCommand, RelayCommand, ReplyChannel,
             ServiceAllCommand, ServiceLifecycleCommand, ServiceSequenceCommand,
             ServiceSingleCommand, SettingsCommand, StatusCommand,
         },
-        errors::OverwatchLifecycleError,
+        errors::OverwatchManagementError,
         Error, Services,
     },
     services::{
@@ -334,15 +334,38 @@ where
 
         let (sender, receiver) = finished_signal::channel();
         let command =
-            OverwatchCommand::OverwatchLifecycle(OverwatchLifecycleCommand::Shutdown(sender));
+            OverwatchCommand::OverwatchManagement(OverwatchManagementCommand::Shutdown(sender));
 
         self.send(command)
             .await
-            .map_err(|_error| OverwatchLifecycleError::Shutdown)?;
+            .map_err(|_error| OverwatchManagementError::Shutdown)?;
 
         receiver.await.map_err(|error| {
             debug!("{error:?}");
-            OverwatchLifecycleError::Shutdown.into()
+            OverwatchManagementError::Shutdown.into()
+        })
+    }
+
+    /// Retrieve all `Service`'s `RuntimeServiceId`'s.
+    ///
+    /// # Errors
+    ///
+    /// If the service IDs cannot be retrieved.
+    pub async fn retrieve_service_ids(&self) -> Result<Vec<RuntimeServiceId>, Error> {
+        info!("Retrieving all service IDs.");
+        let (sender, receiver) = tokio::sync::oneshot::channel();
+        let reply_channel = ReplyChannel::from(sender);
+        let command = OverwatchCommand::OverwatchManagement(
+            OverwatchManagementCommand::RetrieveServiceIds(reply_channel),
+        );
+
+        self.send(command)
+            .await
+            .map_err(|_error| OverwatchManagementError::RetrieveServiceIds)?;
+
+        receiver.await.map_err(|error| {
+            error!(error=?error, "Error while retrieving service IDs");
+            OverwatchManagementError::RetrieveServiceIds.into()
         })
     }
 

@@ -12,7 +12,9 @@ pub enum Error {
 }
 
 #[derive(Error, Debug)]
-pub enum OverwatchLifecycleError {
+pub enum OverwatchManagementError {
+    #[error("Failed retrieving service ids")]
+    RetrieveServiceIds,
     #[error("Failed to shut down Overwatch")]
     Shutdown,
 }
@@ -29,8 +31,8 @@ impl From<ServiceLifecycleError> for Error {
     }
 }
 
-impl From<OverwatchLifecycleError> for Error {
-    fn from(error: OverwatchLifecycleError) -> Self {
+impl From<OverwatchManagementError> for Error {
+    fn from(error: OverwatchManagementError) -> Self {
         Self::Any(error.into())
     }
 }
