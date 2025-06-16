@@ -59,11 +59,7 @@ impl<RuntimeServiceId> Overwatch<RuntimeServiceId> {
             ..
         } = self;
 
-        // Await the signal that the runner has finished
-        let signal_result = finish_runner_signal.await;
-
-        // If the signal was received, we can safely return
-        signal_result.expect("A finished signal arrived");
+        handle_finish_signal(finish_runner_signal).await;
     }
 
     /// Block until [`Overwatch`] finishes executing.
@@ -78,14 +74,16 @@ impl<RuntimeServiceId> Overwatch<RuntimeServiceId> {
             ..
         } = self;
 
-        runtime.handle().block_on(async move {
-            // Await the signal that the runner has finished
-            let signal_result = finish_runner_signal.await;
-
-            // If the signal was received, we can safely return
-            signal_result.expect("A finished signal arrived");
-        });
+        runtime
+            .handle()
+            .block_on(handle_finish_signal(finish_runner_signal));
     }
+}
+
+/// Handle the finish signal for [`Overwatch`]
+async fn handle_finish_signal(finish_runner_signal: finished_signal::Receiver) {
+    let signal_result = finish_runner_signal.await;
+    signal_result.expect("A finished signal arrived");
 }
 
 #[cfg(test)]
