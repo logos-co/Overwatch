@@ -129,6 +129,10 @@ mod test {
             Ok(())
         }
 
+        fn ids(&self) -> Vec<Self::RuntimeServiceId> {
+            vec![]
+        }
+
         fn request_relay(&mut self, _service_id: &String) -> AnyMessage {
             Box::new(())
         }

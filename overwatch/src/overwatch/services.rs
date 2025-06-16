@@ -136,6 +136,10 @@ pub trait Services: Sized {
     /// The generated [`Error`](enum@Error).
     async fn teardown(self) -> Result<(), Error>;
 
+    /// Get the list of all the `RuntimeServiceId`s associated with the trait
+    /// implementer.
+    fn ids(&self) -> Vec<Self::RuntimeServiceId>;
+
     /// Request a communication relay for a service attached to the trait
     /// implementer.
     fn request_relay(&mut self, service_id: &Self::RuntimeServiceId) -> AnyMessage;
