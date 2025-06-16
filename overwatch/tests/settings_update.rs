@@ -87,5 +87,5 @@ fn settings_service_update_settings() {
         let _ = handle2.shutdown().await;
     });
 
-    overwatch.wait_finished();
+    overwatch.blocking_wait_finished();
 }

@@ -2,6 +2,7 @@ pub mod commands;
 pub mod errors;
 pub mod handle;
 pub mod runner;
+mod runtime;
 pub mod services;
 
 use std::{any::Any, future::Future};
@@ -10,12 +11,9 @@ pub use errors::{DynError, Error};
 pub use handle::OverwatchHandle;
 pub use runner::{GenericOverwatchRunner, OverwatchRunner, OVERWATCH_THREAD_NAME};
 pub use services::Services;
-use tokio::{
-    runtime::{Handle, Runtime},
-    task::JoinHandle,
-};
+use tokio::task::JoinHandle;
 
-use crate::utils::finished_signal;
+use crate::{overwatch::runtime::OverwatchRuntime, utils::finished_signal};
 
 /// Marker trait for settings' related elements.
 pub type AnySettings = Box<dyn Any + Send>;
@@ -23,7 +21,7 @@ pub type AnySettings = Box<dyn Any + Send>;
 /// Main Overwatch entity.
 /// It manages the [`Runtime`] and [`OverwatchHandle`].
 pub struct Overwatch<RuntimeServiceId> {
-    runtime: Runtime,
+    runtime: OverwatchRuntime,
     handle: OverwatchHandle<RuntimeServiceId>,
     finish_runner_signal: finished_signal::Receiver,
 }
@@ -37,8 +35,8 @@ impl<RuntimeServiceId> Overwatch<RuntimeServiceId> {
     }
 
     /// Get the underlying [`Handle`]
-    pub fn runtime(&self) -> &Handle {
-        self.runtime.handle()
+    pub const fn runtime(&self) -> &OverwatchRuntime {
+        &self.runtime
     }
 
     /// Spawn a new task within the Overwatch runtime
@@ -47,23 +45,44 @@ impl<RuntimeServiceId> Overwatch<RuntimeServiceId> {
         F: Future + Send + 'static,
         F::Output: Send + 'static,
     {
-        self.runtime.spawn(future)
+        self.runtime.handle().spawn(future)
     }
 
-    /// Block until Overwatch finishes executing.
+    /// Wait until [`Overwatch`] finishes executing.
     ///
     /// # Panics
     ///
     /// If the termination signal is never received.
-    pub fn wait_finished(self) {
+    pub async fn wait_finished(self) {
+        let Self {
+            finish_runner_signal,
+            ..
+        } = self;
+
+        // Await the signal that the runner has finished
+        let signal_result = finish_runner_signal.await;
+
+        // If the signal was received, we can safely return
+        signal_result.expect("A finished signal arrived");
+    }
+
+    /// Block until [`Overwatch`] finishes executing.
+    ///
+    /// # Panics
+    ///
+    /// If the termination signal is never received.
+    pub fn blocking_wait_finished(self) {
         let Self {
             runtime,
             finish_runner_signal,
             ..
         } = self;
 
-        runtime.block_on(async move {
+        runtime.handle().block_on(async move {
+            // Await the signal that the runner has finished
             let signal_result = finish_runner_signal.await;
+
+            // If the signal was received, we can safely return
             signal_result.expect("A finished signal arrived");
         });
     }
@@ -158,7 +177,7 @@ mod test {
             let _ = handle.shutdown().await;
         });
 
-        overwatch.wait_finished();
+        overwatch.blocking_wait_finished();
     }
 
     #[test]
@@ -171,6 +190,6 @@ mod test {
             let _ = handle.shutdown().await;
         });
 
-        overwatch.wait_finished();
+        overwatch.blocking_wait_finished();
     }
 }

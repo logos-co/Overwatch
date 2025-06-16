@@ -118,7 +118,7 @@ fn load_state_from_operator() {
         .block_on(handle.start_service::<TryLoad>())
         .expect("service to start successfully.");
 
-    app.wait_finished();
+    app.blocking_wait_finished();
 
     // Check if the origin was called
     thread::sleep(Duration::from_secs(1));
