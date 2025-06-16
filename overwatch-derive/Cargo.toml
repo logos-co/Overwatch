@@ -26,3 +26,8 @@ proc-macro2       = "1.0"
 quote             = "1.0"
 syn               = { version = "2.0", features = ["full"] }
 tracing           = { version = "0.1", optional = true }
+
+[dev-dependencies]
+async-trait = "0.1"
+overwatch   = { path = "../overwatch" }
+tracing     = "0.1"
