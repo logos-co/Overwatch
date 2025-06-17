@@ -160,11 +160,11 @@ fn initialize() -> Overwatch<RuntimeServiceId> {
 }
 
 fn wait_for_status(
-    runtime: &Handle,
+    handle: &Handle,
     status_watcher: &mut StatusWatcher,
     expected_status: ServiceStatus,
 ) {
-    runtime
+    handle
         .block_on(
             status_watcher
                 .receiver_mut()
@@ -178,24 +178,31 @@ fn test_start() {
     let overwatch = initialize();
     overwatch
         .runtime()
+        .handle()
         .block_on(overwatch.handle().start_service::<ServiceA>())
         .expect("Failed to start service A");
 
     let status_watcher_a = overwatch
         .runtime()
+        .handle()
         .block_on(overwatch.handle().status_watcher::<ServiceA>());
     let status_watcher_b = overwatch
         .runtime()
+        .handle()
         .block_on(overwatch.handle().status_watcher::<ServiceB>());
     let status_watcher_c = overwatch
         .runtime()
+        .handle()
         .block_on(overwatch.handle().status_watcher::<ServiceC>());
 
     assert_eq!(status_watcher_a.current(), ServiceStatus::Ready);
     assert_eq!(status_watcher_b.current(), ServiceStatus::Stopped);
     assert_eq!(status_watcher_c.current(), ServiceStatus::Stopped);
 
-    let _ = overwatch.runtime().block_on(overwatch.handle().shutdown());
+    let _ = overwatch
+        .runtime()
+        .handle()
+        .block_on(overwatch.handle().shutdown());
 }
 
 #[test]
@@ -208,23 +215,30 @@ fn test_start_list() {
 
     let _ = overwatch
         .runtime()
+        .handle()
         .block_on(overwatch.handle().start_service_sequence(services));
 
     let status_watcher_a = overwatch
         .runtime()
+        .handle()
         .block_on(overwatch.handle().status_watcher::<ServiceA>());
     let status_watcher_b = overwatch
         .runtime()
+        .handle()
         .block_on(overwatch.handle().status_watcher::<ServiceB>());
     let status_watcher_c = overwatch
         .runtime()
+        .handle()
         .block_on(overwatch.handle().status_watcher::<ServiceC>());
 
     assert_eq!(status_watcher_a.current(), ServiceStatus::Ready);
     assert_eq!(status_watcher_b.current(), ServiceStatus::Ready);
     assert_eq!(status_watcher_c.current(), ServiceStatus::Stopped);
 
-    let _ = overwatch.runtime().block_on(overwatch.handle().shutdown());
+    let _ = overwatch
+        .runtime()
+        .handle()
+        .block_on(overwatch.handle().shutdown());
 }
 
 #[test]
@@ -232,23 +246,30 @@ fn test_start_all() {
     let overwatch = initialize();
     let _ = overwatch
         .runtime()
+        .handle()
         .block_on(overwatch.handle().start_all_services());
 
     let status_watcher_a = overwatch
         .runtime()
+        .handle()
         .block_on(overwatch.handle().status_watcher::<ServiceA>());
     let status_watcher_b = overwatch
         .runtime()
+        .handle()
         .block_on(overwatch.handle().status_watcher::<ServiceB>());
     let status_watcher_c = overwatch
         .runtime()
+        .handle()
         .block_on(overwatch.handle().status_watcher::<ServiceC>());
 
     assert_eq!(status_watcher_a.current(), ServiceStatus::Ready);
     assert_eq!(status_watcher_b.current(), ServiceStatus::Ready);
     assert_eq!(status_watcher_c.current(), ServiceStatus::Ready);
 
-    let _ = overwatch.runtime().block_on(overwatch.handle().shutdown());
+    let _ = overwatch
+        .runtime()
+        .handle()
+        .block_on(overwatch.handle().shutdown());
 }
 
 #[test]
@@ -256,20 +277,25 @@ fn test_stop() {
     let overwatch = initialize();
     let _ = overwatch
         .runtime()
+        .handle()
         .block_on(overwatch.handle().start_all_services());
 
     let status_watcher_a = overwatch
         .runtime()
+        .handle()
         .block_on(overwatch.handle().status_watcher::<ServiceA>());
     let status_watcher_b = overwatch
         .runtime()
+        .handle()
         .block_on(overwatch.handle().status_watcher::<ServiceB>());
     let status_watcher_c = overwatch
         .runtime()
+        .handle()
         .block_on(overwatch.handle().status_watcher::<ServiceC>());
 
     overwatch
         .runtime()
+        .handle()
         .block_on(overwatch.handle().stop_service::<ServiceA>())
         .expect("Failed to stop service");
 
@@ -277,7 +303,10 @@ fn test_stop() {
     assert_eq!(status_watcher_b.current(), ServiceStatus::Ready);
     assert_eq!(status_watcher_c.current(), ServiceStatus::Ready);
 
-    let _ = overwatch.runtime().block_on(overwatch.handle().shutdown());
+    let _ = overwatch
+        .runtime()
+        .handle()
+        .block_on(overwatch.handle().shutdown());
 }
 
 #[test]
@@ -285,16 +314,20 @@ fn test_stop_list() {
     let overwatch = initialize();
     let _ = overwatch
         .runtime()
+        .handle()
         .block_on(overwatch.handle().start_all_services());
 
     let mut status_watcher_a = overwatch
         .runtime()
+        .handle()
         .block_on(overwatch.handle().status_watcher::<ServiceA>());
     let mut status_watcher_b = overwatch
         .runtime()
+        .handle()
         .block_on(overwatch.handle().status_watcher::<ServiceB>());
     let status_watcher_c = overwatch
         .runtime()
+        .handle()
         .block_on(overwatch.handle().status_watcher::<ServiceC>());
 
     let services: Vec<RuntimeServiceId> = vec![
@@ -303,12 +336,13 @@ fn test_stop_list() {
     ];
     let _ = overwatch
         .runtime()
+        .handle()
         .block_on(overwatch.handle().stop_service_sequence(services));
 
     // Because stop_service_list does not have a synchronisation mechanism,
     // we need to wait for the status to change, as the services may take some time
     // to stop.
-    let runtime = overwatch.runtime();
+    let runtime = overwatch.runtime().handle();
     wait_for_status(runtime, &mut status_watcher_a, ServiceStatus::Stopped);
     wait_for_status(runtime, &mut status_watcher_b, ServiceStatus::Stopped);
 
@@ -316,7 +350,10 @@ fn test_stop_list() {
     assert_eq!(status_watcher_b.current(), ServiceStatus::Stopped);
     assert_eq!(status_watcher_c.current(), ServiceStatus::Ready);
 
-    let _ = overwatch.runtime().block_on(overwatch.handle().shutdown());
+    let _ = overwatch
+        .runtime()
+        .handle()
+        .block_on(overwatch.handle().shutdown());
 }
 
 #[test]
@@ -324,33 +361,41 @@ fn test_stop_all() {
     let overwatch = initialize();
     let _ = overwatch
         .runtime()
+        .handle()
         .block_on(overwatch.handle().start_all_services());
 
     let mut status_watcher_a = overwatch
         .runtime()
+        .handle()
         .block_on(overwatch.handle().status_watcher::<ServiceA>());
     let mut status_watcher_b = overwatch
         .runtime()
+        .handle()
         .block_on(overwatch.handle().status_watcher::<ServiceB>());
     let mut status_watcher_c = overwatch
         .runtime()
+        .handle()
         .block_on(overwatch.handle().status_watcher::<ServiceC>());
 
     let _ = overwatch
         .runtime()
+        .handle()
         .block_on(overwatch.handle().stop_all_services());
 
     // Because stop_service_list does not have a synchronisation mechanism,
     // we need to wait for the status to change, as the services may take some time
     // to stop.
-    let runtime = overwatch.runtime();
-    wait_for_status(runtime, &mut status_watcher_a, ServiceStatus::Stopped);
-    wait_for_status(runtime, &mut status_watcher_b, ServiceStatus::Stopped);
-    wait_for_status(runtime, &mut status_watcher_c, ServiceStatus::Stopped);
+    let handle = overwatch.runtime().handle();
+    wait_for_status(handle, &mut status_watcher_a, ServiceStatus::Stopped);
+    wait_for_status(handle, &mut status_watcher_b, ServiceStatus::Stopped);
+    wait_for_status(handle, &mut status_watcher_c, ServiceStatus::Stopped);
 
     assert_eq!(status_watcher_a.current(), ServiceStatus::Stopped);
     assert_eq!(status_watcher_b.current(), ServiceStatus::Stopped);
     assert_eq!(status_watcher_c.current(), ServiceStatus::Stopped);
 
-    let _ = overwatch.runtime().block_on(overwatch.handle().shutdown());
+    let _ = overwatch
+        .runtime()
+        .handle()
+        .block_on(overwatch.handle().shutdown());
 }

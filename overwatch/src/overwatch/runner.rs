@@ -1,6 +1,6 @@
 use std::fmt::Debug;
 
-use tokio::{runtime::Runtime, sync::mpsc::Receiver};
+use tokio::{runtime::Handle, sync::mpsc::Receiver};
 #[cfg(feature = "instrumentation")]
 use tracing::instrument;
 use tracing::{error, info};
@@ -13,6 +13,7 @@ use crate::{
             StatusCommand,
         },
         handle::OverwatchHandle,
+        runtime::OverwatchRuntime,
         Error, Overwatch, Services,
     },
     utils::{finished_signal, runtime::default_multithread_runtime},
@@ -59,9 +60,12 @@ where
     /// If the runner process cannot be created.
     pub fn run(
         settings: ServicesImpl::Settings,
-        runtime: Option<Runtime>,
+        handle: Option<Handle>,
     ) -> Result<Overwatch<ServicesImpl::RuntimeServiceId>, DynError> {
-        let runtime = runtime.unwrap_or_else(default_multithread_runtime);
+        let runtime = handle.map_or_else(
+            || OverwatchRuntime::TokioRuntime(default_multithread_runtime()),
+            OverwatchRuntime::TokioHandle,
+        );
 
         let (finish_signal_sender, finish_runner_signal) = finished_signal::channel();
         let (commands_sender, commands_receiver) = tokio::sync::mpsc::channel(16);
@@ -74,7 +78,7 @@ where
             commands_receiver,
         };
 
-        runtime.spawn(runner.run_());
+        runtime.handle().spawn(runner.run_());
 
         Ok(Overwatch {
             runtime,

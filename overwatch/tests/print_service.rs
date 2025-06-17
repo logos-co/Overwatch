@@ -120,5 +120,5 @@ fn derive_print_service() {
         sleep(Duration::from_secs(1)).await;
         let _ = handle.shutdown().await;
     });
-    overwatch.wait_finished();
+    overwatch.blocking_wait_finished();
 }

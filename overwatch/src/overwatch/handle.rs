@@ -322,7 +322,7 @@ where
     ///
     /// This triggers sending the `finish_runner_signal` to
     /// [`Overwatch`](crate::overwatch::Overwatch). It's the signal which
-    /// [`Overwatch::wait_finished`](crate::overwatch::Overwatch::wait_finished)
+    /// [`Overwatch::wait_finished`](crate::overwatch::Overwatch::blocking_wait_finished)
     /// waits for.
     ///
     /// # Errors

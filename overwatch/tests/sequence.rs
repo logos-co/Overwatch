@@ -157,5 +157,5 @@ fn sequenced_services_startup() {
         tokio::time::sleep(Duration::from_secs(1)).await;
         let _ = handle.shutdown().await;
     });
-    overwatch.wait_finished();
+    overwatch.blocking_wait_finished();
 }
