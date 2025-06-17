@@ -987,7 +987,7 @@ fn generate_get_service_lifecycle_notifier_impl(
 /// A token stream containing all runtime service type definitions.
 fn generate_runtime_service_types(fields: &Punctuated<Field, Comma>) -> proc_macro2::TokenStream {
     let runtime_service_id = generate_runtime_service_id(fields);
-    let service_id_trait_impls = generate_service_id_trait_impls();
+    let service_id_trait_impls = generate_service_id_trait_impls(fields);
     let as_service_id_impl = generate_as_service_id_impl(fields);
 
     quote! {
@@ -1081,12 +1081,77 @@ fn generate_runtime_service_id(fields: &Punctuated<Field, Comma>) -> proc_macro2
 /// # Returns
 ///
 /// A token stream containing the Display trait implementation
-fn generate_service_id_trait_impls() -> proc_macro2::TokenStream {
+fn generate_service_id_trait_impls(fields: &Punctuated<Field, Comma>) -> proc_macro2::TokenStream {
     let runtime_service_id_type_name = get_runtime_service_id_type_name();
+
+    let runtime_service_id_from_str_impl = generate_runtime_service_id_from_str_impl(fields);
+
     quote! {
         impl ::core::fmt::Display for #runtime_service_id_type_name {
             fn fmt(&self, f: &mut ::core::fmt::Formatter<'_>) -> ::core::fmt::Result {
                 <Self as ::core::fmt::Debug>::fmt(self, f)
+            }
+        }
+
+        #runtime_service_id_from_str_impl
+    }
+}
+
+/// Generates the `RuntimeServiceId` enum from a string representation.
+///
+/// # Returns
+///
+/// A token stream containing the implementation of the `From<Into<String>>`
+/// trait
+fn generate_runtime_service_id_from_str_impl(
+    fields: &Punctuated<Field, Comma>,
+) -> proc_macro2::TokenStream {
+    let runtime_service_id_type_name = get_runtime_service_id_type_name();
+
+    let available_services = fields
+        .iter()
+        .map(|field| {
+            let field_identifier = field
+                .ident
+                .as_ref()
+                .expect("Expected struct named fields.")
+                .to_string();
+            utils::field_name_to_type_name(&field_identifier)
+        })
+        .collect::<Vec<_>>()
+        .join(", ");
+
+    let string_to_variant_pairs = fields.iter().map(|field| {
+        let field_ident = field.ident.as_ref().expect("Expected struct named fields.");
+        let type_name_capitalized = utils::field_name_to_type_name(&field_ident.to_string());
+        let type_identifier_capitalized = format_ident!("{}", type_name_capitalized);
+        let runtime_service_id_variant =
+            quote! { #runtime_service_id_type_name::#type_identifier_capitalized };
+        (type_name_capitalized, runtime_service_id_variant)
+    });
+
+    let arms = string_to_variant_pairs.map(|(name, variant)| {
+        quote! {
+            #name => { Ok(#variant) }
+        }
+    });
+
+    quote! {
+        impl ::std::str::FromStr for #runtime_service_id_type_name {
+            type Err = ::overwatch::overwatch::Error;
+
+            fn from_str(value: &str) -> ::core::result::Result<Self, Self::Err> {
+                match value.as_ref() {
+                    #( #arms ),*
+                    _ => {
+                        let error_string = format!(
+                            "Couldn't find a service with the name: {value}. Available services are: {}.",
+                            #available_services
+                        );
+                        let error = ::overwatch::overwatch::Error::Any(::overwatch::DynError::from(error_string));
+                        Err(error)
+                    }
+                }
             }
         }
     }
