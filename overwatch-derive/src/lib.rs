@@ -1111,25 +1111,23 @@ fn generate_runtime_service_id_from_str_impl(
     let available_services = fields
         .iter()
         .map(|field| {
-            field
+            let field_identifier = field
                 .ident
                 .as_ref()
                 .expect("Expected struct named fields.")
-                .to_string()
+                .to_string();
+            utils::field_name_to_type_name(&field_identifier)
         })
         .collect::<Vec<_>>()
         .join(", ");
 
     let string_to_variant_pairs = fields.iter().map(|field| {
         let field_ident = field.ident.as_ref().expect("Expected struct named fields.");
-        let service_name_lowercase = field_ident.to_string().to_lowercase();
-        let service_name_capitalized = format_ident!(
-            "{}",
-            utils::field_name_to_type_name(&service_name_lowercase)
-        );
+        let type_name_capitalized = utils::field_name_to_type_name(&field_ident.to_string());
+        let type_identifier_capitalized = format_ident!("{}", type_name_capitalized);
         let runtime_service_id_variant =
-            quote! { #runtime_service_id_type_name::#service_name_capitalized };
-        (service_name_lowercase, runtime_service_id_variant)
+            quote! { #runtime_service_id_type_name::#type_identifier_capitalized };
+        (type_name_capitalized, runtime_service_id_variant)
     });
 
     let arms = string_to_variant_pairs.map(|(name, variant)| {
@@ -1143,7 +1141,6 @@ fn generate_runtime_service_id_from_str_impl(
             type Err = ::overwatch::overwatch::Error;
 
             fn from_str(value: &str) -> ::core::result::Result<Self, Self::Err> {
-                let value = value.to_lowercase();
                 match value.as_ref() {
                     #( #arms ),*
                     _ => {
