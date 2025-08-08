@@ -19,7 +19,7 @@ jobs:
       - name: Install nightly toolchain
         uses: actions-rs/toolchain@88dc2356392166efad76775c878094f4e83ff746  # Version 1.0.6
         with:
-          toolchain: nightly-2025-05-09
+          toolchain: nightly-2025-06-23
           profile: minimal
           components: rustfmt
           override: true
