@@ -9,9 +9,10 @@ license    = "MIT or Apache-2.0"
 repository = "https://github.com/logos-co/Overwatch"
 
 [workspace.dependencies]
-overwatch        = { path = "./overwatch" }
-overwatch-derive = { path = "./overwatch-derive" }
+overwatch        = { default-features = false, path = "./overwatch" }
+overwatch-derive = { default-features = false, path = "./overwatch-derive" }
 
+# These lints are kept in sync as much as we can with our `nomos` repo.
 [workspace.lints.clippy]
 
 # Nursery and allowed nursery warnings (new lints will warn by default)
