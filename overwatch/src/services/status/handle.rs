@@ -1,5 +1,3 @@
-use std::default::Default;
-
 use crate::services::status::{
     channel, service_status::ServiceStatus, updater::StatusUpdater, watcher::StatusWatcher,
 };

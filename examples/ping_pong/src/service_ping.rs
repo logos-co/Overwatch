@@ -1,18 +1,18 @@
 use std::time::Duration;
 
 use overwatch::{
-    services::{ServiceCore, ServiceData},
     DynError, OpaqueServiceResourcesHandle,
+    services::{ServiceCore, ServiceData},
 };
 use tokio::time::sleep;
 
 use crate::{
+    RuntimeServiceId,
     messages::{PingMessage, PongMessage},
     operators::StateSaveOperator,
     service_pong::PongService,
     settings::PingSettings,
     states::PingState,
-    RuntimeServiceId,
 };
 
 pub struct PingService {

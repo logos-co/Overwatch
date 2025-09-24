@@ -1,12 +1,12 @@
 use async_trait::async_trait;
 use overwatch::{
+    DynError, OpaqueServiceResourcesHandle,
     overwatch::{Overwatch, OverwatchRunner},
     services::{
+        AsServiceId, ServiceCore, ServiceData,
         state::{NoOperator, ServiceState},
         status::{ServiceStatus, StatusWatcher},
-        AsServiceId, ServiceCore, ServiceData,
     },
-    DynError, OpaqueServiceResourcesHandle,
 };
 use overwatch_derive::derive_services;
 use tokio::runtime::Handle;

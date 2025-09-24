@@ -1,18 +1,18 @@
-use std::{fmt::Display, future::Future};
+use std::fmt::Display;
 
 use tokio::task::JoinHandle;
-use tokio_stream::StreamExt;
+use tokio_stream::StreamExt as _;
 use tracing::{debug, error, info};
 
 use crate::{
     overwatch::handle::OverwatchHandle,
     services::{
+        ServiceCore,
         lifecycle::LifecycleMessage,
         resources::ServiceResources,
         runner::ServiceRunnerHandle,
         service_handle::ServiceHandle,
         state::{ServiceState, StateOperator},
-        ServiceCore,
     },
     utils::finished_signal,
 };
@@ -142,7 +142,9 @@ where
                     // TODO: Sending a different signal could be handy to differentiate whether
                     //  the service was already stopped or not.
                     if let Err(error) = finished_signal_sender.send(()) {
-                        debug!("Error while sending the LifecycleMessage::Stop finished signal: {error:?}. Likely due to the receiver being already dropped in the Service::run task.");
+                        debug!(
+                            "Error while sending the LifecycleMessage::Stop finished signal: {error:?}. Likely due to the receiver being already dropped in the Service::run task."
+                        );
                     }
                 }
             }
@@ -211,44 +213,34 @@ where
         StateOp: StateOperator<State = State> + Clone,
     {
         let runtime = service_resources.overwatch_handle().runtime().clone();
-        let service_task = Self::create_service_run_task(service, service_resources);
+        let service_task = {
+            let task = service.run();
+            let lifecycle_notifier = service_resources.lifecycle_handle().notifier().clone();
+
+            // Receiver is ignored because it's pointless:
+            // - If we wait for it, the Stop message will eventually abort it before the
+            //   finished signal is received.
+            // - If we don't wait for it and the task finishes, the ServiceRunner will
+            //   ignore it.
+            let (sender, _receiver) = finished_signal::channel();
+
+            // When the `Service`'s task finishes, a [`LifecycleMessage::Stop`] is sent to
+            // the `ServiceRunner` to ensure proper cleanup.
+            async move {
+                if let Err(error) = task.await {
+                    error!("Error while waiting for Service's task to be completed: {error}");
+                }
+                if let Err(error) = lifecycle_notifier
+                    .send(LifecycleMessage::Stop(sender))
+                    .await
+                {
+                    error!("Error while sending a Stop to the ServiceRunner: {error}");
+                }
+            }
+        };
         *service_task_handle = Some(runtime.spawn(service_task));
         let state_handle_task = service_resources.state_handle().clone().run();
         *state_handle_task_handle = Some(runtime.spawn(state_handle_task));
-    }
-
-    fn create_service_run_task<Service>(
-        service: Service,
-        service_resources: &ServiceResources<Message, Settings, State, StateOp, RuntimeServiceId>,
-    ) -> impl Future<Output = ()>
-    where
-        Service: ServiceCore<RuntimeServiceId, Settings = Settings, State = State, Message = Message>
-            + 'static,
-        StateOp: Clone,
-    {
-        let task = service.run();
-        let lifecycle_notifier = service_resources.lifecycle_handle().notifier().clone();
-
-        // Receiver is ignored because it's pointless:
-        // - If we wait for it, the Stop message will eventually abort it before the
-        //   finished signal is received.
-        // - If we don't wait for it and the task finishes, the ServiceRunner will
-        //   ignore it.
-        let (sender, _receiver) = finished_signal::channel();
-
-        // When the `Service`'s task finishes, a [`LifecycleMessage::Stop`] is sent to
-        // the `ServiceRunner` to ensure proper cleanup.
-        async move {
-            if let Err(error) = task.await {
-                error!("Error while waiting for Service's task to be completed: {error}");
-            }
-            if let Err(error) = lifecycle_notifier
-                .send(LifecycleMessage::Stop(sender))
-                .await
-            {
-                error!("Error while sending a Stop to the ServiceRunner: {error}");
-            }
-        }
     }
 
     /// Handles a [`LifecycleMessage::Stop`] event, ensuring proper shutdown and

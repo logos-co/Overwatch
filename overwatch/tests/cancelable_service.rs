@@ -1,16 +1,15 @@
 use std::time::Duration;
 
 use overwatch::{
-    derive_services,
+    DynError, OpaqueServiceResourcesHandle, derive_services,
     overwatch::{
-        commands::{OverwatchCommand, ServiceLifecycleCommand, ServiceSingleCommand},
         OverwatchRunner,
+        commands::{OverwatchCommand, ServiceLifecycleCommand, ServiceSingleCommand},
     },
     services::{
+        AsServiceId as _, ServiceCore, ServiceData,
         state::{NoOperator, NoState},
-        AsServiceId, ServiceCore, ServiceData,
     },
-    DynError, OpaqueServiceResourcesHandle,
 };
 use tokio::time::sleep;
 
@@ -36,6 +35,7 @@ impl ServiceCore<RuntimeServiceId> for CancellableService {
         let mut cumulative_time = Duration::from_millis(0);
         let mut interval = tokio::time::interval(Duration::from_millis(200));
 
+        #[expect(clippy::non_ascii_literal, reason = "We like skulls")]
         loop {
             println!("Waiting to be killed 💀");
             cumulative_time += interval.tick().await.elapsed();

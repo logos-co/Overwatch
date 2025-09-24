@@ -1,14 +1,13 @@
 use std::time::Duration;
 
 use overwatch::{
-    derive_services,
+    DynError, OpaqueServiceResourcesHandle, derive_services,
     overwatch::OverwatchRunner,
     services::{
+        ServiceCore, ServiceData,
         state::{NoOperator, NoState},
         status::{ServiceStatus, StatusWatcher},
-        ServiceCore, ServiceData,
     },
-    DynError, OpaqueServiceResourcesHandle,
 };
 
 pub struct AwaitService1 {

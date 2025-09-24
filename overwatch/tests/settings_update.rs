@@ -2,13 +2,12 @@ use std::time::Duration;
 
 use async_trait::async_trait;
 use overwatch::{
-    derive_services,
+    OpaqueServiceResourcesHandle, derive_services,
     overwatch::OverwatchRunner,
     services::{
-        state::{NoOperator, NoState},
         ServiceCore, ServiceData,
+        state::{NoOperator, NoState},
     },
-    OpaqueServiceResourcesHandle,
 };
 use tokio::time::sleep;
 
@@ -79,7 +78,7 @@ fn settings_service_update_settings() {
         .expect("service to start successfully.");
 
     let handle2 = handle.clone();
-    settings.settings_service = "New settings".to_string();
+    settings.settings_service = "New settings".to_owned();
     overwatch.spawn(async move { handle.clone().update_settings::<TestApp>(settings).await });
 
     overwatch.spawn(async move {

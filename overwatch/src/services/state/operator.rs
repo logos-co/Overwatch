@@ -49,7 +49,7 @@ pub trait StateOperator {
 #[derive(Copy)]
 pub struct NoOperator<StateInput>(PhantomData<*const StateInput>);
 
-/// `NoOperator` does not hold anything and is thus Sync.
+/// SAFETY: `NoOperator` does not hold anything and is thus Sync.
 ///
 /// Note that we don't use `PhantomData<StateInput>` as that would suggest we
 /// indeed hold an instance of [`StateOperator::State`].
@@ -83,7 +83,7 @@ impl<StateInput: ServiceState> StateOperator for NoOperator<StateInput> {
     fn run<'borrow, 'fut>(
         &'borrow mut self,
         _state: Self::State,
-    ) -> Pin<Box<dyn std::future::Future<Output = ()> + Send + 'fut>>
+    ) -> Pin<Box<dyn Future<Output = ()> + Send + 'fut>>
     where
         'borrow: 'fut,
         Self: 'fut,

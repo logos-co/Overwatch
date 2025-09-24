@@ -7,7 +7,7 @@ use std::{
 use futures::Stream;
 use tracing::error;
 
-use crate::services::relay::{inbound_relay_retriever, relay_channel, InboundRelayReceiver};
+use crate::services::relay::{InboundRelayReceiver, inbound_relay_retriever, relay_channel};
 
 /// Channel receiver of a relay connection.
 #[derive(Debug)]
@@ -70,7 +70,9 @@ impl<Message> Drop for InboundRelay<Message> {
         mem::swap(&mut swapped_retriever_sender, retriever_sender);
 
         if let Err(error) = swapped_retriever_sender.send(swapped_receiver) {
-            error!("Failed returning receiver: {error}. This is expected if the `ServiceRunner` has been killed.");
+            error!(
+                "Failed returning receiver: {error}. This is expected if the `ServiceRunner` has been killed."
+            );
         }
     }
 }

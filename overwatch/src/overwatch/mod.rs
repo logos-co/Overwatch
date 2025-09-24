@@ -5,11 +5,11 @@ pub mod runner;
 mod runtime;
 pub mod services;
 
-use std::{any::Any, future::Future};
+use std::any::Any;
 
 pub use errors::{DynError, Error};
 pub use handle::OverwatchHandle;
-pub use runner::{GenericOverwatchRunner, OverwatchRunner, OVERWATCH_THREAD_NAME};
+pub use runner::{GenericOverwatchRunner, OVERWATCH_THREAD_NAME, OverwatchRunner};
 pub use services::Services;
 use tokio::task::JoinHandle;
 
@@ -94,7 +94,7 @@ mod test {
     use tokio::time::sleep;
 
     use crate::{
-        overwatch::{handle::OverwatchHandle, Error, OverwatchRunner, Services},
+        overwatch::{Error, OverwatchRunner, Services, handle::OverwatchHandle},
         services::{lifecycle::LifecycleNotifier, relay::AnyMessage, status::StatusWatcher},
     };
 

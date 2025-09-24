@@ -6,13 +6,12 @@ use std::{
 
 use async_trait::async_trait;
 use overwatch::{
-    derive_services,
+    DynError, OpaqueServiceResourcesHandle, derive_services,
     overwatch::OverwatchRunner,
     services::{
-        state::{ServiceState, StateOperator},
         ServiceCore, ServiceData,
+        state::{ServiceState, StateOperator},
     },
-    DynError, OpaqueServiceResourcesHandle,
 };
 
 #[derive(Clone)]

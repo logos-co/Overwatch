@@ -1,9 +1,9 @@
 use std::marker::PhantomData;
 
 use crate::services::status::{
+    Sender,
     handle::{ServiceAPI, ServiceRunnerAPI},
     service_status::ServiceStatus,
-    Sender,
 };
 
 /// Sender of [`ServiceStatus`] updates.

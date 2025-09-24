@@ -1,18 +1,18 @@
 use tracing::info;
 
 use crate::{
+    DynError,
     overwatch::handle::OverwatchHandle,
     services::{
         lifecycle::LifecycleHandle,
-        relay::{inbound_relay_retriever, InboundRelay, OutboundRelay, Relay},
+        relay::{InboundRelay, OutboundRelay, Relay, inbound_relay_retriever},
         service_handle::ServiceHandle,
         settings::SettingsHandle,
         state::{
-            fuse, ServiceState, StateHandle, StateOperator as StateOperatorTrait, StateUpdater,
+            ServiceState, StateHandle, StateOperator as StateOperatorTrait, StateUpdater, fuse,
         },
-        status::{handle::ServiceAPI, StatusHandle, StatusUpdater},
+        status::{StatusHandle, StatusUpdater, handle::ServiceAPI},
     },
-    DynError,
 };
 
 /// Core resources for a `Service`.

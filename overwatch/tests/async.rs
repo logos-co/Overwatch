@@ -1,11 +1,11 @@
 use async_trait::async_trait;
 use overwatch::{
+    OpaqueServiceResourcesHandle,
     overwatch::OverwatchRunner,
     services::{
-        state::{NoOperator, NoState},
         ServiceCore, ServiceData,
+        state::{NoOperator, NoState},
     },
-    OpaqueServiceResourcesHandle,
 };
 use overwatch_derive::derive_services;
 

@@ -1,9 +1,9 @@
 use async_trait::async_trait;
 
 use crate::{
-    overwatch::{handle::OverwatchHandle, Error},
-    services::{lifecycle::LifecycleNotifier, relay::AnyMessage, status::StatusWatcher},
     DynError,
+    overwatch::{Error, handle::OverwatchHandle},
+    services::{lifecycle::LifecycleNotifier, relay::AnyMessage, status::StatusWatcher},
 };
 
 /// An Overwatch may run anything that implements this trait.
@@ -61,7 +61,7 @@ pub trait Services: Sized {
     ///
     /// The generated [`Error`](enum@Error).
     async fn start_sequence(&mut self, service_ids: &[Self::RuntimeServiceId])
-        -> Result<(), Error>;
+    -> Result<(), Error>;
 
     /// Start all services attached to the trait implementer.
     ///

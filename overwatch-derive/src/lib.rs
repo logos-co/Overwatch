@@ -21,12 +21,12 @@
 //!   identifiers.
 
 use proc_macro::TokenStream;
-use proc_macro2::{Ident, Span};
 use proc_macro_error2::{abort_call_site, proc_macro_error};
+use proc_macro2::{Ident, Span};
 use quote::{format_ident, quote};
 use syn::{
-    parse, parse_macro_input, parse_str, punctuated::Punctuated, token::Comma, Data, DeriveInput,
-    Field, Fields, GenericArgument, Generics, ItemStruct, PathArguments, Type,
+    Data, DeriveInput, Field, Fields, GenericArgument, Generics, ItemStruct, PathArguments, Type,
+    parse, parse_macro_input, parse_str, punctuated::Punctuated, token::Comma,
 };
 
 mod utils;
@@ -193,9 +193,7 @@ pub fn services_derive(input: TokenStream) -> TokenStream {
 /// let settings_id = service_settings_identifier_from(&service_id);
 /// // settings_id will be "AppServicesServiceSettings"
 /// ```
-fn service_settings_identifier_from(
-    services_identifier: &proc_macro2::Ident,
-) -> proc_macro2::Ident {
+fn service_settings_identifier_from(services_identifier: &Ident) -> Ident {
     format_ident!("{}ServiceSettings", services_identifier)
 }
 
@@ -217,9 +215,7 @@ fn service_settings_identifier_from(
 /// let settings_field_id = service_settings_field_identifier_from(&field_id);
 /// // settings_field_id will be "database_settings"
 /// ```
-fn service_settings_field_identifier_from(
-    field_identifier: &proc_macro2::Ident,
-) -> proc_macro2::Ident {
+fn service_settings_field_identifier_from(field_identifier: &Ident) -> Ident {
     format_ident!("{}_settings", field_identifier)
 }
 
@@ -276,7 +272,7 @@ fn impl_services(input: &DeriveInput) -> proc_macro2::TokenStream {
 ///
 /// A token stream containing the combined implementations.
 fn impl_services_for_struct(
-    identifier: &proc_macro2::Ident,
+    identifier: &Ident,
     generics: &Generics,
     fields: &Punctuated<Field, Comma>,
 ) -> proc_macro2::TokenStream {
@@ -309,7 +305,7 @@ fn impl_services_for_struct(
 ///
 /// A token stream containing the settings struct definition.
 fn generate_services_settings(
-    services_identifier: &proc_macro2::Ident,
+    services_identifier: &Ident,
     generics: &Generics,
     fields: &Punctuated<Field, Comma>,
 ) -> proc_macro2::TokenStream {
@@ -352,7 +348,7 @@ fn get_runtime_service_id_type_name() -> Type {
 ///
 /// A token stream containing the Services trait implementation.
 fn generate_services_impl(
-    services_identifier: &proc_macro2::Ident,
+    services_identifier: &Ident,
     generics: &Generics,
     fields: &Punctuated<Field, Comma>,
 ) -> proc_macro2::TokenStream {
