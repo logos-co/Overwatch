@@ -6,13 +6,13 @@ use overwatch::{
     derive_services,
     overwatch::OverwatchRunner,
     services::{
+        ServiceCore, ServiceData,
         resources::ServiceResourcesHandle,
         state::{NoOperator, NoState},
-        ServiceCore, ServiceData,
     },
 };
 use tokio::{
-    io::{self, AsyncWriteExt},
+    io::{self, AsyncWriteExt as _},
     time::sleep,
 };
 
@@ -112,13 +112,13 @@ fn derive_generic_service() {
 
         for _ in 0..3 {
             generic_service_relay
-                .send(GenericServiceMessage("Hey oh let's go!".to_string()))
+                .send(GenericServiceMessage("Hey oh let's go!".to_owned()))
                 .await
                 .expect("Message is sent");
         }
         sleep(Duration::from_millis(50)).await;
         generic_service_relay
-            .send(GenericServiceMessage("stop".to_string()))
+            .send(GenericServiceMessage("stop".to_owned()))
             .await
             .expect("stop message to be sent");
     });

@@ -2,7 +2,7 @@
 authors     = ["Daniel Sanchez Quiros <danielsq@status.im>"]
 categories  = ["asynchronous"]
 description = "Overwatch derive macros"
-edition     = "2021"
+edition     = { workspace = true }
 exclude     = ["./tests", ".github"]
 homepage    = { workspace = true }
 keywords    = ["async", "derive", "framework", "macros", "services"]
@@ -29,5 +29,8 @@ tracing           = { version = "0.1", optional = true }
 
 [dev-dependencies]
 async-trait = "0.1"
-overwatch   = { path = "../overwatch" }
+overwatch   = { workspace = true }
 tracing     = "0.1"
+
+[lints]
+workspace = true

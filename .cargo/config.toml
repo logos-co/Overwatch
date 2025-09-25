@@ -1,7 +1,0 @@
-[target.'cfg(all())']
-rustflags = [
-    "-Wclippy::nursery",
-    "-Wclippy::pedantic",
-    "-Wclippy::cargo",
-    "-Wclippy::allow_attributes",
-]

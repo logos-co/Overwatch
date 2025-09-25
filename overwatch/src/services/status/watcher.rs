@@ -1,6 +1,6 @@
 use std::time::Duration;
 
-use crate::services::status::{service_status::ServiceStatus, Receiver};
+use crate::services::status::{Receiver, service_status::ServiceStatus};
 
 /// Watcher for the [`ServiceStatus`] updates.
 #[derive(Debug, Clone)]
@@ -14,9 +14,7 @@ impl StatusWatcher {
     pub const fn new(receiver: Receiver) -> Self {
         Self { receiver }
     }
-}
 
-impl StatusWatcher {
     /// Wait for a new [`ServiceStatus`] message.
     ///
     /// # Errors

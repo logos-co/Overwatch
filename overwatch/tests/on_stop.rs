@@ -1,10 +1,10 @@
 use overwatch::{
+    DynError, OpaqueServiceResourcesHandle,
     overwatch::OverwatchRunner,
     services::{
-        state::{NoOperator, NoState},
         ServiceCore, ServiceData,
+        state::{NoOperator, NoState},
     },
-    DynError, OpaqueServiceResourcesHandle,
 };
 use overwatch_derive::derive_services;
 

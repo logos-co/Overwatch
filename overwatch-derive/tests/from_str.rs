@@ -1,12 +1,12 @@
-use std::str::FromStr;
+use std::str::FromStr as _;
 
 use async_trait::async_trait;
 use overwatch::{
-    services::{
-        state::{NoOperator, NoState},
-        ServiceCore, ServiceData,
-    },
     OpaqueServiceResourcesHandle,
+    services::{
+        ServiceCore, ServiceData,
+        state::{NoOperator, NoState},
+    },
 };
 use overwatch_derive::derive_services;
 

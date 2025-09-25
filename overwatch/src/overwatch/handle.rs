@@ -2,7 +2,7 @@ use std::fmt::{Debug, Display};
 
 use tokio::{
     runtime::Handle,
-    sync::mpsc::{error::SendError, Sender},
+    sync::mpsc::{Sender, error::SendError},
 };
 #[cfg(feature = "instrumentation")]
 use tracing::instrument;
@@ -10,19 +10,19 @@ use tracing::{debug, error, info};
 
 use crate::{
     overwatch::{
+        Error, Services,
         commands::{
             OverwatchCommand, OverwatchManagementCommand, RelayCommand, ReplyChannel,
             ServiceAllCommand, ServiceLifecycleCommand, ServiceSequenceCommand,
             ServiceSingleCommand, SettingsCommand, StatusCommand,
         },
         errors::OverwatchManagementError,
-        Error, Services,
     },
     services::{
+        AsServiceId, ServiceData,
         lifecycle::ServiceLifecycleError,
         relay::{OutboundRelay, RelayError},
         status::StatusWatcher,
-        AsServiceId, ServiceData,
     },
     utils::finished_signal,
 };

@@ -1,6 +1,6 @@
 use tokio::sync::mpsc::Sender;
 
-use crate::{services::lifecycle::message::LifecycleMessage, DynError};
+use crate::{DynError, services::lifecycle::message::LifecycleMessage};
 
 #[derive(Clone)]
 pub struct LifecycleNotifier {

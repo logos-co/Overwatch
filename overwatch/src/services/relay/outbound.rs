@@ -1,7 +1,7 @@
 use futures::Sink;
 use tokio_util::sync::PollSender;
 
-use crate::services::relay::{errors::RelayError, OutboundRelaySender};
+use crate::services::relay::{OutboundRelaySender, errors::RelayError};
 
 /// Channel sender of a relay connection.
 pub struct OutboundRelay<Message> {

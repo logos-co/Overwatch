@@ -16,7 +16,7 @@ pub struct StateUpdater<State> {
 impl<State> Clone for StateUpdater<State> {
     fn clone(&self) -> Self {
         Self {
-            sender: self.sender.clone(),
+            sender: Arc::clone(&self.sender),
         }
     }
 }

@@ -6,7 +6,9 @@ use tracing::instrument;
 use tracing::{error, info};
 
 use crate::{
+    DynError,
     overwatch::{
+        Error, Overwatch, Services,
         commands::{
             OverwatchCommand, OverwatchManagementCommand, RelayCommand, ServiceAllCommand,
             ServiceLifecycleCommand, ServiceSequenceCommand, ServiceSingleCommand, SettingsCommand,
@@ -14,10 +16,8 @@ use crate::{
         },
         handle::OverwatchHandle,
         runtime::OverwatchRuntime,
-        Error, Overwatch, Services,
     },
     utils::{finished_signal, runtime::default_multithread_runtime},
-    DynError,
 };
 
 /// Overwatch thread identifier.
@@ -286,7 +286,7 @@ async fn handle_service_lifecycle_command_operation<F>(
     sender: finished_signal::Sender,
     operation_name: &str,
 ) where
-    F: std::future::Future<Output = Result<(), Error>> + Send,
+    F: Future<Output = Result<(), Error>> + Send,
 {
     if let Err(error) = operation.await {
         error!(error=?error, "Error while running {operation_name} operation.");

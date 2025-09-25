@@ -1,7 +1,7 @@
 [package]
 categories  = ["asynchronous"]
 description = "Example of a Overwatch runner implementation that sends messages between a Ping and a Pong service."
-edition     = "2021"
+edition     = { workspace = true }
 keywords    = ["async", "examples", "framework", "services"]
 license     = { workspace = true }
 name        = "ping_pong"
@@ -11,12 +11,15 @@ version     = "0.1.0"
 [dependencies]
 async-trait  = "0.1.83"
 const_format = "0.2.34"
-overwatch    = { workspace = true }
+overwatch    = { workspace = true, features = ["derive"] }
 serde        = { version = "1.0.216", features = ["derive"] }
 serde_json   = "1.0.134"
 thiserror    = "2.0.8"
 tokio        = { version = "1.42.0", features = ["macros"] }
 tracing      = "0.1.41"
+
+[lints]
+workspace = true
 
 [package.metadata.cargo-machete]
 # False positives.

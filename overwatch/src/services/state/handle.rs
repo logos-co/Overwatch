@@ -1,10 +1,10 @@
 use std::sync::Arc;
 
-use futures::FutureExt;
-use tokio_stream::StreamExt;
+use futures::FutureExt as _;
+use tokio_stream::StreamExt as _;
 use tracing::debug;
 
-use crate::services::state::{channel, fuse, StateOperator, StateUpdater, StateWatcher, Stream};
+use crate::services::state::{StateOperator, StateUpdater, StateWatcher, Stream, channel, fuse};
 
 /// Receiver part of the state handling mechanism.
 ///
@@ -119,10 +119,10 @@ mod test {
     use std::{convert::Infallible, time::Duration};
 
     use async_trait::async_trait;
-    use tokio::{io, io::AsyncWriteExt, time::sleep};
+    use tokio::{io, io::AsyncWriteExt as _, time::sleep};
 
     use crate::services::state::{
-        handle::fuse, ServiceState, StateHandle, StateOperator, StateUpdater,
+        ServiceState, StateHandle, StateOperator, StateUpdater, handle::fuse,
     };
 
     #[derive(Clone)]

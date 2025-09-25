@@ -2,7 +2,7 @@
 authors     = ["Daniel Sanchez Quiros <danielsq@status.im>"]
 categories  = ["asynchronous"]
 description = "A lightweight framework for building modular, interconnected applications."
-edition     = "2021"
+edition     = { workspace = true }
 exclude     = ["./tests", ".github"]
 homepage    = { workspace = true }
 keywords    = ["async", "framework", "services"]
@@ -31,3 +31,6 @@ tracing          = "0.1"
 [dev-dependencies]
 overwatch-derive = { workspace = true }
 tokio            = { version = "1.17", features = ["io-std", "io-util", "macros", "rt-multi-thread", "sync", "time"] }
+
+[lints]
+workspace = true

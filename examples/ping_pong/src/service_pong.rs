@@ -1,15 +1,15 @@
 use overwatch::{
-    services::{
-        state::{NoOperator, NoState},
-        ServiceCore, ServiceData,
-    },
     DynError, OpaqueServiceResourcesHandle,
+    services::{
+        ServiceCore, ServiceData,
+        state::{NoOperator, NoState},
+    },
 };
 
 use crate::{
+    RuntimeServiceId,
     messages::{PingMessage, PongMessage},
     service_ping::PingService,
-    RuntimeServiceId,
 };
 
 pub struct PongService {

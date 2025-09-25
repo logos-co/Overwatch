@@ -2,16 +2,15 @@ use std::{convert::Infallible, time::Duration};
 
 use async_trait::async_trait;
 use overwatch::{
-    derive_services,
+    OpaqueServiceResourcesHandle, derive_services,
     overwatch::OverwatchRunner,
     services::{
-        state::{ServiceState, StateOperator},
         ServiceCore, ServiceData,
+        state::{ServiceState, StateOperator},
     },
-    OpaqueServiceResourcesHandle,
 };
 use tokio::{
-    io::{self, AsyncWriteExt},
+    io::{self, AsyncWriteExt as _},
     time::sleep,
 };
 

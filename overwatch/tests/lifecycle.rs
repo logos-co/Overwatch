@@ -1,24 +1,24 @@
 use std::{
     convert::Infallible,
     sync::{
-        mpsc::{channel, Sender},
         Mutex,
+        mpsc::{Sender, channel},
     },
 };
 
 use async_trait::async_trait;
 use overwatch::{
+    DynError, OpaqueServiceResourcesHandle,
     overwatch::{
+        OverwatchRunner,
         commands::{OverwatchCommand, ServiceLifecycleCommand, ServiceSingleCommand},
         handle::OverwatchHandle,
-        OverwatchRunner,
     },
     services::{
+        AsServiceId, ServiceCore, ServiceData,
         resources::ServiceResourcesHandle,
         state::{ServiceState, StateOperator},
-        AsServiceId, ServiceCore, ServiceData,
     },
-    DynError, OpaqueServiceResourcesHandle,
 };
 use overwatch_derive::derive_services;
 use tokio::{runtime::Handle, sync::oneshot};
@@ -55,7 +55,7 @@ impl StateOperator for LifecycleServiceStateOperator {
             .saved_state
             .try_lock()
             .map(|mut saved_state| saved_state.take())
-            .map_err(|_| "Failed to lock the saved state mutex.".to_string())
+            .map_err(|_| "Failed to lock the saved state mutex.".to_owned())
     }
 
     fn from_settings(settings: &<Self::State as ServiceState>::Settings) -> Self {
@@ -222,7 +222,7 @@ fn test_lifecycle() {
     {
         let mut guard = SAVED_STATE.lock().expect("Lock should be available.");
         *guard = Some(LifecycleServiceState { value: 2 });
-    }
+    };
 
     // Start the Service again
     let (lifecycle_sender, lifecycle_receiver) = oneshot::channel();

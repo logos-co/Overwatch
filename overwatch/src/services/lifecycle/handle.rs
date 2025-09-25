@@ -1,10 +1,9 @@
 use std::{
-    default::Default,
     pin::Pin,
     task::{Context, Poll},
 };
 
-use futures::{Stream, StreamExt};
+use futures::{Stream, StreamExt as _};
 use tokio::sync::mpsc::channel;
 use tokio_stream::wrappers::ReceiverStream;
 

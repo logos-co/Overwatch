@@ -3,16 +3,15 @@ use std::time::Duration;
 use async_trait::async_trait;
 use futures::future::select;
 use overwatch::{
-    derive_services,
+    OpaqueServiceResourcesHandle, derive_services,
     overwatch::OverwatchRunner,
     services::{
-        state::{NoOperator, NoState},
         ServiceCore, ServiceData,
+        state::{NoOperator, NoState},
     },
-    OpaqueServiceResourcesHandle,
 };
 use tokio::{
-    io::{self, AsyncWriteExt},
+    io::{self, AsyncWriteExt as _},
     time::sleep,
 };
 
@@ -104,13 +103,13 @@ fn derive_print_service() {
 
         for _ in 0..3 {
             print_service_relay
-                .send(PrintServiceMessage("Hey oh let's go!".to_string()))
+                .send(PrintServiceMessage("Hey oh let's go!".to_owned()))
                 .await
                 .expect("Message is sent");
         }
         sleep(Duration::from_millis(50)).await;
         print_service_relay
-            .send(PrintServiceMessage("stop".to_string()))
+            .send(PrintServiceMessage("stop".to_owned()))
             .await
             .expect("stop message to be sent");
     });
