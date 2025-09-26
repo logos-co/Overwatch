@@ -1,12 +1,12 @@
 [package]
-categories  = ["asynchronous"]
+categories  = { workspace = true }
 description = "Example of a Overwatch runner implementation that sends messages between a Ping and a Pong service."
 edition     = { workspace = true }
 keywords    = ["async", "examples", "framework", "services"]
 license     = { workspace = true }
 name        = "ping_pong"
 repository  = { workspace = true }
-version     = "0.1.0"
+version     = { workspace = true }
 
 [dependencies]
 async-trait  = "0.1.83"
