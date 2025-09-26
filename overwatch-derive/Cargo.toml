@@ -1,16 +1,16 @@
 [package]
 authors     = ["Daniel Sanchez Quiros <danielsq@status.im>"]
-categories  = ["asynchronous"]
+categories  = { workspace = true }
 description = "Overwatch derive macros"
 edition     = { workspace = true }
 exclude     = ["./tests", ".github"]
 homepage    = { workspace = true }
-keywords    = ["async", "derive", "framework", "macros", "services"]
+keywords    = { workspace = true }
 license     = { workspace = true }
 name        = "overwatch-derive"
 readme      = "README.md"
 repository  = { workspace = true }
-version     = "0.1.0"
+version     = { workspace = true }
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 [lib]

@@ -1,19 +1,29 @@
+[workspace.package]
+categories = ["asynchronous", "concurrency", "development-tools", "network-programming", "rust-patterns"]
+edition    = "2024"
+homepage   = "https://github.com/logos-co/Overwatch"
+keywords   = ["async", "framework", "services"]
+license    = "MIT or Apache-2.0"
+repository = "https://github.com/logos-co/Overwatch"
+version    = "0.1.0"
+
 [workspace]
 members  = ["examples/ping_pong", "overwatch", "overwatch-derive"]
 resolver = "2"
-
-[workspace.package]
-edition    = "2024"
-homepage   = "https://github.com/logos-co/Overwatch"
-license    = "MIT or Apache-2.0"
-repository = "https://github.com/logos-co/Overwatch"
 
 [workspace.dependencies]
 overwatch        = { default-features = false, path = "./overwatch" }
 overwatch-derive = { default-features = false, path = "./overwatch-derive" }
 
+[profile.release-opt]
+inherits = "release"
+lto      = true
+
 # These lints are kept in sync as much as we can with our `nomos` repo.
 [workspace.lints.clippy]
+
+# Cargo and allowed cargo warnings (new lints will warn by default)
+cargo = { level = "warn", priority = -1 }
 
 # Nursery and allowed nursery warnings (new lints will warn by default)
 nursery = { level = "warn", priority = -1 }
@@ -158,7 +168,3 @@ unit_bindings                          = { level = "allow" }
 unreachable_pub                        = { level = "allow" }
 unsafe_code                            = { level = "allow" }
 variant_size_differences               = { level = "allow" }
-
-[profile.release-opt]
-inherits = "release"
-lto      = true
