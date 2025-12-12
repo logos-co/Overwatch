@@ -29,7 +29,7 @@ tracing           = { version = "0.1", optional = true }
 
 [dev-dependencies]
 async-trait = "0.1"
-overwatch   = { workspace = true }
+overwatch   = { workspace = true, features = ["derive"] }
 tracing     = "0.1"
 
 [lints]
