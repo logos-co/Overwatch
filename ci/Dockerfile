@@ -1,4 +1,4 @@
-FROM rust:1.91.0-slim-bullseye
+FROM rust:1.92.0-slim-bullseye
 
 LABEL maintainer="augustinas@status.im"
 LABEL source="https://github.com/logos-co/Overwatch"
