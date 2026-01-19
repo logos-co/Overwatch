@@ -19,7 +19,7 @@ overwatch-derive = { default-features = false, path = "./overwatch-derive" }
 inherits = "release"
 lto      = true
 
-# These lints are kept in sync as much as we can with our `nomos` repo.
+# These lints are kept in sync as much as we can with our `logos-blockchain` repo.
 [workspace.lints.clippy]
 
 # Cargo and allowed cargo warnings (new lints will warn by default)

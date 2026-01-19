@@ -2,7 +2,7 @@ FROM rust:1.92.0-slim-bullseye
 
 LABEL maintainer="augustinas@status.im"
 LABEL source="https://github.com/logos-co/Overwatch"
-LABEL description="Overwatch ci build image"
+LABEL description="Overwatch CI build image"
 
 # Using backports for go 1.19
 RUN echo 'deb http://deb.debian.org/debian bullseye-backports main' >> /etc/apt/sources.list
