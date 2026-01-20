@@ -22,173 +22,323 @@
 
 [docs-url]: https://docs.rs/overwatch
 
-# Overwatch
+<div align="center">
+
+# 🔭 Overwatch
+
+**A lightweight framework for building modular, interconnected applications in Rust.**
 
 [![MIT License][mit-badge]][mit-url]
 [![Apache License][apache-badge]][apache-url]
-
 [![Build Status][actions-badge]][actions-url]
 [![Codecov Status][codecov-badge]][codecov-url]
-
 [![crates.io][crates-badge]][crates-url]
 [![docs.rs][docs-badge]][docs-url]
 
-**A lightweight framework for building modular, interconnected applications.**
+[Getting Started](#-getting-started) •
+[Architecture](#-architecture) •
+[Examples](#-examples) •
+[Documentation](#-documentation)
 
-Overwatch simplifies the development of complex systems by enabling seamless communication between independent
-components. It combines the flexibility of microservices with the simplicity of a unified framework.
+</div>
 
-## Table of Contents
+---
 
-- [Overwatch](#overwatch)
-    - [Table of Contents](#table-of-contents)
-    - [Requirements](#requirements)
-    - [Quick Start](#quick-start)
-    - [Features](#features)
-    - [Design Goals](#design-goals)
-        - [**Modularity**](#modularity)
-        - [**Single Responsibility**](#single-responsibility)
-        - [**Observability**](#observability)
-    - [Components](#components)
-        - [**Overwatch**](#overwatch-1)
-        - [**Services**](#services)
-    - [Project Structure](#project-structure)
-    - [Development Workflow](#development-workflow)
-        - [**Running Tests**](#running-tests)
-        - [**Running Examples**](#running-examples)
-        - [**Generating Documentation**](#generating-documentation)
-    - [Contributing](#contributing)
-    - [License](#license)
-    - [Community](#community)
+## 🎯 What is Overwatch?
 
-## Requirements
+Overwatch simplifies the development of complex systems by enabling **seamless communication between independent components**. Think of it as a lightweight alternative to microservices that runs within a single process.
 
-- Rust ≥ 1.63
+### Why Overwatch?
 
-## Quick Start
+| Traditional Approach | With Overwatch |
+|---------------------|----------------|
+| Tightly coupled components | 🔌 Modular, independent services |
+| Complex inter-process communication | 📨 Built-in async message passing |
+| Manual lifecycle management | ⚡ Automatic service orchestration |
+| Scattered configuration | ⚙️ Centralized settings management |
+| Difficult to test | 🧪 Easy to mock and test services |
 
-Add `overwatch` and `overwatch-derive` to your `Cargo.toml`:
+---
+
+## 🏗️ Architecture
+
+Overwatch uses a **mediator pattern** where the `OverwatchRunner` acts as the central coordinator for all services:
+
+```
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                              OVERWATCH RUNNER                               │
+│                           (Central Coordinator)                             │
+│                                                                             │
+│   ┌─────────────────────────────────────────────────────────────────────┐   │
+│   │                            MESSAGE RELAY                            │   │
+│   │                Async communication between services                 │   │
+│   └─────────────────────────────────────────────────────────────────────┘   │
+│                 |                    │                    │                 │
+│          ┌─────────────┐      ┌─────────────┐      ┌─────────────┐          │
+│          │  Service A  │ <--> │  Service B  │ <--> │  Service C  │          │
+│          │             │      │             │      │             │          │
+│          │ ┌─────────┐ │      │ ┌─────────┐ │      │ ┌─────────┐ │          │
+│          │ │Settings │ │      │ │Settings │ │      │ │Settings │ │          │
+│          │ └─────────┘ │      │ └─────────┘ │      │ └─────────┘ │          │
+│          │ ┌─────────┐ │      │ ┌─────────┐ │      │ ┌─────────┐ │          │
+│          │ │  State  │ │      │ │  State  │ │      │ │  State  │ │          │
+│          │ └─────────┘ │      │ └─────────┘ │      │ └─────────┘ │          │
+│          └─────────────┘      └─────────────┘      └─────────────┘          │
+│                                                                             │
+│   ┌─────────────────────────────────────────────────────────────────────┐   │
+│   │                      LIFECYCLE MANAGEMENT                           │   │
+│   │         Start • Stop • Restart • Configuration Updates              │   │
+│   └─────────────────────────────────────────────────────────────────────┘   │
+└─────────────────────────────────────────────────────────────────────────────┘
+```
+
+### Key Concepts
+
+| Concept | Description |
+|---------|-------------|
+| **OverwatchRunner** | The central coordinator that manages all services |
+| **Service** | An independent unit of work with its own lifecycle |
+| **Relay** | Type-safe async channel for inter-service communication |
+| **Settings** | Configuration for each service |
+| **State** | Persistent state that survives restarts |
+| **StateOperator** | Logic for loading/saving service state |
+
+---
+
+## 🚀 Getting Started
+
+### Requirements
+
+- **Rust ≥ 1.63**
+
+### Installation
+
+Add the following to your `Cargo.toml`:
 
 ```toml
 [dependencies]
 overwatch = "1"
 overwatch-derive = "1"
+async-trait = "0.1"
+tokio = { version = "1", features = ["full"] }
 ```
 
-Here's a simple example to get you started:
+### Minimal Example
 
-```rust compile_fail
-// This example is for illustration purposes only and is not meant to compile.
-// There are parts of the code that are required to be implemented by the user.
-// Please refer to the examples directory for working code. 
+Here's the simplest possible Overwatch application:
 
+```rust
+use async_trait::async_trait;
 use overwatch::{
+    derive_services,
     overwatch::OverwatchRunner,
-    services::{ServiceCore, ServiceData},
-    derive_services
+    services::{
+        ServiceCore, ServiceData,
+        state::{NoOperator, NoState},
+    },
+    DynError, OpaqueServiceResourcesHandle,
 };
 
-struct MyService;
-
-impl ServiceData for MyService {
-    // Implement ServiceData
+// 1️⃣ Define your service
+struct HelloService {
+    handle: OpaqueServiceResourcesHandle<Self, RuntimeServiceId>,
 }
 
-#[async_trait::async_trait]
-impl ServiceCore for MyService {
-    // Implement ServiceCore
+// 2️⃣ Specify service data types
+impl ServiceData for HelloService {
+    type Settings = ();                             // No configuration needed
+    type State = NoState<Self::Settings>;           // No persistent state
+    type StateOperator = NoOperator<Self::State>;   // No state operations
+    type Message = ();                              // No incoming messages
 }
 
-#[derive(Services)]
+// 3️⃣ Implement the service logic
+#[async_trait]
+impl ServiceCore<RuntimeServiceId> for HelloService {
+    fn init(
+        handle: OpaqueServiceResourcesHandle<Self, RuntimeServiceId>,
+        _state: Self::State,
+    ) -> Result<Self, DynError> {
+        Ok(Self { handle })
+    }
+
+    async fn run(self) -> Result<(), DynError> {
+        println!("👋 Hello from Overwatch!");
+        
+        // Signal that this service is done. We can shut down the whole application.
+        self.handle
+            .overwatch_handle
+            .shutdown()
+            .await;
+        
+        Ok(())
+    }
+}
+
+// 4️⃣ Compose your application
+#[derive_services]
 struct MyApp {
-    my_service: MyService,
-    // ... other services
+    hello: HelloService,
 }
 
+// 5️⃣ Run it!
 fn main() {
-    // `MyAppServiceSettings` is a struct that contains the settings for each service.
-    // Generated by the `Services` derive.
-    let my_app_settings = MyAppServiceSettings {
-        my_service: ()
-    };
-    let my_app =
-        OverwatchRunner::<MyApp>::run(my_app_settings, None).expect("OverwatchRunner failed");
-    my_app.wait_finished();
+    let settings = MyAppServiceSettings { hello: () };
+    
+    let app = OverwatchRunner::<MyApp>::run(settings, None)
+        .expect("Failed to start");
+    
+    // Start all services
+    app.runtime()
+        .handle()
+        .block_on(app.handle().start_all_services())
+        .expect("Failed to start services");
+    
+    app.blocking_wait_finished();
 }
 ```
 
-## Features
+---
 
-- **Modular Design**: Build self-contained, reusable components with clear interfaces.
-- **Asynchronous Communication**: Scalable and non-blocking communication between components.
-- **Lifecycle Management**: Centralized control over component initialization, updates, and shutdown.
-- **Dynamic Configuration**: Handle runtime configuration updates seamlessly.
-- **Testability**: Components are designed for easy testing and mocking.
+## 📬 Inter-Service Communication
 
-## Design Goals
+Services communicate through **typed message relays**:
 
-Our architecture is built on three core principles:
+```
+┌──────────────┐         PongMessage          ┌──────────────┐
+│              │ ───────────────────────────> │              │
+│ Ping Service │                              │ Pong Service │
+│              │ <─────────────────────────── │              │
+└──────────────┘         PingMessage          └──────────────┘
+```
 
-### **Modularity**
+```rust
+// Define message types
+#[derive(Debug)]
+enum PingMessage { Pong }
 
-- Components are self-contained with well-defined interfaces.
-- Communication between components is explicit and predictable.
-- Designed for easy testing and performance evaluation.
+#[derive(Debug)]  
+enum PongMessage { Ping }
 
-### **Single Responsibility**
+// In PingService::run()
+async fn run(self) -> Result<(), DynError> {
+    // Get a relay to send messages to PongService
+    let pong_relay = self.handle
+        .overwatch_handle
+        .relay::<PongService>()
+        .await?;
+    
+    // Send a message
+    pong_relay.send(PongMessage::Ping).await?;
+    
+    // Receive messages
+    while let Some(msg) = self.handle.inbound_relay.recv().await {
+        match msg {
+            PingMessage::Pong => println!("Received Pong!"),
+        }
+    }
+    Ok(())
+}
+```
 
-- Each component focuses on a single task for easier debugging.
-- Shared state is minimized to reduce complexity.
+---
 
-### **Observability**
+## 📦 Examples
 
-- Workflows are transparent and traceable.
-- Components are designed for easy testing and monitoring.
-- Asynchronous communication ensures scalability and clarity.
+### Ping-Pong Example
 
-## Components
+The [`examples/ping_pong`](examples/ping_pong) directory contains a complete working example demonstrating:
 
-### **Overwatch**
+- ✅ Service definition and registration
+- ✅ Inter-service messaging via relays
+- ✅ Settings configuration
+- ✅ State persistence and restoration
+- ✅ Custom state operators
 
-- Acts as the central messaging relay for internal communications.
-- Manages the lifecycle of all services.
-- Handles dynamic configuration updates.
+**Run it:**
 
-### **Services**
+```bash
+cargo run --example ping_pong
+```
 
-- Modular units that perform specific tasks within the system.
-- Operated and coordinated by *Overwatch*.
+**What it does:**
 
-## Project Structure
+1. **Ping** sends a message to **Pong** every second
+2. **Pong** receives it and replies back
+3. **Ping** tracks the count and persists it to disk
+4. After 30 pongs, the application exits
 
-- `overwatch`: The core framework.
-- `overwatch-derive`: Macros to simplify component implementation.
+---
 
-## Development Workflow
+## 📖 Documentation
 
-### **Running Tests**
+| Resource | Description |
+|----------|-------------|
+| [API Docs](https://docs.rs/overwatch) | Full API reference |
+| [Examples](examples/) | Working code examples |
+| [CONTRIBUTING.md](CONTRIBUTING.md) | Contribution guidelines |
 
-- Run all tests: `cargo test`.
-- View test outputs: `cargo test -- --nocapture`.
+---
 
-### **Running Examples**
+## 🧩 Project Structure
 
-- Execute an example: `cargo run --example {example_name}`.
+```
+Overwatch/
+├── overwatch/          # Core framework library
+│   └── src/
+│       ├── overwatch/  # Runner, handle, commands
+│       ├── services/   # Service traits and utilities
+│       └── utils/      # Helper utilities
+├── overwatch-derive/   # Procedural macros (#[derive_services])
+└── examples/
+    └── ping_pong/      # Complete working example
+```
 
-### **Generating Documentation**
+---
 
-- Build and open documentation: `cargo doc --open --no-deps`.
+## 🔧 Development
 
-## Contributing
+### Running Tests
 
-We welcome contributions! Please read our [Contributing Guidelines](CONTRIBUTING.md) for details on how to get started.
+```bash
+# Run all tests
+cargo test
 
-## License
+# Run with output
+cargo test -- --nocapture
+```
 
-Overwatch is licensed under the [APACHE-2.0](LICENSE-APACHE2.0) and [MIT](LICENSE-MIT) licenses.
+### Running Examples
 
-## Community
+```bash
+cargo run --example ping_pong
+```
 
-Join the conversation and get help:
+### Generating Documentation
 
-- [Discord Server](https://discord.gg/G6q8FgZq)
+```bash
+cargo doc --open --no-deps
+```
+
+---
+
+## 🤝 Contributing
+
+We welcome contributions! Please read our [Contributing Guidelines](CONTRIBUTING.md) for details.
+
+---
+
+## 📄 License
+
+Dual-licensed under [Apache 2.0](LICENSE-APACHE2.0) and [MIT](LICENSE-MIT).
+
+---
+
+## 💬 Community
+
+Join the conversation:
+
+- 💬 [Discord Server](https://discord.gg/G6q8FgZq)
+- 🐛 [GitHub Issues](https://github.com/logos-co/Overwatch/issues)
+
+---
