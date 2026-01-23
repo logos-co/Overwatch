@@ -6,7 +6,7 @@
     overlays = [
       (import (fetchGit {
         url = "https://github.com/oxalica/rust-overlay.git";
-        rev = "a9471b23bf656d69ceb2d5ddccdc5082d51fc0e3";
+        rev = "470ee44393bb19887056b557ea2c03fc5230bd5a";
       }))
     ];
    }
@@ -19,7 +19,7 @@ pkgs.mkShell {
     pkg-config
     # Updating the version here requires also updating the `rev` version in the `overlays` section above
     # with a commit that contains the new version in its manifest
-    rust-bin.stable."1.92.0".default
+    rust-bin.stable."1.93.0".default
     go_1_19
   ];
 }
