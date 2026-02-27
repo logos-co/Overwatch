@@ -2,7 +2,7 @@ use std::sync::Arc;
 
 use futures::FutureExt as _;
 use tokio_stream::StreamExt as _;
-use tracing::debug;
+use tracing::{debug, trace};
 
 use crate::services::state::{StateOperator, StateUpdater, StateWatcher, Stream, channel, fuse};
 
@@ -91,15 +91,15 @@ where
                      break;
                  }
                 Some(state) = state_stream.next() => {
-                    debug!("StateHandle's Stream received a state. Forwarding to Operator.");
+                    trace!("StateHandle's Stream received a state. Forwarding to Operator.");
                     Self::process_state(&mut operator, state).await;
                 }
             }
         }
 
-        debug!("Attempting to fetch the last state from StateHandle's Stream.");
+        trace!("Attempting to fetch the last state from StateHandle's Stream.");
         if let Some(last_state) = state_stream.next().now_or_never().flatten() {
-            debug!("StateHandle's Stream received the last state. Forwarding to Operator.");
+            trace!("StateHandle's Stream received the last state. Forwarding to Operator.");
             Self::process_state(&mut operator, last_state).await;
         }
         debug!("StateHandle's Operator loop finished.");
