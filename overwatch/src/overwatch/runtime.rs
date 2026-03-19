@@ -13,4 +13,12 @@ impl OverwatchRuntime {
             Self::TokioHandle(handle) => handle,
         }
     }
+
+    /// Shuts down the runtime in the background.
+    pub fn shutdown_background(self) {
+        match self {
+            Self::TokioRuntime(runtime) => runtime.shutdown_background(),
+            Self::TokioHandle(_) => {} // handle doesn't own the runtime, nothing to do
+        }
+    }
 }

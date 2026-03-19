@@ -56,10 +56,12 @@ impl<RuntimeServiceId> Overwatch<RuntimeServiceId> {
     pub async fn wait_finished(self) {
         let Self {
             finish_runner_signal,
+            runtime,
             ..
         } = self;
 
         handle_finish_signal(finish_runner_signal).await;
+        runtime.shutdown_background();
     }
 
     /// Block until [`Overwatch`] finishes executing.
