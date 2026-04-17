@@ -32,8 +32,7 @@ impl StatusWatcher {
         let timeout_duration = timeout_duration.unwrap_or_else(|| Duration::from_secs(u64::MAX));
         tokio::time::timeout(timeout_duration, self.receiver.wait_for(|s| s == &status))
             .await
-            .map(|r| r.map(|s| *s).map_err(|_| current))
-            .unwrap_or(Err(current))
+            .map_or(Err(current), |r| r.map(|s| *s).map_err(|_| current))
     }
 
     #[must_use]
