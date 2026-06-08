@@ -20,8 +20,8 @@
 //! - Provides compile-time validation for service settings and runtime service
 //!   identifiers.
 
+use manyhow::{bail, manyhow};
 use proc_macro::TokenStream;
-use proc_macro_error2::{abort_call_site, proc_macro_error};
 use proc_macro2::{Ident, Span};
 use quote::{format_ident, quote};
 use syn::{
@@ -167,12 +167,12 @@ fn get_default_instrumentation_without_settings() -> proc_macro2::TokenStream {
 ///     cache: OpaqueServiceHandle<CacheService>,
 /// }
 /// ```
+#[manyhow]
 #[proc_macro_derive(Services)]
-#[proc_macro_error]
-pub fn services_derive(input: TokenStream) -> TokenStream {
+pub fn services_derive(input: TokenStream) -> manyhow::Result<TokenStream> {
     let parsed_input: DeriveInput = parse(input).expect("A syn parseable token stream");
-    let derived = impl_services(&parsed_input);
-    derived.into()
+    let derived = impl_services(&parsed_input)?;
+    Ok(derived.into())
 }
 
 /// Creates a service settings identifier from a services identifier.
@@ -236,7 +236,7 @@ fn service_settings_field_identifier_from(field_identifier: &Ident) -> Ident {
 ///
 /// This function will abort compilation if the input is not a struct with named
 /// fields.
-fn impl_services(input: &DeriveInput) -> proc_macro2::TokenStream {
+fn impl_services(input: &DeriveInput) -> manyhow::Result<proc_macro2::TokenStream> {
     use syn::DataStruct;
 
     let struct_identifier = &input.ident;
@@ -246,11 +246,13 @@ fn impl_services(input: &DeriveInput) -> proc_macro2::TokenStream {
         Data::Struct(DataStruct {
             fields: Fields::Named(fields),
             ..
-        }) => impl_services_for_struct(struct_identifier, generics, &fields.named),
+        }) => Ok(impl_services_for_struct(
+            struct_identifier,
+            generics,
+            &fields.named,
+        )?),
         _ => {
-            abort_call_site!(
-                "Deriving Services is only supported for named structs with at least one field."
-            );
+            bail!("Deriving Services is only supported for named structs with at least one field.");
         }
     }
 }
@@ -275,18 +277,18 @@ fn impl_services_for_struct(
     identifier: &Ident,
     generics: &Generics,
     fields: &Punctuated<Field, Comma>,
-) -> proc_macro2::TokenStream {
+) -> manyhow::Result<proc_macro2::TokenStream> {
     let runtime_service_type = generate_runtime_service_types(fields);
-    let settings = generate_services_settings(identifier, generics, fields);
-    let services_impl = generate_services_impl(identifier, generics, fields);
+    let settings = generate_services_settings(identifier, generics, fields)?;
+    let services_impl = generate_services_impl(identifier, generics, fields)?;
 
-    quote! {
+    Ok(quote! {
         #runtime_service_type
 
         #settings
 
         #services_impl
-    }
+    })
 }
 
 /// Generates the services settings struct for a given service.
@@ -308,21 +310,23 @@ fn generate_services_settings(
     services_identifier: &Ident,
     generics: &Generics,
     fields: &Punctuated<Field, Comma>,
-) -> proc_macro2::TokenStream {
-    let services_settings = fields.iter().map(|field| {
-        let service_name = field.ident.as_ref().expect("A named struct attribute");
-        let _type = utils::extract_type_from(&field.ty);
-
-        quote!(pub #service_name: <#_type as ::overwatch::services::ServiceData>::Settings)
-    });
+) -> manyhow::Result<proc_macro2::TokenStream> {
+    let services_settings = fields
+        .iter()
+        .map(|field| {
+            let service_name = field.ident.as_ref().expect("A named struct attribute");
+            let _type = utils::extract_type_from(&field.ty)?;
+            Ok(quote!(pub #service_name: <#_type as ::overwatch::services::ServiceData>::Settings))
+        })
+        .collect::<manyhow::Result<Vec<_>>>()?;
     let services_settings_identifier = service_settings_identifier_from(services_identifier);
     let where_clause = &generics.where_clause;
-    quote! {
+    Ok(quote! {
         #[derive(::core::clone::Clone, ::core::fmt::Debug)]
         pub struct #services_settings_identifier #generics #where_clause {
             #( #services_settings ),*
         }
-    }
+    })
 }
 
 const RUNTIME_SERVICE_ID_TYPE_NAME: &str = "RuntimeServiceId";
@@ -351,26 +355,26 @@ fn generate_services_impl(
     services_identifier: &Ident,
     generics: &Generics,
     fields: &Punctuated<Field, Comma>,
-) -> proc_macro2::TokenStream {
+) -> manyhow::Result<proc_macro2::TokenStream> {
     let services_settings_identifier = service_settings_identifier_from(services_identifier);
-    let impl_new = generate_new_impl(fields);
-    let impl_start = generate_start_impl(fields);
-    let impl_start_sequence = generate_start_sequence_impl(fields);
+    let impl_new = generate_new_impl(fields)?;
+    let impl_start = generate_start_impl(fields)?;
+    let impl_start_sequence = generate_start_sequence_impl(fields)?;
     let impl_start_all = generate_start_all_impl(fields);
-    let impl_stop = generate_stop_impl(fields);
-    let impl_stop_sequence = generate_stop_sequence_impl(fields);
+    let impl_stop = generate_stop_impl(fields)?;
+    let impl_stop_sequence = generate_stop_sequence_impl(fields)?;
     let impl_stop_all = generate_stop_all_impl(fields);
     let impl_teardown = generate_teardown_impl(fields);
-    let impl_ids = generate_ids_impl(fields);
-    let impl_relay = generate_request_relay_impl(fields);
-    let impl_status = generate_request_status_watcher_impl(fields);
+    let impl_ids = generate_ids_impl(fields)?;
+    let impl_relay = generate_request_relay_impl(fields)?;
+    let impl_status = generate_request_status_watcher_impl(fields)?;
     let impl_update_settings = generate_update_settings_impl(fields);
-    let impl_get_service_lifecycle_notifier = generate_get_service_lifecycle_notifier_impl(fields);
+    let impl_get_service_lifecycle_notifier = generate_get_service_lifecycle_notifier_impl(fields)?;
 
     let (impl_generics, ty_generics, where_clause) = generics.split_for_impl();
 
     let runtime_service_id_type_name = get_runtime_service_id_type_name();
-    quote! {
+    Ok(quote! {
         #[::async_trait::async_trait]
         impl #impl_generics ::overwatch::overwatch::Services for #services_identifier #ty_generics #where_clause {
             type Settings = #services_settings_identifier #ty_generics;
@@ -402,7 +406,7 @@ fn generate_services_impl(
 
             #impl_get_service_lifecycle_notifier
         }
-    }
+    })
 }
 
 /// Generates the `new` method implementation for the `Services` trait.
@@ -417,7 +421,9 @@ fn generate_services_impl(
 /// # Returns
 ///
 /// A token stream containing the new method implementation.
-fn generate_new_impl(fields: &Punctuated<Field, Comma>) -> proc_macro2::TokenStream {
+fn generate_new_impl(
+    fields: &Punctuated<Field, Comma>,
+) -> manyhow::Result<proc_macro2::TokenStream> {
     let fields_settings = fields.iter().map(|field| {
         let field_identifier = field.ident.as_ref().expect("A struct attribute identifier");
         let settings_field_identifier = service_settings_field_identifier_from(field_identifier);
@@ -426,23 +432,26 @@ fn generate_new_impl(fields: &Punctuated<Field, Comma>) -> proc_macro2::TokenStr
         }
     });
 
-    let managers = fields.iter().map(|field| {
-        let field_identifier = field.ident.as_ref().expect("A struct attribute identifier");
-        let service_type = utils::extract_type_from(&field.ty);
-        let settings_field_identifier = service_settings_field_identifier_from(field_identifier);
-        quote! {
-            #field_identifier: {
-                let runner =
-                    ::overwatch::OpaqueServiceRunner::<#service_type, Self::RuntimeServiceId>::new(
-                        #settings_field_identifier, overwatch_handle.clone(), <#service_type as ::overwatch::services::ServiceData>::SERVICE_RELAY_BUFFER_SIZE
-                );
-                let service_runner_handle = runner.run::<#service_type>();
-                service_runner_handle
-            }
-        }
-    });
+    let managers = fields
+        .iter()
+        .map(|field| {
+            let field_identifier = field.ident.as_ref().expect("A struct attribute identifier");
+            let service_type = utils::extract_type_from(&field.ty)?;
+            let settings_field_identifier = service_settings_field_identifier_from(field_identifier);
+            Ok(quote! {
+                #field_identifier: {
+                    let runner =
+                        ::overwatch::OpaqueServiceRunner::<#service_type, Self::RuntimeServiceId>::new(
+                            #settings_field_identifier, overwatch_handle.clone(), <#service_type as ::overwatch::services::ServiceData>::SERVICE_RELAY_BUFFER_SIZE
+                    );
+                    let service_runner_handle = runner.run::<#service_type>();
+                    service_runner_handle
+                }
+            })
+        })
+        .collect::<manyhow::Result<Vec<_>>>()?;
 
-    quote! {
+    Ok(quote! {
         fn new(settings: Self::Settings, overwatch_handle: ::overwatch::overwatch::handle::OverwatchHandle<Self::RuntimeServiceId>) -> ::core::result::Result<Self, ::overwatch::DynError> {
             let Self::Settings {
                 #( #fields_settings ),*
@@ -454,7 +463,7 @@ fn generate_new_impl(fields: &Punctuated<Field, Comma>) -> proc_macro2::TokenStr
 
             ::core::result::Result::Ok(app)
         }
-    }
+    })
 }
 
 /// Generates the `start` method implementation for the `Services` trait.
@@ -470,22 +479,27 @@ fn generate_new_impl(fields: &Punctuated<Field, Comma>) -> proc_macro2::TokenStr
 /// # Returns
 ///
 /// A token stream containing the start method implementation.
-fn generate_start_impl(fields: &Punctuated<Field, Comma>) -> proc_macro2::TokenStream {
+fn generate_start_impl(
+    fields: &Punctuated<Field, Comma>,
+) -> manyhow::Result<proc_macro2::TokenStream> {
     let instrumentation = get_default_instrumentation_for_result();
 
-    let cases = fields.iter().map(|field| {
-        let field_identifier = field.ident.as_ref().expect("A struct attribute identifier");
-        let type_id = utils::extract_type_from(&field.ty);
-        quote! {
-            &<Self::RuntimeServiceId as ::overwatch::services::AsServiceId<#type_id>>::SERVICE_ID => {
-                self.#field_identifier.service_handle().lifecycle_notifier().send(
-                    ::overwatch::services::lifecycle::LifecycleMessage::Start(sender)
-                ).await?;
-            }
-        }
-    });
+    let cases = fields
+        .iter()
+        .map(|field| {
+            let field_identifier = field.ident.as_ref().expect("A struct attribute identifier");
+            let type_id = utils::extract_type_from(&field.ty)?;
+            Ok(quote! {
+                &<Self::RuntimeServiceId as ::overwatch::services::AsServiceId<#type_id>>::SERVICE_ID => {
+                    self.#field_identifier.service_handle().lifecycle_notifier().send(
+                        ::overwatch::services::lifecycle::LifecycleMessage::Start(sender)
+                    ).await?;
+                }
+            })
+        })
+        .collect::<manyhow::Result<Vec<_>>>()?;
 
-    quote! {
+    Ok(quote! {
         #instrumentation
         async fn start(&mut self, service_id: &Self::RuntimeServiceId) -> ::core::result::Result<(), ::overwatch::overwatch::Error> {
             let (sender, mut receiver) = ::overwatch::utils::finished_signal::channel();
@@ -497,7 +511,7 @@ fn generate_start_impl(fields: &Punctuated<Field, Comma>) -> proc_macro2::TokenS
                 ::overwatch::overwatch::Error::from(dyn_error)
             })
         }
-    }
+    })
 }
 
 /// Generates the `start_sequence` method implementation for the `Services`
@@ -513,7 +527,9 @@ fn generate_start_impl(fields: &Punctuated<Field, Comma>) -> proc_macro2::TokenS
 /// # Returns
 ///
 /// A token stream containing the `start_sequence` method implementation.
-fn generate_start_sequence_impl(fields: &Punctuated<Field, Comma>) -> proc_macro2::TokenStream {
+fn generate_start_sequence_impl(
+    fields: &Punctuated<Field, Comma>,
+) -> manyhow::Result<proc_macro2::TokenStream> {
     let instrumentation = get_default_instrumentation();
 
     let var_services_len = Ident::new("services_len", Span::call_site());
@@ -522,16 +538,19 @@ fn generate_start_sequence_impl(fields: &Punctuated<Field, Comma>) -> proc_macro
 
     let var_service_ids = Ident::new("service_ids", Span::call_site());
     let var_service_id = Ident::new("service_id", Span::call_site());
-    let match_cases = fields.iter().map(|field| {
-        let field_identifier = field.ident.as_ref().expect("A struct attribute identifier");
-        let type_id = utils::extract_type_from(&field.ty);
-        let call_send_start = send_start_lifecycle_message_over_senders(field_identifier);
-        quote! {
-            &<Self::RuntimeServiceId as ::overwatch::services::AsServiceId<#type_id>>::SERVICE_ID => {
-                #call_send_start
-            }
-        }
-    });
+    let match_cases = fields
+        .iter()
+        .map(|field| {
+            let field_identifier = field.ident.as_ref().expect("A struct attribute identifier");
+            let type_id = utils::extract_type_from(&field.ty)?;
+            let call_send_start = send_start_lifecycle_message_over_senders(field_identifier);
+            Ok(quote! {
+                &<Self::RuntimeServiceId as ::overwatch::services::AsServiceId<#type_id>>::SERVICE_ID => {
+                    #call_send_start
+                }
+            })
+        })
+        .collect::<manyhow::Result<Vec<_>>>()?;
     let loop_match = quote! {
         for #var_service_id in #var_service_ids {
             match #var_service_id {
@@ -542,7 +561,7 @@ fn generate_start_sequence_impl(fields: &Punctuated<Field, Comma>) -> proc_macro
 
     let call_await_finished_signal_receivers = await_finished_signal_receivers();
 
-    quote! {
+    Ok(quote! {
         #instrumentation
         async fn start_sequence(&mut self, service_ids: &[Self::RuntimeServiceId]) -> ::core::result::Result<(), ::overwatch::overwatch::Error> {
             let #var_services_len = service_ids.len();
@@ -554,7 +573,7 @@ fn generate_start_sequence_impl(fields: &Punctuated<Field, Comma>) -> proc_macro
 
             Ok(())
         }
-    }
+    })
 }
 
 /// Generates the `start_all` method implementation for the `Services` trait.
@@ -609,22 +628,27 @@ fn generate_start_all_impl(fields: &Punctuated<Field, Comma>) -> proc_macro2::To
 /// # Returns
 ///
 /// A token stream containing the stop method implementation.
-fn generate_stop_impl(fields: &Punctuated<Field, Comma>) -> proc_macro2::TokenStream {
+fn generate_stop_impl(
+    fields: &Punctuated<Field, Comma>,
+) -> manyhow::Result<proc_macro2::TokenStream> {
     let instrumentation = get_default_instrumentation();
 
-    let cases = fields.iter().map(|field| {
-        let field_identifier = field.ident.as_ref().expect("A struct attribute identifier");
-        let type_id = utils::extract_type_from(&field.ty);
-        quote! {
-            &<Self::RuntimeServiceId as ::overwatch::services::AsServiceId<#type_id>>::SERVICE_ID => {
-                self.#field_identifier.service_handle().lifecycle_notifier().send(
-                    ::overwatch::services::lifecycle::LifecycleMessage::Stop(sender)
-                ).await?;
-            }
-        }
-    });
+    let cases = fields
+        .iter()
+        .map(|field| {
+            let field_identifier = field.ident.as_ref().expect("A struct attribute identifier");
+            let type_id = utils::extract_type_from(&field.ty)?;
+            Ok(quote! {
+                &<Self::RuntimeServiceId as ::overwatch::services::AsServiceId<#type_id>>::SERVICE_ID => {
+                    self.#field_identifier.service_handle().lifecycle_notifier().send(
+                        ::overwatch::services::lifecycle::LifecycleMessage::Stop(sender)
+                    ).await?;
+                }
+            })
+        })
+        .collect::<manyhow::Result<Vec<_>>>()?;
 
-    quote! {
+    Ok(quote! {
         #instrumentation
         async fn stop(&mut self, service_id: &Self::RuntimeServiceId) -> ::core::result::Result<(), ::overwatch::overwatch::Error> {
             let (sender, mut receiver) = ::overwatch::utils::finished_signal::channel();
@@ -636,7 +660,7 @@ fn generate_stop_impl(fields: &Punctuated<Field, Comma>) -> proc_macro2::TokenSt
                 ::overwatch::overwatch::Error::from(dyn_error)
             })
         }
-    }
+    })
 }
 
 /// Generates the `stop_sequence` method implementation for the `Services`
@@ -652,7 +676,9 @@ fn generate_stop_impl(fields: &Punctuated<Field, Comma>) -> proc_macro2::TokenSt
 /// # Returns
 ///
 /// A token stream containing the `stop_sequence` method implementation.
-fn generate_stop_sequence_impl(fields: &Punctuated<Field, Comma>) -> proc_macro2::TokenStream {
+fn generate_stop_sequence_impl(
+    fields: &Punctuated<Field, Comma>,
+) -> manyhow::Result<proc_macro2::TokenStream> {
     let instrumentation = get_default_instrumentation();
 
     let var_services_len = Ident::new("services_len", Span::call_site());
@@ -661,16 +687,19 @@ fn generate_stop_sequence_impl(fields: &Punctuated<Field, Comma>) -> proc_macro2
 
     let var_service_ids = Ident::new("service_ids", Span::call_site());
     let var_service_id = Ident::new("service_id", Span::call_site());
-    let match_cases = fields.iter().map(|field| {
-        let field_identifier = field.ident.as_ref().expect("A struct attribute identifier");
-        let type_id = utils::extract_type_from(&field.ty);
-        let call_send_stop = send_stop_lifecycle_message_over_senders(field_identifier);
-        quote! {
-            &<Self::RuntimeServiceId as ::overwatch::services::AsServiceId<#type_id>>::SERVICE_ID => {
-                #call_send_stop
-            }
-        }
-    });
+    let match_cases = fields
+        .iter()
+        .map(|field| {
+            let field_identifier = field.ident.as_ref().expect("A struct attribute identifier");
+            let type_id = utils::extract_type_from(&field.ty)?;
+            let call_send_stop = send_stop_lifecycle_message_over_senders(field_identifier);
+            Ok(quote! {
+                &<Self::RuntimeServiceId as ::overwatch::services::AsServiceId<#type_id>>::SERVICE_ID => {
+                    #call_send_stop
+                }
+            })
+        })
+        .collect::<manyhow::Result<Vec<_>>>()?;
     let loop_match = quote! {
         for #var_service_id in #var_service_ids {
             match #var_service_id {
@@ -681,7 +710,7 @@ fn generate_stop_sequence_impl(fields: &Punctuated<Field, Comma>) -> proc_macro2
 
     let call_await_finished_signal_receivers = await_finished_signal_receivers();
 
-    quote! {
+    Ok(quote! {
         #instrumentation
         async fn stop_sequence(&mut self, service_ids: &[Self::RuntimeServiceId]) -> ::core::result::Result<(), ::overwatch::overwatch::Error> {
             let #var_services_len = service_ids.len();
@@ -693,7 +722,7 @@ fn generate_stop_sequence_impl(fields: &Punctuated<Field, Comma>) -> proc_macro2
 
             Ok(())
         }
-    }
+    })
 }
 
 /// Generates the `stop_all` method implementation for the `Services` trait.
@@ -788,22 +817,27 @@ fn generate_teardown_impl(fields: &Punctuated<Field, Comma>) -> proc_macro2::Tok
 /// # Returns
 ///
 /// A token stream containing the `ids` method implementation.
-fn generate_ids_impl(fields: &Punctuated<Field, Comma>) -> proc_macro2::TokenStream {
+fn generate_ids_impl(
+    fields: &Punctuated<Field, Comma>,
+) -> manyhow::Result<proc_macro2::TokenStream> {
     let instrumentation = get_default_instrumentation();
 
-    let service_ids = fields.iter().map(|field| {
-        let type_id = utils::extract_type_from(&field.ty);
-        quote! {
-            <Self::RuntimeServiceId as ::overwatch::services::AsServiceId<#type_id>>::SERVICE_ID
-        }
-    });
+    let service_ids = fields
+        .iter()
+        .map(|field| {
+            let type_id = utils::extract_type_from(&field.ty)?;
+            Ok(quote! {
+                <Self::RuntimeServiceId as ::overwatch::services::AsServiceId<#type_id>>::SERVICE_ID
+            })
+        })
+        .collect::<manyhow::Result<Vec<_>>>()?;
 
-    quote! {
+    Ok(quote! {
         #instrumentation
         fn ids(&self) -> Vec<Self::RuntimeServiceId> {
             vec![ #( #service_ids ),* ]
         }
-    }
+    })
 }
 
 /// Generates the `request_relay` method implementation for the `Services`
@@ -819,27 +853,32 @@ fn generate_ids_impl(fields: &Punctuated<Field, Comma>) -> proc_macro2::TokenStr
 /// # Returns
 ///
 /// A token stream containing the `request_relay` method implementation.
-fn generate_request_relay_impl(fields: &Punctuated<Field, Comma>) -> proc_macro2::TokenStream {
+fn generate_request_relay_impl(
+    fields: &Punctuated<Field, Comma>,
+) -> manyhow::Result<proc_macro2::TokenStream> {
     let instrumentation = get_default_instrumentation();
 
-    let cases = fields.iter().map(|field| {
-        let field_identifier = field.ident.as_ref().expect("A struct attribute identifier");
-        let type_id = utils::extract_type_from(&field.ty);
-        quote! {
-            &<Self::RuntimeServiceId as ::overwatch::services::AsServiceId<#type_id>>::SERVICE_ID => {
-                ::std::boxed::Box::new(self.#field_identifier.service_handle().relay_with())
-            }
-        }
-    });
+    let cases = fields
+        .iter()
+        .map(|field| {
+            let field_identifier = field.ident.as_ref().expect("A struct attribute identifier");
+            let type_id = utils::extract_type_from(&field.ty)?;
+            Ok(quote! {
+                &<Self::RuntimeServiceId as ::overwatch::services::AsServiceId<#type_id>>::SERVICE_ID => {
+                    ::std::boxed::Box::new(self.#field_identifier.service_handle().relay_with())
+                }
+            })
+        })
+        .collect::<manyhow::Result<Vec<_>>>()?;
 
-    quote! {
+    Ok(quote! {
         #instrumentation
         fn request_relay(&mut self, service_id: &Self::RuntimeServiceId) -> ::overwatch::services::relay::AnyMessage {
             match service_id {
                 #( #cases )*
             }
         }
-    }
+    })
 }
 
 /// Generates the `request_status_watcher` method implementation for the
@@ -859,27 +898,30 @@ fn generate_request_relay_impl(fields: &Punctuated<Field, Comma>) -> proc_macro2
 /// implementation.
 fn generate_request_status_watcher_impl(
     fields: &Punctuated<Field, Comma>,
-) -> proc_macro2::TokenStream {
+) -> manyhow::Result<proc_macro2::TokenStream> {
     let instrumentation = get_default_instrumentation();
 
-    let cases = fields.iter().map(|field| {
-        let field_identifier = field.ident.as_ref().expect("A struct attribute identifier");
-        let type_id = utils::extract_type_from(&field.ty);
-        quote! {
-            &<Self::RuntimeServiceId as ::overwatch::services::AsServiceId<#type_id>>::SERVICE_ID => {
-                self.#field_identifier.service_handle().status_watcher().clone()
-            }
-        }
-    });
+    let cases = fields
+        .iter()
+        .map(|field| {
+            let field_identifier = field.ident.as_ref().expect("A struct attribute identifier");
+            let type_id = utils::extract_type_from(&field.ty)?;
+            Ok(quote! {
+                &<Self::RuntimeServiceId as ::overwatch::services::AsServiceId<#type_id>>::SERVICE_ID => {
+                    self.#field_identifier.service_handle().status_watcher().clone()
+                }
+            })
+        })
+        .collect::<manyhow::Result<Vec<_>>>()?;
 
-    quote! {
+    Ok(quote! {
         #instrumentation
         fn request_status_watcher(&self, service_id: &Self::RuntimeServiceId) -> ::overwatch::services::status::StatusWatcher {
             match service_id {
                 #( #cases )*
             }
         }
-    }
+    })
 }
 
 /// Generates the `update_settings` method implementation for the `Services`
@@ -944,27 +986,30 @@ fn generate_update_settings_impl(fields: &Punctuated<Field, Comma>) -> proc_macr
 /// implementation.
 fn generate_get_service_lifecycle_notifier_impl(
     fields: &Punctuated<Field, Comma>,
-) -> proc_macro2::TokenStream {
+) -> manyhow::Result<proc_macro2::TokenStream> {
     let instrumentation = get_default_instrumentation();
 
-    let cases = fields.iter().map(|field| {
-        let field_identifier = field.ident.as_ref().expect("A struct attribute identifier");
-        let type_id = utils::extract_type_from(&field.ty);
-        quote! {
-            &<Self::RuntimeServiceId as ::overwatch::services::AsServiceId<#type_id>>::SERVICE_ID => {
-                self.#field_identifier.service_handle().lifecycle_notifier()
-            }
-        }
-    });
+    let cases = fields
+        .iter()
+        .map(|field| {
+            let field_identifier = field.ident.as_ref().expect("A struct attribute identifier");
+            let type_id = utils::extract_type_from(&field.ty)?;
+            Ok(quote! {
+                &<Self::RuntimeServiceId as ::overwatch::services::AsServiceId<#type_id>>::SERVICE_ID => {
+                    self.#field_identifier.service_handle().lifecycle_notifier()
+                }
+            })
+        })
+        .collect::<manyhow::Result<Vec<_>>>()?;
 
-    quote! {
+    Ok(quote! {
         #instrumentation
         fn get_service_lifecycle_notifier(&self, service_id: &Self::RuntimeServiceId) -> &::overwatch::services::lifecycle::LifecycleNotifier {
             match service_id {
                 #( #cases ),*
             }
         }
-    }
+    })
 }
 
 /// Generates the runtime service type definitions.
