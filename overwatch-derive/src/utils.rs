@@ -1,5 +1,5 @@
 use convert_case::{Case, Casing as _};
-use proc_macro_error2::abort_call_site;
+use manyhow::bail;
 use quote::ToTokens as _;
 use syn::{GenericArgument, PathArguments, Type, TypePath};
 
@@ -38,18 +38,18 @@ use syn::{GenericArgument, PathArguments, Type, TypePath};
 /// # Notes
 /// - If no generic arguments are found, the function simply returns the
 ///   original type.
-pub fn extract_type_from(ty: &Type) -> Type {
+pub fn extract_type_from(ty: &Type) -> manyhow::Result<Type> {
     let stringify_type = ty.clone().into_token_stream().to_string();
 
     let Type::Path(TypePath { path, .. }) = ty else {
-        abort_call_site!("Expected a type path, found {}", stringify_type)
+        bail!("Expected a type path, found {}", stringify_type)
     };
 
     let last_segment = path.segments.last().unwrap();
     match &last_segment.arguments {
         PathArguments::AngleBracketed(params) => {
             if params.args.is_empty() {
-                abort_call_site!(
+                bail!(
                     "Expected at least one generic argument, found {}",
                     stringify_type
                 );
@@ -60,19 +60,19 @@ pub fn extract_type_from(ty: &Type) -> Type {
             let first_generic = params.args.iter().next().unwrap();
 
             let GenericArgument::Type(inner_ty) = first_generic else {
-                abort_call_site!(
+                bail!(
                     "Expected a type as the first generic argument, found {}",
                     stringify_type
                 );
             };
-            inner_ty.clone()
+            Ok(inner_ty.clone())
         }
         PathArguments::None => {
             // New behavior: If there are no generics, return the type as-is.
-            ty.clone()
+            Ok(ty.clone())
         }
         PathArguments::Parenthesized(_) => {
-            abort_call_site!("Unexpected type argument format in {}", stringify_type)
+            bail!("Unexpected type argument format in {}", stringify_type)
         }
     }
 }
