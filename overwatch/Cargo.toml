@@ -14,23 +14,24 @@ version     = { workspace = true }
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 [features]
-default         = ["derive"]
-derive          = ["dep:overwatch-derive"]
-instrumentation = []
+default          = ["derive"]
+derive           = ["dep:overwatch-derive"]
+instrumentation  = []
+tokio-task-names = ["tokio/rt", "tokio/tracing"]
 
 [dependencies]
 async-trait      = "0.1"
 futures          = "0.3"
-overwatch-derive = { workspace = true, optional = true }
+overwatch-derive = { optional = true, workspace = true }
 thiserror        = "2.0"
-tokio            = { version = "1.32", features = ["macros", "rt-multi-thread", "sync", "time"] }
-tokio-stream     = { version = "0.1", features = ["sync"] }
+tokio            = { features = ["macros", "rt-multi-thread", "sync", "time"], version = "1.32" }
+tokio-stream     = { features = ["sync"], version = "0.1" }
 tokio-util       = "0.7"
 tracing          = "0.1"
 
 [dev-dependencies]
-overwatch = { path = ".", features = ["derive"] }
-tokio     = { version = "1.17", features = ["io-std", "io-util", "macros", "rt-multi-thread", "sync", "time"] }
+overwatch = { features = ["derive"], path = "." }
+tokio     = { features = ["io-std", "io-util", "macros", "rt-multi-thread", "sync", "time"], version = "1.17" }
 
 [lints]
 workspace = true

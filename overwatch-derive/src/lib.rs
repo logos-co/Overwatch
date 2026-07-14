@@ -443,6 +443,14 @@ fn generate_new_impl(
                     let runner =
                         ::overwatch::OpaqueServiceRunner::<#service_type, Self::RuntimeServiceId>::new(
                             #settings_field_identifier, overwatch_handle.clone(), <#service_type as ::overwatch::services::ServiceData>::SERVICE_RELAY_BUFFER_SIZE
+                    )
+                    .with_task_names(
+                        <Self::RuntimeServiceId as ::overwatch::services::ServiceTaskNames>::service_task_name(
+                            &<Self::RuntimeServiceId as ::overwatch::services::AsServiceId<#service_type>>::SERVICE_ID,
+                        ),
+                        <Self::RuntimeServiceId as ::overwatch::services::ServiceTaskNames>::state_task_name(
+                            &<Self::RuntimeServiceId as ::overwatch::services::AsServiceId<#service_type>>::SERVICE_ID,
+                        ),
                     );
                     let service_runner_handle = runner.run::<#service_type>();
                     service_runner_handle
@@ -1030,6 +1038,7 @@ fn generate_runtime_service_types(fields: &Punctuated<Field, Comma>) -> proc_mac
     let runtime_service_id = generate_runtime_service_id(fields);
     let service_id_trait_impls = generate_service_id_trait_impls(fields);
     let as_service_id_impl = generate_as_service_id_impl(fields);
+    let service_task_names_impl = generate_service_task_names_impl(fields);
 
     quote! {
         #runtime_service_id
@@ -1037,6 +1046,50 @@ fn generate_runtime_service_types(fields: &Punctuated<Field, Comma>) -> proc_mac
         #service_id_trait_impls
 
         #as_service_id_impl
+
+        #service_task_names_impl
+    }
+}
+
+fn generate_service_task_names_impl(fields: &Punctuated<Field, Comma>) -> proc_macro2::TokenStream {
+    let service_task_names = fields.iter().map(|field| {
+        let service_name = field.ident.as_ref().expect("Expected struct named fields.");
+        let service_variant = format_ident!(
+            "{}",
+            utils::field_name_to_type_name(&service_name.to_string())
+        );
+
+        quote! {
+            Self::#service_variant => concat!("overwatch-service/", stringify!(#service_name)),
+        }
+    });
+    let state_task_names = fields.iter().map(|field| {
+        let service_name = field.ident.as_ref().expect("Expected struct named fields.");
+        let service_variant = format_ident!(
+            "{}",
+            utils::field_name_to_type_name(&service_name.to_string())
+        );
+
+        quote! {
+            Self::#service_variant => concat!("overwatch-state/", stringify!(#service_name)),
+        }
+    });
+    let runtime_service_id_type_name = get_runtime_service_id_type_name();
+
+    quote! {
+        impl ::overwatch::services::ServiceTaskNames for #runtime_service_id_type_name {
+            fn service_task_name(&self) -> &'static str {
+                match self {
+                    #(#service_task_names)*
+                }
+            }
+
+            fn state_task_name(&self) -> &'static str {
+                match self {
+                    #(#state_task_names)*
+                }
+            }
+        }
     }
 }
 

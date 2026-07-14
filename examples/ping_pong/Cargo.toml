@@ -11,11 +11,11 @@ version     = { workspace = true }
 [dependencies]
 async-trait  = "0.1.83"
 const_format = "0.2.34"
-overwatch    = { workspace = true, features = ["derive"] }
-serde        = { version = "1.0.216", features = ["derive"] }
+overwatch    = { features = ["derive"], workspace = true }
+serde        = { features = ["derive"], version = "1.0.216" }
 serde_json   = "1.0.134"
 thiserror    = "2.0.8"
-tokio        = { version = "1.42.0", features = ["macros"] }
+tokio        = { features = ["macros"], version = "1.42.0" }
 tracing      = "0.1.41"
 
 [lints]

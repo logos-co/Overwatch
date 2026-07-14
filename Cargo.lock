@@ -363,6 +363,7 @@ dependencies = [
  "bytes",
  "pin-project-lite",
  "tokio-macros",
+ "tracing",
 ]
 
 [[package]]

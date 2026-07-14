@@ -1,4 +1,6 @@
 use async_trait::async_trait;
+#[cfg(feature = "tokio-task-names")]
+use overwatch::services::ServiceTaskNames as _;
 use overwatch::{
     DynError, OpaqueServiceResourcesHandle,
     overwatch::{Overwatch, OverwatchRunner},
@@ -148,6 +150,18 @@ struct App {
     service_a: ServiceA,
     service_b: ServiceB,
     service_c: ServiceC,
+}
+
+#[cfg(feature = "tokio-task-names")]
+#[test]
+fn generated_service_task_names_are_static_and_stable() {
+    let service_id = <RuntimeServiceId as AsServiceId<ServiceA>>::SERVICE_ID;
+
+    assert_eq!(
+        service_id.service_task_name(),
+        "overwatch-service/service_a"
+    );
+    assert_eq!(service_id.state_task_name(), "overwatch-state/service_a");
 }
 
 fn initialize() -> Overwatch<RuntimeServiceId> {

@@ -17,6 +17,33 @@ use crate::{
     utils::finished_signal,
 };
 
+#[expect(
+    unexpected_cfgs,
+    reason = "tokio_unstable is supplied externally through RUSTFLAGS"
+)]
+fn spawn_task<T>(
+    runtime: &tokio::runtime::Handle,
+    name: Option<&'static str>,
+    future: impl Future<Output = T> + Send + 'static,
+) -> JoinHandle<T>
+where
+    T: Send + 'static,
+{
+    #[cfg(all(feature = "tokio-task-names", tokio_unstable))]
+    {
+        tokio::task::Builder::new()
+            .name(name.expect("a name is required when tokio-task-names is enabled"))
+            .spawn_on(future, runtime)
+            .expect("failed to spawn named Overwatch task")
+    }
+
+    #[cfg(not(all(feature = "tokio-task-names", tokio_unstable)))]
+    {
+        let _ = name;
+        runtime.spawn(future)
+    }
+}
+
 #[derive(PartialEq, Eq)]
 enum ServiceLifecyclePhase {
     Started,
@@ -29,6 +56,8 @@ enum ServiceLifecyclePhase {
 pub struct ServiceRunner<Message, Settings, State, StateOperator, RuntimeServiceId> {
     service_resources: ServiceResources<Message, Settings, State, StateOperator, RuntimeServiceId>,
     service_lifecycle_phase: ServiceLifecyclePhase,
+    service_task_name: Option<&'static str>,
+    state_task_name: Option<&'static str>,
 }
 
 impl<Message, Settings, State, StateOp, RuntimeServiceId>
@@ -55,7 +84,20 @@ where
         Self {
             service_resources,
             service_lifecycle_phase: ServiceLifecyclePhase::Stopped,
+            service_task_name: None,
+            state_task_name: None,
         }
+    }
+
+    #[must_use]
+    pub const fn with_task_names(
+        mut self,
+        service_task_name: &'static str,
+        state_task_name: &'static str,
+    ) -> Self {
+        self.service_task_name = Some(service_task_name);
+        self.state_task_name = Some(state_task_name);
+        self
     }
 }
 
@@ -98,6 +140,8 @@ where
         let Self {
             mut service_resources,
             mut service_lifecycle_phase,
+            service_task_name,
+            state_task_name,
         } = self;
 
         // Handles to hold the Service and StateHandle tasks
@@ -114,6 +158,8 @@ where
                             &mut service_resources,
                             &mut service_task_handle,
                             &mut state_handle_task_handle,
+                            service_task_name,
+                            state_task_name,
                         );
                         service_lifecycle_phase = ServiceLifecyclePhase::Started;
                     }
@@ -163,6 +209,8 @@ where
         >,
         service_task_handle: &mut Option<JoinHandle<()>>,
         state_handle_task_handle: &mut Option<JoinHandle<()>>,
+        service_task_name: Option<&'static str>,
+        state_task_name: Option<&'static str>,
     ) where
         Service: ServiceCore<RuntimeServiceId, Settings = Settings, State = State, Message = Message>
             + 'static,
@@ -199,6 +247,8 @@ where
             service_resources,
             service_task_handle,
             state_handle_task_handle,
+            service_task_name,
+            state_task_name,
         );
     }
 
@@ -207,6 +257,8 @@ where
         service_resources: &ServiceResources<Message, Settings, State, StateOp, RuntimeServiceId>,
         service_task_handle: &mut Option<JoinHandle<()>>,
         state_handle_task_handle: &mut Option<JoinHandle<()>>,
+        service_task_name: Option<&'static str>,
+        state_task_name: Option<&'static str>,
     ) where
         Service: ServiceCore<RuntimeServiceId, Settings = Settings, State = State, Message = Message>
             + 'static,
@@ -238,9 +290,9 @@ where
                 }
             }
         };
-        *service_task_handle = Some(runtime.spawn(service_task));
+        *service_task_handle = Some(spawn_task(&runtime, service_task_name, service_task));
         let state_handle_task = service_resources.state_handle().clone().run();
-        *state_handle_task_handle = Some(runtime.spawn(state_handle_task));
+        *state_handle_task_handle = Some(spawn_task(&runtime, state_task_name, state_handle_task));
     }
 
     /// Handles a [`LifecycleMessage::Stop`] event, ensuring proper shutdown and
