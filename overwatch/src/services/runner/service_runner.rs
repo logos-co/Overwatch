@@ -31,10 +31,14 @@ where
 {
     #[cfg(all(feature = "tokio-task-names", tokio_unstable))]
     {
-        tokio::task::Builder::new()
-            .name(name.expect("a name is required when tokio-task-names is enabled"))
-            .spawn_on(future, runtime)
-            .expect("failed to spawn named Overwatch task")
+        if let Some(name) = name {
+            return tokio::task::Builder::new()
+                .name(name)
+                .spawn_on(future, runtime)
+                .expect("failed to spawn named Overwatch task");
+        }
+
+        runtime.spawn(future)
     }
 
     #[cfg(not(all(feature = "tokio-task-names", tokio_unstable)))]

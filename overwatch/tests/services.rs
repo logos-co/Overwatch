@@ -164,6 +164,27 @@ fn generated_service_task_names_are_static_and_stable() {
     assert_eq!(service_id.state_task_name(), "overwatch-state/service_a");
 }
 
+#[cfg(feature = "tokio-task-names")]
+#[test]
+fn tokio_task_names_preserve_service_lifecycle() {
+    let overwatch = initialize();
+    let runtime = overwatch.runtime().handle();
+
+    runtime
+        .block_on(overwatch.handle().start_service::<ServiceA>())
+        .expect("Failed to start service A");
+
+    let mut status_watcher = runtime.block_on(overwatch.handle().status_watcher::<ServiceA>());
+    wait_for_status(runtime, &mut status_watcher, ServiceStatus::Ready);
+
+    runtime
+        .block_on(overwatch.handle().stop_service::<ServiceA>())
+        .expect("Failed to stop service A");
+    wait_for_status(runtime, &mut status_watcher, ServiceStatus::Stopped);
+
+    let _ = runtime.block_on(overwatch.handle().shutdown());
+}
+
 fn initialize() -> Overwatch<RuntimeServiceId> {
     let settings = AppServiceSettings {
         service_a: (),
