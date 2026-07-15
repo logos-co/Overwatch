@@ -185,6 +185,39 @@ fn tokio_task_names_preserve_service_lifecycle() {
     let _ = runtime.block_on(overwatch.handle().shutdown());
 }
 
+#[cfg(feature = "tokio-task-names")]
+#[test]
+fn generated_service_task_names_are_static_stable_and_unique() {
+    let service_a = <RuntimeServiceId as AsServiceId<ServiceA>>::SERVICE_ID;
+    let service_b = <RuntimeServiceId as AsServiceId<ServiceB>>::SERVICE_ID;
+    let service_c = <RuntimeServiceId as AsServiceId<ServiceC>>::SERVICE_ID;
+
+    assert_eq!(service_a.service_task_name(), "overwatch-service/service_a");
+    assert_eq!(service_a.state_task_name(), "overwatch-state/service_a");
+
+    assert_eq!(service_b.service_task_name(), "overwatch-service/service_b");
+    assert_eq!(service_b.state_task_name(), "overwatch-state/service_b");
+
+    assert_eq!(service_c.service_task_name(), "overwatch-service/service_c");
+    assert_eq!(service_c.state_task_name(), "overwatch-state/service_c");
+
+    let names = [
+        service_a.service_task_name(),
+        service_a.state_task_name(),
+        service_b.service_task_name(),
+        service_b.state_task_name(),
+        service_c.service_task_name(),
+        service_c.state_task_name(),
+    ];
+
+    for (index, name) in names.iter().enumerate() {
+        assert!(
+            names[index + 1..].iter().all(|other| other != name),
+            "duplicate generated task name: {name}"
+        );
+    }
+}
+
 fn initialize() -> Overwatch<RuntimeServiceId> {
     let settings = AppServiceSettings {
         service_a: (),

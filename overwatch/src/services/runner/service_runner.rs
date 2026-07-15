@@ -17,6 +17,12 @@ use crate::{
     utils::finished_signal,
 };
 
+#[derive(Clone, Copy)]
+struct TaskNames {
+    service: &'static str,
+    state: &'static str,
+}
+
 #[expect(
     unexpected_cfgs,
     reason = "tokio_unstable is supplied externally through RUSTFLAGS"
@@ -60,8 +66,6 @@ enum ServiceLifecyclePhase {
 pub struct ServiceRunner<Message, Settings, State, StateOperator, RuntimeServiceId> {
     service_resources: ServiceResources<Message, Settings, State, StateOperator, RuntimeServiceId>,
     service_lifecycle_phase: ServiceLifecyclePhase,
-    service_task_name: Option<&'static str>,
-    state_task_name: Option<&'static str>,
 }
 
 impl<Message, Settings, State, StateOp, RuntimeServiceId>
@@ -88,23 +92,14 @@ where
         Self {
             service_resources,
             service_lifecycle_phase: ServiceLifecyclePhase::Stopped,
-            service_task_name: None,
-            state_task_name: None,
         }
-    }
-
-    #[must_use]
-    pub const fn with_task_names(
-        mut self,
-        service_task_name: &'static str,
-        state_task_name: &'static str,
-    ) -> Self {
-        self.service_task_name = Some(service_task_name);
-        self.state_task_name = Some(state_task_name);
-        self
     }
 }
 
+#[expect(
+    unexpected_cfgs,
+    reason = "tokio_unstable is supplied externally through RUSTFLAGS"
+)]
 impl<Message, Settings, State, StateOp, RuntimeServiceId>
     ServiceRunner<Message, Settings, State, StateOp, RuntimeServiceId>
 where
@@ -122,7 +117,37 @@ where
     ///
     /// A [`ServiceRunnerHandle`] that contains the [`ServiceHandle`] and the
     /// [`JoinHandle`] of the [`ServiceRunner`] task.
+    #[cfg(all(feature = "tokio-task-names", tokio_unstable))]
     pub fn run<Service>(self) -> ServiceRunnerHandle<Message, Settings, State, StateOp>
+    where
+        Service: ServiceCore<RuntimeServiceId, Settings = Settings, State = State, Message = Message>
+            + 'static,
+        StateOp: Clone,
+        RuntimeServiceId: crate::services::AsServiceId<Service> + crate::services::ServiceTaskNames,
+    {
+        let service_id = <RuntimeServiceId as crate::services::AsServiceId<Service>>::SERVICE_ID;
+        let task_names = TaskNames {
+            service: service_id.service_task_name(),
+            state: service_id.state_task_name(),
+        };
+
+        self.spawn_runner::<Service>(Some(task_names))
+    }
+
+    #[cfg(not(all(feature = "tokio-task-names", tokio_unstable)))]
+    pub fn run<Service>(self) -> ServiceRunnerHandle<Message, Settings, State, StateOp>
+    where
+        Service: ServiceCore<RuntimeServiceId, Settings = Settings, State = State, Message = Message>
+            + 'static,
+        StateOp: Clone,
+    {
+        self.spawn_runner::<Service>(None)
+    }
+
+    fn spawn_runner<Service>(
+        self,
+        task_names: Option<TaskNames>,
+    ) -> ServiceRunnerHandle<Message, Settings, State, StateOp>
     where
         Service: ServiceCore<RuntimeServiceId, Settings = Settings, State = State, Message = Message>
             + 'static,
@@ -130,12 +155,12 @@ where
     {
         let service_handle = ServiceHandle::from(&self.service_resources);
         let runtime = self.service_resources.overwatch_handle().runtime().clone();
-        let runner_join_handle = runtime.spawn(self.run_::<Service>());
+        let runner_join_handle = runtime.spawn(self.run_::<Service>(task_names));
 
         ServiceRunnerHandle::new(service_handle, runner_join_handle)
     }
 
-    async fn run_<Service>(self)
+    async fn run_<Service>(self, task_names: Option<TaskNames>)
     where
         Service: ServiceCore<RuntimeServiceId, Settings = Settings, State = State, Message = Message>
             + 'static,
@@ -144,8 +169,6 @@ where
         let Self {
             mut service_resources,
             mut service_lifecycle_phase,
-            service_task_name,
-            state_task_name,
         } = self;
 
         // Handles to hold the Service and StateHandle tasks
@@ -162,8 +185,7 @@ where
                             &mut service_resources,
                             &mut service_task_handle,
                             &mut state_handle_task_handle,
-                            service_task_name,
-                            state_task_name,
+                            task_names,
                         );
                         service_lifecycle_phase = ServiceLifecyclePhase::Started;
                     }
@@ -213,8 +235,7 @@ where
         >,
         service_task_handle: &mut Option<JoinHandle<()>>,
         state_handle_task_handle: &mut Option<JoinHandle<()>>,
-        service_task_name: Option<&'static str>,
-        state_task_name: Option<&'static str>,
+        task_names: Option<TaskNames>,
     ) where
         Service: ServiceCore<RuntimeServiceId, Settings = Settings, State = State, Message = Message>
             + 'static,
@@ -251,8 +272,7 @@ where
             service_resources,
             service_task_handle,
             state_handle_task_handle,
-            service_task_name,
-            state_task_name,
+            task_names,
         );
     }
 
@@ -261,8 +281,7 @@ where
         service_resources: &ServiceResources<Message, Settings, State, StateOp, RuntimeServiceId>,
         service_task_handle: &mut Option<JoinHandle<()>>,
         state_handle_task_handle: &mut Option<JoinHandle<()>>,
-        service_task_name: Option<&'static str>,
-        state_task_name: Option<&'static str>,
+        task_names: Option<TaskNames>,
     ) where
         Service: ServiceCore<RuntimeServiceId, Settings = Settings, State = State, Message = Message>
             + 'static,
@@ -294,9 +313,17 @@ where
                 }
             }
         };
-        *service_task_handle = Some(spawn_task(&runtime, service_task_name, service_task));
+        *service_task_handle = Some(spawn_task(
+            &runtime,
+            task_names.map(|task_names| task_names.service),
+            service_task,
+        ));
         let state_handle_task = service_resources.state_handle().clone().run();
-        *state_handle_task_handle = Some(spawn_task(&runtime, state_task_name, state_handle_task));
+        *state_handle_task_handle = Some(spawn_task(
+            &runtime,
+            task_names.map(|task_names| task_names.state),
+            state_handle_task,
+        ));
     }
 
     /// Handles a [`LifecycleMessage::Stop`] event, ensuring proper shutdown and

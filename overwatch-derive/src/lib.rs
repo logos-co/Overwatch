@@ -443,14 +443,6 @@ fn generate_new_impl(
                     let runner =
                         ::overwatch::OpaqueServiceRunner::<#service_type, Self::RuntimeServiceId>::new(
                             #settings_field_identifier, overwatch_handle.clone(), <#service_type as ::overwatch::services::ServiceData>::SERVICE_RELAY_BUFFER_SIZE
-                    )
-                    .with_task_names(
-                        <Self::RuntimeServiceId as ::overwatch::services::ServiceTaskNames>::service_task_name(
-                            &<Self::RuntimeServiceId as ::overwatch::services::AsServiceId<#service_type>>::SERVICE_ID,
-                        ),
-                        <Self::RuntimeServiceId as ::overwatch::services::ServiceTaskNames>::state_task_name(
-                            &<Self::RuntimeServiceId as ::overwatch::services::AsServiceId<#service_type>>::SERVICE_ID,
-                        ),
                     );
                     let service_runner_handle = runner.run::<#service_type>();
                     service_runner_handle
