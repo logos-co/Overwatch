@@ -7,7 +7,7 @@ use std::{
 use async_trait::async_trait;
 use overwatch::{
     DynError, OpaqueServiceResourcesHandle, derive_services,
-    overwatch::OverwatchRunner,
+    overwatch::{OverwatchHandle, OverwatchRunner},
     services::{
         ServiceCore, ServiceData,
         state::{ServiceState, StateOperator},
@@ -32,7 +32,7 @@ impl ServiceState for TryLoadState {
 struct TryLoadOperator;
 
 #[async_trait]
-impl StateOperator for TryLoadOperator {
+impl<RuntimeServiceId> StateOperator<RuntimeServiceId> for TryLoadOperator {
     type State = TryLoadState;
     type LoadError = SendError<String>;
 
@@ -45,7 +45,10 @@ impl StateOperator for TryLoadOperator {
         Ok(Some(Self::State {}))
     }
 
-    fn from_settings(_settings: &<Self::State as ServiceState>::Settings) -> Self {
+    fn from_settings(
+        _settings: &<Self::State as ServiceState>::Settings,
+        _overwatch_handle: OverwatchHandle<RuntimeServiceId>,
+    ) -> Self {
         Self {}
     }
 

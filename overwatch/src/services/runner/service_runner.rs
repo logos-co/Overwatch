@@ -73,7 +73,7 @@ impl<Message, Settings, State, StateOp, RuntimeServiceId>
 where
     Settings: Clone,
     State: ServiceState<Settings = Settings> + Clone,
-    StateOp: StateOperator<State = State>,
+    StateOp: StateOperator<RuntimeServiceId, State = State>,
     RuntimeServiceId: Clone,
 {
     /// Creates a new `ServiceRunner`.
@@ -107,7 +107,8 @@ where
     Settings: Clone + 'static + Sync + Send,
     State: ServiceState<Settings = Settings> + Clone + Send + Sync + 'static,
     <State as ServiceState>::Error: Display,
-    StateOp: StateOperator<State = State> + Send + 'static,
+    StateOp: StateOperator<RuntimeServiceId, State = State> + Send + 'static,
+    <StateOp as StateOperator<RuntimeServiceId>>::LoadError: Display,
     RuntimeServiceId: 'static + Clone + Send,
 {
     /// Spawn the `ServiceRunner` loop. This will listen for lifecycle messages
@@ -118,7 +119,9 @@ where
     /// A [`ServiceRunnerHandle`] that contains the [`ServiceHandle`] and the
     /// [`JoinHandle`] of the [`ServiceRunner`] task.
     #[cfg(all(feature = "tokio-task-names", tokio_unstable))]
-    pub fn run<Service>(self) -> ServiceRunnerHandle<Message, Settings, State, StateOp>
+    pub fn run<Service>(
+        self,
+    ) -> ServiceRunnerHandle<Message, Settings, State, StateOp, RuntimeServiceId>
     where
         Service: ServiceCore<RuntimeServiceId, Settings = Settings, State = State, Message = Message>
             + 'static,
@@ -142,7 +145,9 @@ where
     /// A [`ServiceRunnerHandle`] that contains the [`ServiceHandle`] and the
     /// [`JoinHandle`] of the [`ServiceRunner`] task.
     #[cfg(not(all(feature = "tokio-task-names", tokio_unstable)))]
-    pub fn run<Service>(self) -> ServiceRunnerHandle<Message, Settings, State, StateOp>
+    pub fn run<Service>(
+        self,
+    ) -> ServiceRunnerHandle<Message, Settings, State, StateOp, RuntimeServiceId>
     where
         Service: ServiceCore<RuntimeServiceId, Settings = Settings, State = State, Message = Message>
             + 'static,
@@ -154,7 +159,7 @@ where
     fn spawn_runner<Service>(
         self,
         task_names: Option<TaskNames>,
-    ) -> ServiceRunnerHandle<Message, Settings, State, StateOp>
+    ) -> ServiceRunnerHandle<Message, Settings, State, StateOp, RuntimeServiceId>
     where
         Service: ServiceCore<RuntimeServiceId, Settings = Settings, State = State, Message = Message>
             + 'static,
@@ -251,7 +256,7 @@ where
         let initial_state = match service_resources.get_service_initial_state() {
             Ok(initial_state) => initial_state,
             Err(error) => {
-                panic!("Failed to create the initial state from settings: {error}");
+                panic!("Failed to create the initial state: {error}");
             }
         };
 
@@ -292,7 +297,7 @@ where
     ) where
         Service: ServiceCore<RuntimeServiceId, Settings = Settings, State = State, Message = Message>
             + 'static,
-        StateOp: StateOperator<State = State> + Clone,
+        StateOp: StateOperator<RuntimeServiceId, State = State> + Clone,
     {
         let runtime = service_resources.overwatch_handle().runtime().clone();
         let service_task = {

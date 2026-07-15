@@ -44,7 +44,7 @@ struct LifecycleServiceStateOperator {
 }
 
 #[async_trait]
-impl StateOperator for LifecycleServiceStateOperator {
+impl<RuntimeServiceId> StateOperator<RuntimeServiceId> for LifecycleServiceStateOperator {
     type State = LifecycleServiceState;
     type LoadError = String;
 
@@ -58,7 +58,10 @@ impl StateOperator for LifecycleServiceStateOperator {
             .map_err(|_| "Failed to lock the saved state mutex.".to_owned())
     }
 
-    fn from_settings(settings: &<Self::State as ServiceState>::Settings) -> Self {
+    fn from_settings(
+        settings: &<Self::State as ServiceState>::Settings,
+        _overwatch_handle: OverwatchHandle<RuntimeServiceId>,
+    ) -> Self {
         Self {
             saved_state: settings.saved_state,
             saved_sender: settings.saved_state_sender.clone(),

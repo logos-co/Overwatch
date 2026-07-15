@@ -14,7 +14,7 @@ use crate::services::{
 // is happening and it would get rid of the probably unnecessary Option and
 // cloning.
 #[derive(Clone)]
-pub struct ServiceHandle<Message, Settings, State, Operator> {
+pub struct ServiceHandle<Message, Settings, State, Operator, RuntimeServiceId> {
     /// Message channel relay
     ///
     /// It contains the channel if the service is running, otherwise it'll be
@@ -22,17 +22,19 @@ pub struct ServiceHandle<Message, Settings, State, Operator> {
     outbound_relay: OutboundRelay<Message>,
     settings_updater: SettingsUpdater<Settings>,
     status_watcher: StatusWatcher,
-    state_handle: StateHandle<State, Operator>,
+    state_handle: StateHandle<State, Operator, RuntimeServiceId>,
     lifecycle_notifier: LifecycleNotifier,
 }
 
-impl<Message, Settings, State, Operator> ServiceHandle<Message, Settings, State, Operator> {
+impl<Message, Settings, State, Operator, RuntimeServiceId>
+    ServiceHandle<Message, Settings, State, Operator, RuntimeServiceId>
+{
     /// Crate a new service handle.
     pub const fn new(
         outbound_relay: OutboundRelay<Message>,
         settings_updater: SettingsUpdater<Settings>,
         status_watcher: StatusWatcher,
-        state_handle: StateHandle<State, Operator>,
+        state_handle: StateHandle<State, Operator, RuntimeServiceId>,
         lifecycle_notifier: LifecycleNotifier,
     ) -> Self {
         Self {
@@ -62,7 +64,7 @@ impl<Message, Settings, State, Operator> ServiceHandle<Message, Settings, State,
     }
 
     /// Get the [`StateHandle`] for this service.
-    pub const fn state_handle(&self) -> &StateHandle<State, Operator> {
+    pub const fn state_handle(&self) -> &StateHandle<State, Operator, RuntimeServiceId> {
         &self.state_handle
     }
 

@@ -1,6 +1,9 @@
 use std::fmt::Debug;
 
-use overwatch::services::state::{ServiceState, StateOperator};
+use overwatch::{
+    overwatch::OverwatchHandle,
+    services::state::{ServiceState, StateOperator},
+};
 
 use crate::states::PingState;
 
@@ -10,7 +13,7 @@ pub struct StateSaveOperator {
 }
 
 #[async_trait::async_trait]
-impl StateOperator for StateSaveOperator {
+impl<RuntimeServiceId> StateOperator<RuntimeServiceId> for StateSaveOperator {
     type State = PingState;
     type LoadError = std::io::Error;
 
@@ -22,7 +25,10 @@ impl StateOperator for StateSaveOperator {
             .map_err(|error| std::io::Error::new(std::io::ErrorKind::InvalidData, error))
     }
 
-    fn from_settings(settings: &<Self::State as ServiceState>::Settings) -> Self {
+    fn from_settings(
+        settings: &<Self::State as ServiceState>::Settings,
+        _overwatch_handle: OverwatchHandle<RuntimeServiceId>,
+    ) -> Self {
         Self {
             save_path: settings.state_save_path.clone(),
         }

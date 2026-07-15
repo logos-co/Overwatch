@@ -1,4 +1,4 @@
-use std::sync::Arc;
+use std::{marker::PhantomData, sync::Arc};
 
 use futures::FutureExt as _;
 use tokio_stream::StreamExt as _;
@@ -10,17 +10,18 @@ use crate::services::state::{StateOperator, StateUpdater, StateWatcher, Stream, 
 ///
 /// A [`StateHandle`] watches a stream of incoming states and triggers the
 /// attached operator handling method over it.
-pub struct StateHandle<State, Operator> {
+pub struct StateHandle<State, Operator, RuntimeServiceId> {
     watcher: StateWatcher<Option<State>>,
     operator: Operator,
     operator_fuse_receiver: fuse::Receiver,
+    runtime_service_id: PhantomData<fn() -> RuntimeServiceId>,
 }
 
 // Clone must be used carefully. It's very likely `Operator` will be a
 // `StateOperator`, which are likely behaving in as if they were singletons.
 // Clone is implemented manually because auto deriving introduces an unnecessary
 // Clone bound on T.
-impl<State, Operator> Clone for StateHandle<State, Operator>
+impl<State, Operator, RuntimeServiceId> Clone for StateHandle<State, Operator, RuntimeServiceId>
 where
     State: Clone,
     Operator: Clone,
@@ -30,11 +31,12 @@ where
             watcher: self.watcher.clone(),
             operator: self.operator.clone(),
             operator_fuse_receiver: self.operator_fuse_receiver.resubscribe(),
+            runtime_service_id: PhantomData,
         }
     }
 }
 
-impl<State, Operator> StateHandle<State, Operator> {
+impl<State, Operator, RuntimeServiceId> StateHandle<State, Operator, RuntimeServiceId> {
     pub const fn watcher(&self) -> &StateWatcher<Option<State>> {
         &self.watcher
     }
@@ -44,7 +46,7 @@ impl<State, Operator> StateHandle<State, Operator> {
     }
 }
 
-impl<State, Operator> StateHandle<State, Operator>
+impl<State, Operator, RuntimeServiceId> StateHandle<State, Operator, RuntimeServiceId>
 where
     State: Clone,
 {
@@ -64,16 +66,17 @@ where
                 watcher,
                 operator,
                 operator_fuse_receiver,
+                runtime_service_id: PhantomData,
             },
             updater,
         )
     }
 }
 
-impl<State, Operator> StateHandle<State, Operator>
+impl<State, Operator, RuntimeServiceId> StateHandle<State, Operator, RuntimeServiceId>
 where
     State: Clone + Send + Sync + 'static,
-    Operator: StateOperator<State = State>,
+    Operator: StateOperator<RuntimeServiceId, State = State>,
 {
     /// Wait for new state updates and run the operator handling method.
     pub async fn run(self) {
@@ -81,6 +84,7 @@ where
             watcher: StateWatcher { receiver },
             mut operator,
             mut operator_fuse_receiver,
+            ..
         } = self;
 
         let mut state_stream = Stream::new(receiver);
@@ -139,7 +143,7 @@ mod test {
     struct PanicOnGreaterThanTen;
 
     #[async_trait]
-    impl StateOperator for PanicOnGreaterThanTen {
+    impl StateOperator<()> for PanicOnGreaterThanTen {
         type State = UsizeCounter;
         type LoadError = Infallible;
 
@@ -149,7 +153,10 @@ mod test {
             Ok(None)
         }
 
-        fn from_settings(_settings: &<Self::State as ServiceState>::Settings) -> Self {
+        fn from_settings(
+            _settings: &<Self::State as ServiceState>::Settings,
+            _overwatch_handle: crate::overwatch::OverwatchHandle<()>,
+        ) -> Self {
             Self
         }
 
@@ -169,9 +176,9 @@ mod test {
     async fn state_stream_collects() {
         let (_operator_fuse_sender, operator_fuse_receiver) = fuse::channel();
         let initial_state = UsizeCounter::from_settings(&()).unwrap();
-        let settings = PanicOnGreaterThanTen::from_settings(&());
+        let settings = PanicOnGreaterThanTen;
         let (handle, updater): (
-            StateHandle<UsizeCounter, PanicOnGreaterThanTen>,
+            StateHandle<UsizeCounter, PanicOnGreaterThanTen, ()>,
             StateUpdater<Option<UsizeCounter>>,
         ) = StateHandle::new(settings, Some(initial_state), operator_fuse_receiver);
 

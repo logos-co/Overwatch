@@ -75,6 +75,7 @@ pub fn derive_services(_attr: TokenStream, item: TokenStream) -> TokenStream {
         panic!("`derive_services` macro only supports structs with named fields");
     };
     let fields = named_fields.named;
+    let runtime_service_id_type_name = get_runtime_service_id_type_name();
 
     let modified_fields = fields.iter().map(|field| {
         let field_name = &field.ident;
@@ -82,7 +83,7 @@ pub fn derive_services(_attr: TokenStream, item: TokenStream) -> TokenStream {
         let field_attrs = &field.attrs; // Preserve attributes (including feature flags)
 
         let new_field_type = quote! {
-            ::overwatch::OpaqueServiceRunnerHandle<#field_type>
+            ::overwatch::OpaqueServiceRunnerHandle<#field_type, #runtime_service_id_type_name>
         };
 
         quote! {

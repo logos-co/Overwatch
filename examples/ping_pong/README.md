@@ -131,13 +131,22 @@ impl ServiceState for PingState {
 
 ```rust
 #[async_trait]
-impl StateOperator for StateSaveOperator {
+impl<RuntimeServiceId> StateOperator<RuntimeServiceId> for StateSaveOperator {
     type State = PingState;
     
     fn try_load(settings: &Settings) -> Result<Option<Self::State>, Self::LoadError> {
         // Load from JSON file
         let state_string = std::fs::read_to_string(&settings.state_save_path)?;
         serde_json::from_str(&state_string).map_err(...)
+    }
+
+    fn from_settings(
+        settings: &Settings,
+        _overwatch_handle: OverwatchHandle<RuntimeServiceId>,
+    ) -> Self {
+        Self {
+            save_path: settings.state_save_path.clone(),
+        }
     }
     
     async fn run(&mut self, state: Self::State) {

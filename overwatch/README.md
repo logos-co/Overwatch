@@ -205,12 +205,19 @@ State operators handle persistence:
 
 ```rust
 #[async_trait]
-impl StateOperator for MyOperator {
+impl<RuntimeServiceId> StateOperator<RuntimeServiceId> for MyOperator {
     type State = MyState;
     type LoadError = std::io::Error;
     
     fn try_load(settings: &Settings) -> Result<Option<Self::State>, Self::LoadError> {
         // Load state from disk/database
+    }
+
+    fn from_settings(
+        settings: &Settings,
+        overwatch_handle: OverwatchHandle<RuntimeServiceId>,
+    ) -> Self {
+        // Build the operator from settings and runtime services
     }
     
     async fn run(&mut self, state: Self::State) {

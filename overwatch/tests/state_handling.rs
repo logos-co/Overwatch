@@ -3,7 +3,7 @@ use std::{convert::Infallible, time::Duration};
 use async_trait::async_trait;
 use overwatch::{
     OpaqueServiceResourcesHandle, derive_services,
-    overwatch::OverwatchRunner,
+    overwatch::{OverwatchHandle, OverwatchRunner},
     services::{
         ServiceCore, ServiceData,
         state::{ServiceState, StateOperator},
@@ -50,7 +50,7 @@ impl ServiceState for CounterState {
 pub struct CounterStateOperator;
 
 #[async_trait]
-impl StateOperator for CounterStateOperator {
+impl<RuntimeServiceId> StateOperator<RuntimeServiceId> for CounterStateOperator {
     type State = CounterState;
     type LoadError = Infallible;
 
@@ -60,7 +60,10 @@ impl StateOperator for CounterStateOperator {
         Ok(None)
     }
 
-    fn from_settings(_settings: &<Self::State as ServiceState>::Settings) -> Self {
+    fn from_settings(
+        _settings: &<Self::State as ServiceState>::Settings,
+        _overwatch_handle: OverwatchHandle<RuntimeServiceId>,
+    ) -> Self {
         Self
     }
 
