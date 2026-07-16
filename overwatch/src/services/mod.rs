@@ -59,6 +59,15 @@ pub trait AsServiceId<T> {
     const SERVICE_ID: Self;
 }
 
+/// Provides static Tokio task names for services in a generated runtime.
+pub trait ServiceTaskNames {
+    /// The name of the task running the service.
+    fn service_task_name(&self) -> &'static str;
+
+    /// The name of the task running the service state handler.
+    fn state_task_name(&self) -> &'static str;
+}
+
 /// Main trait for Services initialization and main loop hook.
 ///
 /// # Note

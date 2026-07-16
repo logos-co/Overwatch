@@ -1030,6 +1030,7 @@ fn generate_runtime_service_types(fields: &Punctuated<Field, Comma>) -> proc_mac
     let runtime_service_id = generate_runtime_service_id(fields);
     let service_id_trait_impls = generate_service_id_trait_impls(fields);
     let as_service_id_impl = generate_as_service_id_impl(fields);
+    let service_task_names_impl = generate_service_task_names_impl(fields);
 
     quote! {
         #runtime_service_id
@@ -1037,6 +1038,54 @@ fn generate_runtime_service_types(fields: &Punctuated<Field, Comma>) -> proc_mac
         #service_id_trait_impls
 
         #as_service_id_impl
+
+        #service_task_names_impl
+    }
+}
+
+fn generate_service_task_names_impl(fields: &Punctuated<Field, Comma>) -> proc_macro2::TokenStream {
+    let service_names = fields
+        .iter()
+        .map(|field| {
+            let service_name = field
+                .ident
+                .as_ref()
+                .expect("Expected struct named fields.")
+                .clone();
+            let service_variant = format_ident!(
+                "{}",
+                utils::field_name_to_type_name(&service_name.to_string())
+            );
+
+            (service_name, service_variant)
+        })
+        .collect::<Vec<_>>();
+    let service_task_names = service_names.iter().map(|(service_name, service_variant)| {
+        quote! {
+            Self::#service_variant => concat!("overwatch-service/", stringify!(#service_name)),
+        }
+    });
+    let state_task_names = service_names.iter().map(|(service_name, service_variant)| {
+        quote! {
+            Self::#service_variant => concat!("overwatch-state/", stringify!(#service_name)),
+        }
+    });
+    let runtime_service_id_type_name = get_runtime_service_id_type_name();
+
+    quote! {
+        impl ::overwatch::services::ServiceTaskNames for #runtime_service_id_type_name {
+            fn service_task_name(&self) -> &'static str {
+                match self {
+                    #(#service_task_names)*
+                }
+            }
+
+            fn state_task_name(&self) -> &'static str {
+                match self {
+                    #(#state_task_names)*
+                }
+            }
+        }
     }
 }
 

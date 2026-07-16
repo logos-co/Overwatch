@@ -95,6 +95,19 @@ async-trait = "0.1"
 tokio = { version = "1", features = ["full"] }
 ```
 
+### Tokio Task Names
+
+Enable the `tokio-task-names` feature to name Overwatch-managed service and
+state-handler tasks for Tokio tracing and profiling tools. Tokio requires its
+unstable configuration for task names, so consumers must also build with
+`RUSTFLAGS="--cfg tokio_unstable"`. Enabling the Cargo feature alone keeps the
+existing unnamed spawn behavior.
+
+```toml
+[dependencies]
+overwatch = { version = "1", features = ["tokio-task-names"] }
+```
+
 ### Creating a Service
 
 Every service implements two traits:
