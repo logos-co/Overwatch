@@ -134,6 +134,13 @@ where
         self.spawn_runner::<Service>(Some(task_names))
     }
 
+    /// Spawn the `ServiceRunner` loop. This will listen for lifecycle messages
+    /// and act upon them.
+    ///
+    /// # Returns
+    ///
+    /// A [`ServiceRunnerHandle`] that contains the [`ServiceHandle`] and the
+    /// [`JoinHandle`] of the [`ServiceRunner`] task.
     #[cfg(not(all(feature = "tokio-task-names", tokio_unstable)))]
     pub fn run<Service>(self) -> ServiceRunnerHandle<Message, Settings, State, StateOp>
     where

@@ -1044,24 +1044,28 @@ fn generate_runtime_service_types(fields: &Punctuated<Field, Comma>) -> proc_mac
 }
 
 fn generate_service_task_names_impl(fields: &Punctuated<Field, Comma>) -> proc_macro2::TokenStream {
-    let service_task_names = fields.iter().map(|field| {
-        let service_name = field.ident.as_ref().expect("Expected struct named fields.");
-        let service_variant = format_ident!(
-            "{}",
-            utils::field_name_to_type_name(&service_name.to_string())
-        );
+    let service_names = fields
+        .iter()
+        .map(|field| {
+            let service_name = field
+                .ident
+                .as_ref()
+                .expect("Expected struct named fields.")
+                .clone();
+            let service_variant = format_ident!(
+                "{}",
+                utils::field_name_to_type_name(&service_name.to_string())
+            );
 
+            (service_name, service_variant)
+        })
+        .collect::<Vec<_>>();
+    let service_task_names = service_names.iter().map(|(service_name, service_variant)| {
         quote! {
             Self::#service_variant => concat!("overwatch-service/", stringify!(#service_name)),
         }
     });
-    let state_task_names = fields.iter().map(|field| {
-        let service_name = field.ident.as_ref().expect("Expected struct named fields.");
-        let service_variant = format_ident!(
-            "{}",
-            utils::field_name_to_type_name(&service_name.to_string())
-        );
-
+    let state_task_names = service_names.iter().map(|(service_name, service_variant)| {
         quote! {
             Self::#service_variant => concat!("overwatch-state/", stringify!(#service_name)),
         }
