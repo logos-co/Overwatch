@@ -129,3 +129,27 @@ fn load_state_from_operator() {
     let service_message_2 = origin_receiver.recv().expect("Value was not sent");
     assert_eq!(service_message_2, "Service::run");
 }
+
+#[test]
+fn load_error_fails_service_start() {
+    let (origin_sender, origin_receiver) = mpsc::channel();
+    drop(origin_receiver);
+    let settings = TryLoadAppServiceSettings {
+        try_load: TryLoadSettings { origin_sender },
+    };
+
+    let app = OverwatchRunner::<TryLoadApp>::run(settings, None).unwrap();
+    let handle = app.handle().clone();
+
+    let start_result = handle.runtime().block_on(async {
+        tokio::time::timeout(Duration::from_secs(1), handle.start_service::<TryLoad>()).await
+    });
+
+    assert!(matches!(start_result, Ok(Err(_))));
+
+    handle
+        .runtime()
+        .block_on(handle.shutdown())
+        .expect("Overwatch to shut down successfully.");
+    app.blocking_wait_finished();
+}

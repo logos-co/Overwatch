@@ -193,12 +193,15 @@ where
                     if service_lifecycle_phase == ServiceLifecyclePhase::Started {
                         info!("Service is already running.");
                     } else {
-                        Self::handle_start::<Service>(
+                        if let Err(error) = Self::handle_start::<Service>(
                             &mut service_resources,
                             &mut service_task_handle,
                             &mut state_handle_task_handle,
                             task_names,
-                        );
+                        ) {
+                            error!(error, "Failed to start service.");
+                            continue;
+                        }
                         service_lifecycle_phase = ServiceLifecyclePhase::Started;
                     }
 
@@ -248,17 +251,15 @@ where
         service_task_handle: &mut Option<JoinHandle<()>>,
         state_handle_task_handle: &mut Option<JoinHandle<()>>,
         task_names: Option<TaskNames>,
-    ) where
+    ) -> Result<(), String>
+    where
         Service: ServiceCore<RuntimeServiceId, Settings = Settings, State = State, Message = Message>
             + 'static,
         StateOp: Clone,
     {
-        let initial_state = match service_resources.get_service_initial_state() {
-            Ok(initial_state) => initial_state,
-            Err(error) => {
-                panic!("Failed to create the initial state: {error}");
-            }
-        };
+        let initial_state = service_resources
+            .get_service_initial_state()
+            .map_err(|error| format!("Failed to create the initial state: {error}"))?;
 
         let service_resources_handle = service_resources.as_handle().unwrap_or_else(|error| {
             panic!("Failed to create the ServiceResourcesHandle: {error}");
@@ -286,6 +287,8 @@ where
             state_handle_task_handle,
             task_names,
         );
+
+        Ok(())
     }
 
     fn start_tasks<Service>(
