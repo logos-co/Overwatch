@@ -288,10 +288,14 @@ async fn handle_service_lifecycle_command_operation<F>(
 ) where
     F: Future<Output = Result<(), Error>> + Send,
 {
-    if let Err(error) = operation.await {
-        error!(error=?error, "Error while running {operation_name} operation.");
-    }
-    if let Err(error) = sender.send(()) {
-        error!(error=?error, "Error while sending the finished signal for {operation_name} operation.");
+    match operation.await {
+        Ok(()) => {
+            if let Err(error) = sender.send(()) {
+                error!(error=?error, "Error while sending the finished signal for {operation_name} operation.");
+            }
+        }
+        Err(error) => {
+            error!(error=?error, "Error while running {operation_name} operation.");
+        }
     }
 }

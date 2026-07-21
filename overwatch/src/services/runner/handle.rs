@@ -2,16 +2,16 @@ use tokio::task::JoinHandle;
 
 use crate::services::service_handle::ServiceHandle;
 
-pub struct ServiceRunnerHandle<Message, Settings, State, StateOperator> {
-    service_handle: ServiceHandle<Message, Settings, State, StateOperator>,
+pub struct ServiceRunnerHandle<Message, Settings, State, StateOperator, RuntimeServiceId> {
+    service_handle: ServiceHandle<Message, Settings, State, StateOperator, RuntimeServiceId>,
     runner_join_handle: JoinHandle<()>,
 }
 
-impl<Message, Settings, State, StateOperator>
-    ServiceRunnerHandle<Message, Settings, State, StateOperator>
+impl<Message, Settings, State, StateOperator, RuntimeServiceId>
+    ServiceRunnerHandle<Message, Settings, State, StateOperator, RuntimeServiceId>
 {
     pub const fn new(
-        service_handle: ServiceHandle<Message, Settings, State, StateOperator>,
+        service_handle: ServiceHandle<Message, Settings, State, StateOperator, RuntimeServiceId>,
         runner_join_handle: JoinHandle<()>,
     ) -> Self {
         Self {
@@ -20,7 +20,9 @@ impl<Message, Settings, State, StateOperator>
         }
     }
 
-    pub const fn service_handle(&self) -> &ServiceHandle<Message, Settings, State, StateOperator> {
+    pub const fn service_handle(
+        &self,
+    ) -> &ServiceHandle<Message, Settings, State, StateOperator, RuntimeServiceId> {
         &self.service_handle
     }
 

@@ -2,14 +2,14 @@ use std::{convert::Infallible, marker::PhantomData, pin::Pin};
 
 use async_trait::async_trait;
 
-use crate::services::state::ServiceState;
+use crate::{overwatch::handle::OverwatchHandle, services::state::ServiceState};
 
 /// Performs an operation on a
 /// [`ServiceData::State`](crate::services::ServiceData::State) snapshot.
 ///
 /// A typical use case is to handle recovery: Saving and loading state.
 #[async_trait]
-pub trait StateOperator {
+pub trait StateOperator<RuntimeServiceId> {
     /// The type of state that the operator can handle.
     ///
     /// In the standard use case -
@@ -39,7 +39,10 @@ pub trait StateOperator {
 
     /// Operator initialization method. Can be implemented over some subset of
     /// settings.
-    fn from_settings(settings: &<Self::State as ServiceState>::Settings) -> Self;
+    fn from_settings(
+        settings: &<Self::State as ServiceState>::Settings,
+        overwatch_handle: OverwatchHandle<RuntimeServiceId>,
+    ) -> Self;
 
     /// Asynchronously perform an operation for a given state snapshot.
     async fn run(&mut self, state: Self::State);
@@ -66,7 +69,9 @@ impl<StateInput> Clone for NoOperator<StateInput> {
 }
 
 #[async_trait]
-impl<StateInput: ServiceState> StateOperator for NoOperator<StateInput> {
+impl<StateInput: ServiceState, RuntimeServiceId> StateOperator<RuntimeServiceId>
+    for NoOperator<StateInput>
+{
     type State = StateInput;
     type LoadError = Infallible;
 
@@ -76,7 +81,10 @@ impl<StateInput: ServiceState> StateOperator for NoOperator<StateInput> {
         Ok(None)
     }
 
-    fn from_settings(_settings: &<Self::State as ServiceState>::Settings) -> Self {
+    fn from_settings(
+        _settings: &<Self::State as ServiceState>::Settings,
+        _overwatch_handle: OverwatchHandle<RuntimeServiceId>,
+    ) -> Self {
         Self(PhantomData)
     }
 

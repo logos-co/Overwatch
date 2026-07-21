@@ -1,5 +1,13 @@
 use tracing::info;
 
+#[derive(Debug, thiserror::Error)]
+pub enum InitialStateError<StateError, OperatorError> {
+    #[error("Failed to load initial state from operator: {0}")]
+    Operator(OperatorError),
+    #[error("Failed to create initial state from settings: {0}")]
+    Settings(StateError),
+}
+
 use crate::{
     DynError,
     overwatch::handle::OverwatchHandle,
@@ -27,7 +35,7 @@ pub struct ServiceResources<Message, Settings, State, StateOperator, RuntimeServ
     // Settings
     settings_handle: SettingsHandle<Settings>,
     // State
-    state_handle: StateHandle<State, StateOperator>,
+    state_handle: StateHandle<State, StateOperator, RuntimeServiceId>,
     state_updater: StateUpdater<Option<State>>,
     operator_fuse_sender: fuse::Sender,
     // Lifecycle
@@ -46,7 +54,7 @@ where
     RuntimeServiceId: Clone,
     Settings: Clone,
     State: ServiceState<Settings = Settings> + Clone,
-    StateOperator: StateOperatorTrait<State = State>,
+    StateOperator: StateOperatorTrait<RuntimeServiceId, State = State>,
 {
     #[must_use]
     pub fn new(
@@ -57,12 +65,16 @@ where
         let lifecycle_handle = LifecycleHandle::new();
         let relay = Relay::new(relay_buffer_size);
         let status_handle = StatusHandle::new();
-        let state_operator = StateOperator::from_settings(&settings);
+        let state_operator = StateOperator::from_settings(&settings, overwatch_handle.clone());
         let settings_handle = SettingsHandle::new(settings);
 
         let (operator_fuse_sender, operator_fuse_receiver) = fuse::channel();
         let (state_handle, state_updater) =
-            StateHandle::<State, StateOperator>::new(state_operator, None, operator_fuse_receiver);
+            StateHandle::<State, StateOperator, RuntimeServiceId>::new(
+                state_operator,
+                None,
+                operator_fuse_receiver,
+            );
 
         let Relay {
             inbound_relay,
@@ -99,7 +111,7 @@ where
         &self.settings_handle
     }
 
-    pub const fn state_handle(&self) -> &StateHandle<State, StateOperator> {
+    pub const fn state_handle(&self) -> &StateHandle<State, StateOperator, RuntimeServiceId> {
         &self.state_handle
     }
 
@@ -160,20 +172,27 @@ where
     /// Retrieves the initial state for the service.
     ///
     /// First tries to load the state from the operator (a previously saved
-    /// state). If it fails, it defaults to the initial state created from
-    /// the settings.
+    /// state). If no state exists, it defaults to the initial state created
+    /// from the settings. Operator errors are returned to the caller.
     ///
     /// # Errors
     ///
-    /// If the State fails to load from Settings.
-    pub fn get_service_initial_state(&self) -> Result<State, State::Error> {
+    /// If the operator fails to load state or the state cannot be created from
+    /// settings.
+    pub fn get_service_initial_state(
+        &self,
+    ) -> Result<State, InitialStateError<State::Error, StateOperator::LoadError>> {
         let settings = self.settings_handle.notifier().get_updated_settings();
-        if let Ok(Some(loaded_state)) = StateOperator::try_load(&settings) {
-            info!("Loaded state from Operator");
-            Ok(loaded_state)
-        } else {
-            info!("Couldn't load state from Operator. Creating from settings.");
-            State::from_settings(&settings)
+        match StateOperator::try_load(&settings) {
+            Ok(Some(loaded_state)) => {
+                info!("Loaded state from Operator");
+                Ok(loaded_state)
+            }
+            Ok(None) => {
+                info!("No state found in Operator. Creating from settings.");
+                State::from_settings(&settings).map_err(InitialStateError::Settings)
+            }
+            Err(error) => Err(InitialStateError::Operator(error)),
         }
     }
 
@@ -213,7 +232,7 @@ pub struct ServiceResourcesHandle<Message, Settings, State, RuntimeServiceId> {
 
 impl<Message, Settings, State, Operator, RuntimeServiceId>
     From<&ServiceResources<Message, Settings, State, Operator, RuntimeServiceId>>
-    for ServiceHandle<Message, Settings, State, Operator>
+    for ServiceHandle<Message, Settings, State, Operator, RuntimeServiceId>
 where
     Settings: Clone,
     State: Clone,
@@ -230,5 +249,65 @@ where
             service_resources.state_handle.clone(),
             service_resources.lifecycle_handle.notifier().clone(),
         )
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use async_trait::async_trait;
+
+    use super::*;
+    use crate::services::state::StateOperator;
+
+    #[derive(Clone)]
+    struct TestState;
+
+    impl ServiceState for TestState {
+        type Settings = ();
+        type Error = std::convert::Infallible;
+
+        fn from_settings(_settings: &Self::Settings) -> Result<Self, Self::Error> {
+            panic!("settings fallback must not run after an operator error")
+        }
+    }
+
+    #[derive(Clone)]
+    struct FailingOperator;
+
+    #[async_trait]
+    impl StateOperator<()> for FailingOperator {
+        type State = TestState;
+        type LoadError = &'static str;
+
+        fn try_load(
+            _settings: &<Self::State as ServiceState>::Settings,
+        ) -> Result<Option<Self::State>, Self::LoadError> {
+            Err("recovery failed")
+        }
+
+        fn from_settings(
+            _settings: &<Self::State as ServiceState>::Settings,
+            _overwatch_handle: OverwatchHandle<()>,
+        ) -> Self {
+            Self
+        }
+
+        async fn run(&mut self, _state: Self::State) {}
+    }
+
+    #[test]
+    fn operator_load_error_does_not_fall_back_to_settings() {
+        let runtime = tokio::runtime::Runtime::new().unwrap();
+        let (sender, _receiver) = tokio::sync::mpsc::channel(1);
+        let resources = ServiceResources::<(), (), TestState, FailingOperator, ()>::new(
+            (),
+            OverwatchHandle::new(runtime.handle().clone(), sender),
+            1,
+        );
+
+        assert!(matches!(
+            resources.get_service_initial_state(),
+            Err(InitialStateError::Operator("recovery failed"))
+        ));
     }
 }
