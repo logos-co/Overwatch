@@ -75,15 +75,16 @@ where
         info!("Requesting relay with {}", RuntimeServiceId::SERVICE_ID);
         let (sender, receiver) = tokio::sync::oneshot::channel();
 
-        let Ok(()) = self
-            .send(OverwatchCommand::Relay(RelayCommand {
-                service_id: RuntimeServiceId::SERVICE_ID,
-                reply_channel: ReplyChannel::from(sender),
-            }))
-            .await
-        else {
-            unreachable!("Service relay should always be available");
-        };
+        // Sending fails once the Overwatch command receiver has been dropped,
+        // i.e. after Overwatch has started shutting down. That is reachable
+        // whenever a relay is requested concurrently with shutdown, so report it
+        // as an error rather than panicking.
+        self.send(OverwatchCommand::Relay(RelayCommand {
+            service_id: RuntimeServiceId::SERVICE_ID,
+            reply_channel: ReplyChannel::from(sender),
+        }))
+        .await
+        .map_err(|_| RelayError::Send)?;
         let message = receiver
             .await
             .map_err(|e| RelayError::Receiver(Box::new(e)))?;
