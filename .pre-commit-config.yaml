@@ -6,7 +6,7 @@ repos:
         entry: cargo +nightly-2026-04-11 fmt
       - id: clippy
   - repo: https://github.com/EmbarkStudios/cargo-deny
-    rev: 0.18.0
+    rev: 0.19.8
     hooks:
       - id: cargo-deny
         args:
