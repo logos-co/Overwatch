@@ -6,7 +6,7 @@ repos:
         entry: cargo +nightly-2026-04-11 fmt
       - id: clippy
   - repo: https://github.com/EmbarkStudios/cargo-deny
-    rev: 0.18.0
+    rev: 09faadcea2d0d1742492e6872b743d1e4d151a27 # 0.19.0
     hooks:
       - id: cargo-deny
         args:
@@ -18,7 +18,7 @@ repos:
           - --deny
           - warnings
   - repo: https://github.com/ComPWA/taplo-pre-commit
-    rev: v0.9.3
+    rev: v0.9.3 # Can't update until: https://github.com/tamasfe/taplo/issues/805
     hooks:
       - id: taplo-format
       - id: taplo-lint
