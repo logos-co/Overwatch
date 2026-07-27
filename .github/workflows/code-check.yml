@@ -44,13 +44,19 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@85e6279cec87321a52edac9c87bce653a07cf6c2  # Version 4.2.2
 
-      - name: Run `cargo deny`
-        uses: EmbarkStudios/cargo-deny-action@bb137d7af7e4fb67e5f82a49c4fce4fad40782fe # Version 2.0.20
+      - name: Install Rust toolchain
+        uses: actions-rust-lang/setup-rust-toolchain@46268bd060767258de96ed93c1251119784f2ab6 # Version 1.16.1
+
+      # `cargo-deny`'s action is compiled and run using `musl` but we generally use `gnu` in our local machines.
+      # Thus, results may differ from local runs.
+      # To avoid this, we install and run `cargo-deny` manually.
+      - name: Install cargo-deny
+        run: cargo install cargo-deny --locked --version 0.20.2
+
+      - name: Run cargo-deny
         env:
           CARGO_BUILD_WARNINGS: deny
-        with:
-          arguments: "--locked"
-          command-arguments: "--hide-inclusion-graph -c .cargo-deny.toml --show-stats"
+        run: cargo-deny --locked check --hide-inclusion-graph -c .cargo-deny.toml --show-stats -D warnings
 
   features:
     name: Check packages feature combinations
