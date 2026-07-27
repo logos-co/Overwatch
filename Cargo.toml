@@ -5,7 +5,7 @@ homepage   = "https://github.com/logos-co/Overwatch"
 keywords   = ["async", "framework", "services"]
 license    = "MIT or Apache-2.0"
 repository = "https://github.com/logos-co/Overwatch"
-version    = "0.1.0"
+version    = "0.2.0"
 
 [workspace]
 members  = ["examples/ping_pong", "overwatch", "overwatch-derive"]
