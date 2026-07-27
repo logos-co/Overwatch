@@ -4,6 +4,7 @@ use tokio_util::sync::PollSender;
 use crate::services::relay::{OutboundRelaySender, errors::OutboundRelayError};
 
 /// Channel sender of a relay connection.
+#[derive(Debug)]
 pub struct OutboundRelay<Message> {
     sender: OutboundRelaySender<Message>,
 }
