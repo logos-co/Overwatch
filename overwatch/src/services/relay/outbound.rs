@@ -1,7 +1,7 @@
 use futures::Sink;
 use tokio_util::sync::PollSender;
 
-use crate::services::relay::{OutboundRelaySender, errors::RelayError};
+use crate::services::relay::{OutboundRelaySender, errors::OutboundRelayError};
 
 /// Channel sender of a relay connection.
 pub struct OutboundRelay<Message> {
@@ -32,11 +32,11 @@ where
     /// # Errors
     ///
     /// If the message cannot be sent to the specified service.
-    pub async fn send(&self, message: Message) -> Result<(), (RelayError, Message)> {
+    pub async fn send(&self, message: Message) -> Result<(), OutboundRelayError<Message>> {
         self.sender
             .send(message)
             .await
-            .map_err(|e| (RelayError::Send, e.0))
+            .map_err(OutboundRelayError::Send)
     }
 
     /// Send a message to the relay connection in a blocking fashion.
@@ -51,10 +51,10 @@ where
     /// # Errors
     ///
     /// If the message cannot be sent to the specified service.
-    pub fn blocking_send(&self, message: Message) -> Result<(), (RelayError, Message)> {
+    pub fn blocking_send(&self, message: Message) -> Result<(), OutboundRelayError<Message>> {
         self.sender
             .blocking_send(message)
-            .map_err(|e| (RelayError::Send, e.0))
+            .map_err(OutboundRelayError::Send)
     }
 
     pub fn into_sink(self) -> impl Sink<Message> {

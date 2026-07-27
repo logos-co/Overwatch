@@ -16,12 +16,10 @@ use crate::{
             ServiceAllCommand, ServiceLifecycleCommand, ServiceSequenceCommand,
             ServiceSingleCommand, SettingsCommand, StatusCommand,
         },
-        errors::OverwatchManagementError,
+        errors::{OverwatchManagementError, send_error_to_dead},
     },
     services::{
-        AsServiceId, ServiceData,
-        lifecycle::ServiceLifecycleError,
-        relay::{OutboundRelay, RelayError},
+        AsServiceId, ServiceData, lifecycle::ServiceLifecycleError, relay::OutboundRelay,
         status::StatusWatcher,
     },
     utils::finished_signal,
@@ -65,8 +63,12 @@ where
     ///
     /// # Errors
     ///
-    /// If the relay cannot be created, or if the service is not available.
-    pub async fn relay<Service>(&self) -> Result<OutboundRelay<Service::Message>, RelayError>
+    /// Fails if Overwatch itself has stopped running.
+    ///
+    /// That failure is terminal: Overwatch cannot be restarted, so a relay
+    /// obtained from a live instance cannot outlive it, and retrying will
+    /// never succeed.
+    pub async fn relay<Service>(&self) -> Result<OutboundRelay<Service::Message>, Error>
     where
         Service: ServiceData,
         Service::Message: 'static,
@@ -75,18 +77,17 @@ where
         info!("Requesting relay with {}", RuntimeServiceId::SERVICE_ID);
         let (sender, receiver) = tokio::sync::oneshot::channel();
 
-        let Ok(()) = self
-            .send(OverwatchCommand::Relay(RelayCommand {
-                service_id: RuntimeServiceId::SERVICE_ID,
-                reply_channel: ReplyChannel::from(sender),
-            }))
-            .await
-        else {
-            unreachable!("Service relay should always be available");
-        };
+        self.send(OverwatchCommand::Relay(RelayCommand {
+            service_id: RuntimeServiceId::SERVICE_ID,
+            reply_channel: ReplyChannel::from(sender),
+        }))
+        .await
+        .map_err(|error| send_error_to_dead(&error))?;
+
         let message = receiver
             .await
-            .map_err(|e| RelayError::Receiver(Box::new(e)))?;
+            .map_err(|error| Error::Dead(Box::new(error)))?;
+
         let Ok(downcasted_message) = message.downcast::<OutboundRelay<Service::Message>>() else {
             unreachable!("Statically should always be of the correct type");
         };
@@ -95,11 +96,19 @@ where
 
     /// Request a [`StatusWatcher`] for a service
     ///
-    /// # Panics
+    /// # Returns
     ///
-    /// If the service watcher is not available, although this should never
-    /// happen.
-    pub async fn status_watcher<Service>(&self) -> StatusWatcher
+    /// A [`StatusWatcher`] for the service, which can be used to watch the
+    /// status of the service.
+    ///
+    /// # Errors
+    ///
+    /// Fails if Overwatch itself has stopped running.
+    ///
+    /// That failure is terminal: Overwatch cannot be restarted, so a status
+    /// watcher obtained from a live instance cannot outlive it, and
+    /// retrying will never succeed.
+    pub async fn status_watcher<Service>(&self) -> Result<StatusWatcher, Error>
     where
         RuntimeServiceId: AsServiceId<Service>,
     {
@@ -108,21 +117,15 @@ where
             RuntimeServiceId::SERVICE_ID
         );
         let (sender, receiver) = tokio::sync::oneshot::channel();
-        let Ok(()) = self
-            .send(OverwatchCommand::Status(StatusCommand {
-                service_id: RuntimeServiceId::SERVICE_ID,
-                reply_channel: ReplyChannel::from(sender),
-            }))
-            .await
-        else {
-            unreachable!("Service watcher should always be available");
-        };
-        receiver.await.unwrap_or_else(|_| {
-            panic!(
-                "Service {} watcher should always be available",
-                RuntimeServiceId::SERVICE_ID
-            )
-        })
+
+        self.send(OverwatchCommand::Status(StatusCommand {
+            service_id: RuntimeServiceId::SERVICE_ID,
+            reply_channel: ReplyChannel::from(sender),
+        }))
+        .await
+        .map_err(|error| send_error_to_dead(&error))?;
+
+        receiver.await.map_err(|error| Error::Dead(Box::new(error)))
     }
 
     /// Send a [`ServiceLifecycleCommand::StartService`] command to the

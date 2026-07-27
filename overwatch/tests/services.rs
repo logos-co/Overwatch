@@ -174,7 +174,9 @@ fn tokio_task_names_preserve_service_lifecycle() {
         .block_on(overwatch.handle().start_service::<ServiceA>())
         .expect("Failed to start service A");
 
-    let mut status_watcher = runtime.block_on(overwatch.handle().status_watcher::<ServiceA>());
+    let mut status_watcher = runtime
+        .block_on(overwatch.handle().status_watcher::<ServiceA>())
+        .expect("Failed to get status watcher");
     wait_for_status(runtime, &mut status_watcher, ServiceStatus::Ready);
 
     runtime
@@ -253,15 +255,18 @@ fn test_start() {
     let status_watcher_a = overwatch
         .runtime()
         .handle()
-        .block_on(overwatch.handle().status_watcher::<ServiceA>());
+        .block_on(overwatch.handle().status_watcher::<ServiceA>())
+        .expect("Failed to get status watcher");
     let status_watcher_b = overwatch
         .runtime()
         .handle()
-        .block_on(overwatch.handle().status_watcher::<ServiceB>());
+        .block_on(overwatch.handle().status_watcher::<ServiceB>())
+        .expect("Failed to get status watcher");
     let status_watcher_c = overwatch
         .runtime()
         .handle()
-        .block_on(overwatch.handle().status_watcher::<ServiceC>());
+        .block_on(overwatch.handle().status_watcher::<ServiceC>())
+        .expect("Failed to get status watcher");
 
     assert_eq!(status_watcher_a.current(), ServiceStatus::Ready);
     assert_eq!(status_watcher_b.current(), ServiceStatus::Stopped);
@@ -289,15 +294,18 @@ fn test_start_list() {
     let status_watcher_a = overwatch
         .runtime()
         .handle()
-        .block_on(overwatch.handle().status_watcher::<ServiceA>());
+        .block_on(overwatch.handle().status_watcher::<ServiceA>())
+        .expect("Failed to get status watcher");
     let status_watcher_b = overwatch
         .runtime()
         .handle()
-        .block_on(overwatch.handle().status_watcher::<ServiceB>());
+        .block_on(overwatch.handle().status_watcher::<ServiceB>())
+        .expect("Failed to get status watcher");
     let status_watcher_c = overwatch
         .runtime()
         .handle()
-        .block_on(overwatch.handle().status_watcher::<ServiceC>());
+        .block_on(overwatch.handle().status_watcher::<ServiceC>())
+        .expect("Failed to get status watcher");
 
     assert_eq!(status_watcher_a.current(), ServiceStatus::Ready);
     assert_eq!(status_watcher_b.current(), ServiceStatus::Ready);
@@ -320,15 +328,18 @@ fn test_start_all() {
     let status_watcher_a = overwatch
         .runtime()
         .handle()
-        .block_on(overwatch.handle().status_watcher::<ServiceA>());
+        .block_on(overwatch.handle().status_watcher::<ServiceA>())
+        .expect("Failed to get status watcher");
     let status_watcher_b = overwatch
         .runtime()
         .handle()
-        .block_on(overwatch.handle().status_watcher::<ServiceB>());
+        .block_on(overwatch.handle().status_watcher::<ServiceB>())
+        .expect("Failed to get status watcher");
     let status_watcher_c = overwatch
         .runtime()
         .handle()
-        .block_on(overwatch.handle().status_watcher::<ServiceC>());
+        .block_on(overwatch.handle().status_watcher::<ServiceC>())
+        .expect("Failed to get status watcher");
 
     assert_eq!(status_watcher_a.current(), ServiceStatus::Ready);
     assert_eq!(status_watcher_b.current(), ServiceStatus::Ready);
@@ -351,15 +362,18 @@ fn test_stop() {
     let status_watcher_a = overwatch
         .runtime()
         .handle()
-        .block_on(overwatch.handle().status_watcher::<ServiceA>());
+        .block_on(overwatch.handle().status_watcher::<ServiceA>())
+        .expect("Failed to get status watcher");
     let status_watcher_b = overwatch
         .runtime()
         .handle()
-        .block_on(overwatch.handle().status_watcher::<ServiceB>());
+        .block_on(overwatch.handle().status_watcher::<ServiceB>())
+        .expect("Failed to get status watcher");
     let status_watcher_c = overwatch
         .runtime()
         .handle()
-        .block_on(overwatch.handle().status_watcher::<ServiceC>());
+        .block_on(overwatch.handle().status_watcher::<ServiceC>())
+        .expect("Failed to get status watcher");
 
     overwatch
         .runtime()
@@ -388,15 +402,18 @@ fn test_stop_list() {
     let mut status_watcher_a = overwatch
         .runtime()
         .handle()
-        .block_on(overwatch.handle().status_watcher::<ServiceA>());
+        .block_on(overwatch.handle().status_watcher::<ServiceA>())
+        .expect("Failed to get status watcher");
     let mut status_watcher_b = overwatch
         .runtime()
         .handle()
-        .block_on(overwatch.handle().status_watcher::<ServiceB>());
+        .block_on(overwatch.handle().status_watcher::<ServiceB>())
+        .expect("Failed to get status watcher");
     let status_watcher_c = overwatch
         .runtime()
         .handle()
-        .block_on(overwatch.handle().status_watcher::<ServiceC>());
+        .block_on(overwatch.handle().status_watcher::<ServiceC>())
+        .expect("Failed to get status watcher");
 
     let services: Vec<RuntimeServiceId> = vec![
         <RuntimeServiceId as AsServiceId<ServiceA>>::SERVICE_ID,
@@ -435,15 +452,18 @@ fn test_stop_all() {
     let mut status_watcher_a = overwatch
         .runtime()
         .handle()
-        .block_on(overwatch.handle().status_watcher::<ServiceA>());
+        .block_on(overwatch.handle().status_watcher::<ServiceA>())
+        .expect("Failed to get status watcher");
     let mut status_watcher_b = overwatch
         .runtime()
         .handle()
-        .block_on(overwatch.handle().status_watcher::<ServiceB>());
+        .block_on(overwatch.handle().status_watcher::<ServiceB>())
+        .expect("Failed to get status watcher");
     let mut status_watcher_c = overwatch
         .runtime()
         .handle()
-        .block_on(overwatch.handle().status_watcher::<ServiceC>());
+        .block_on(overwatch.handle().status_watcher::<ServiceC>())
+        .expect("Failed to get status watcher");
 
     let _ = overwatch
         .runtime()

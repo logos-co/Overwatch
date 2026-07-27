@@ -57,7 +57,7 @@ impl ServiceCore<RuntimeServiceId> for PingService {
             tokio::select! {
                 () = sleep(Duration::from_secs(1)) => {
                     println!("Sending Ping");
-                    pong_outbound_relay.send(PongMessage::Ping).await.unwrap();
+                    pong_outbound_relay.send(PongMessage::Ping).await?;
                 }
                 Some(message) = inbound_relay.recv() => {
                     match message {
