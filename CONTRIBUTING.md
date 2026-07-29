@@ -104,7 +104,7 @@ git checkout -b feature/your-feature-name
 cargo fmt
 
 # Run clippy (warnings are errors in CI!)
-cargo clippy -- -D warnings
+CARGO_BUILD_WARNINGS=deny cargo clippy
 
 # Run tests
 cargo test
