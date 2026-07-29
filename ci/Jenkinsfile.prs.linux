@@ -24,7 +24,7 @@ pipeline {
       steps {
       	sh 'cargo check --all --all-features'
       	sh 'cargo fmt -- --check'
-	sh 'cargo clippy --all --all-features -- --deny warnings'
+	sh 'CARGO_BUILD_WARNINGS=deny cargo clippy --all --all-features'
       }
     }
 

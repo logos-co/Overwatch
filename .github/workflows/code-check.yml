@@ -45,9 +45,11 @@ jobs:
         uses: actions/checkout@85e6279cec87321a52edac9c87bce653a07cf6c2  # Version 4.2.2
       - name: Run `cargo deny`
         uses: EmbarkStudios/cargo-deny-action@3fd3802e88374d3fe9159b834c7714ec57d6c979 # Version 2.0.15
+        env:
+          CARGO_BUILD_WARNINGS: deny
         with:
           arguments: "--locked"
-          command-arguments: "--hide-inclusion-graph -c .cargo-deny.toml --show-stats -D warnings"
+          command-arguments: "--hide-inclusion-graph -c .cargo-deny.toml --show-stats"
 
   features:
     name: Check packages feature combinations
@@ -70,8 +72,7 @@ jobs:
           github-token: ${{ secrets.GITHUB_TOKEN }}
       - name: Run cargo-hack
         env:
-          RISC0_SKIP_BUILD: true
-          RUSTFLAGS: -D warnings
+          CARGO_BUILD_WARNINGS: deny
         run: cargo hack check --feature-powerset --keep-going --all-targets
       - name: Update Cargo cache
         if: success() || failure()
@@ -105,7 +106,7 @@ jobs:
         os: [ubuntu-latest, windows-latest, macos-latest]
     runs-on: ${{ matrix.os }}
     env:
-      RUSTFLAGS: -D warnings
+      CARGO_BUILD_WARNINGS: deny
     steps:
       - name: Checkout repository
         uses: actions/checkout@85e6279cec87321a52edac9c87bce653a07cf6c2  # Version 4.2.2
