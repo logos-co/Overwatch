@@ -10,8 +10,6 @@ repos:
     hooks:
       - id: cargo-deny
         args:
-          - CARGO_BUILD_WARNINGS
-          - deny
           - --locked
           - --config
           - .cargo-deny.toml
@@ -20,6 +18,8 @@ repos:
           - --show-stats
           - -D
           - warnings
+        env:
+          CARGO_BUILD_WARNINGS: deny
   - repo: https://github.com/ComPWA/taplo-pre-commit
     rev: v0.9.3
     hooks:
