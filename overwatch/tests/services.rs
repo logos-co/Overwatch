@@ -252,7 +252,7 @@ fn test_start() {
         .block_on(overwatch.handle().start_service::<ServiceA>())
         .expect("Failed to start service A");
 
-    let status_watcher_a = overwatch
+    let mut status_watcher_a = overwatch
         .runtime()
         .handle()
         .block_on(overwatch.handle().status_watcher::<ServiceA>())
@@ -267,6 +267,9 @@ fn test_start() {
         .handle()
         .block_on(overwatch.handle().status_watcher::<ServiceC>())
         .expect("Failed to get status watcher");
+
+    let runtime = overwatch.runtime().handle();
+    wait_for_status(runtime, &mut status_watcher_a, ServiceStatus::Ready);
 
     assert_eq!(status_watcher_a.current(), ServiceStatus::Ready);
     assert_eq!(status_watcher_b.current(), ServiceStatus::Stopped);
@@ -291,12 +294,12 @@ fn test_start_list() {
         .handle()
         .block_on(overwatch.handle().start_service_sequence(services));
 
-    let status_watcher_a = overwatch
+    let mut status_watcher_a = overwatch
         .runtime()
         .handle()
         .block_on(overwatch.handle().status_watcher::<ServiceA>())
         .expect("Failed to get status watcher");
-    let status_watcher_b = overwatch
+    let mut status_watcher_b = overwatch
         .runtime()
         .handle()
         .block_on(overwatch.handle().status_watcher::<ServiceB>())
@@ -306,6 +309,10 @@ fn test_start_list() {
         .handle()
         .block_on(overwatch.handle().status_watcher::<ServiceC>())
         .expect("Failed to get status watcher");
+
+    let runtime = overwatch.runtime().handle();
+    wait_for_status(runtime, &mut status_watcher_a, ServiceStatus::Ready);
+    wait_for_status(runtime, &mut status_watcher_b, ServiceStatus::Ready);
 
     assert_eq!(status_watcher_a.current(), ServiceStatus::Ready);
     assert_eq!(status_watcher_b.current(), ServiceStatus::Ready);
@@ -325,21 +332,26 @@ fn test_start_all() {
         .handle()
         .block_on(overwatch.handle().start_all_services());
 
-    let status_watcher_a = overwatch
+    let mut status_watcher_a = overwatch
         .runtime()
         .handle()
         .block_on(overwatch.handle().status_watcher::<ServiceA>())
         .expect("Failed to get status watcher");
-    let status_watcher_b = overwatch
+    let mut status_watcher_b = overwatch
         .runtime()
         .handle()
         .block_on(overwatch.handle().status_watcher::<ServiceB>())
         .expect("Failed to get status watcher");
-    let status_watcher_c = overwatch
+    let mut status_watcher_c = overwatch
         .runtime()
         .handle()
         .block_on(overwatch.handle().status_watcher::<ServiceC>())
         .expect("Failed to get status watcher");
+
+    let runtime = overwatch.runtime().handle();
+    wait_for_status(runtime, &mut status_watcher_a, ServiceStatus::Ready);
+    wait_for_status(runtime, &mut status_watcher_b, ServiceStatus::Ready);
+    wait_for_status(runtime, &mut status_watcher_c, ServiceStatus::Ready);
 
     assert_eq!(status_watcher_a.current(), ServiceStatus::Ready);
     assert_eq!(status_watcher_b.current(), ServiceStatus::Ready);
@@ -359,27 +371,34 @@ fn test_stop() {
         .handle()
         .block_on(overwatch.handle().start_all_services());
 
-    let status_watcher_a = overwatch
+    let mut status_watcher_a = overwatch
         .runtime()
         .handle()
         .block_on(overwatch.handle().status_watcher::<ServiceA>())
         .expect("Failed to get status watcher");
-    let status_watcher_b = overwatch
+    let mut status_watcher_b = overwatch
         .runtime()
         .handle()
         .block_on(overwatch.handle().status_watcher::<ServiceB>())
         .expect("Failed to get status watcher");
-    let status_watcher_c = overwatch
+    let mut status_watcher_c = overwatch
         .runtime()
         .handle()
         .block_on(overwatch.handle().status_watcher::<ServiceC>())
         .expect("Failed to get status watcher");
+
+    let runtime = overwatch.runtime().handle();
+    wait_for_status(runtime, &mut status_watcher_a, ServiceStatus::Ready);
+    wait_for_status(runtime, &mut status_watcher_b, ServiceStatus::Ready);
+    wait_for_status(runtime, &mut status_watcher_c, ServiceStatus::Ready);
 
     overwatch
         .runtime()
         .handle()
         .block_on(overwatch.handle().stop_service::<ServiceA>())
         .expect("Failed to stop service");
+
+    wait_for_status(runtime, &mut status_watcher_a, ServiceStatus::Stopped);
 
     assert_eq!(status_watcher_a.current(), ServiceStatus::Stopped);
     assert_eq!(status_watcher_b.current(), ServiceStatus::Ready);
