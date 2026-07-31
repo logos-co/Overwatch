@@ -6,6 +6,10 @@ pub mod errors;
 pub mod inbound;
 pub mod outbound;
 
+pub use errors::OutboundRelayError;
+pub use inbound::InboundRelay;
+pub use outbound::OutboundRelay;
+
 /// Message wrapper type.
 pub type AnyMessage = Box<dyn Any + Send + 'static>;
 
@@ -36,10 +40,6 @@ pub mod inbound_relay_retriever {
         mpsc::channel()
     }
 }
-
-pub use errors::RelayError;
-pub use inbound::InboundRelay;
-pub use outbound::OutboundRelay;
 
 pub struct Relay<Message> {
     pub inbound_relay: InboundRelay<Message>,

@@ -1,13 +1,10 @@
 use std::fmt::Debug;
 
 use thiserror::Error;
+use tokio::sync::mpsc as tokio_mpsc;
 
 #[derive(Error, Debug)]
-pub enum RelayError {
-    #[error("couldn't relay message")]
-    Send,
-    #[error("relay is already connected")]
-    AlreadyConnected,
-    #[error("receiver failed due to {0:?}")]
-    Receiver(Box<dyn Debug + Send + Sync>),
+pub enum OutboundRelayError<T> {
+    #[error("Could not send message to relay: {0}")]
+    Send(#[from] tokio_mpsc::error::SendError<T>),
 }

@@ -79,7 +79,7 @@ impl ServiceCore<RuntimeServiceId> for AwaitService2 {
             .service_resources_handle
             .overwatch_handle
             .status_watcher::<AwaitService1>()
-            .await;
+            .await?;
 
         watcher
             .wait_for(ServiceStatus::Ready, Some(Duration::from_millis(50)))
@@ -115,7 +115,7 @@ impl ServiceCore<RuntimeServiceId> for AwaitService3 {
             .service_resources_handle
             .overwatch_handle
             .status_watcher::<AwaitService2>()
-            .await;
+            .await?;
 
         watcher
             .wait_for(ServiceStatus::Ready, Some(Duration::from_millis(50)))

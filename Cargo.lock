@@ -180,7 +180,7 @@ checksum = "42f5e15c9953c5e4ccceeb2e7382a716482c34515315f7b03532b8b4e8393d2d"
 
 [[package]]
 name = "overwatch"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "async-trait",
  "futures",
@@ -195,7 +195,7 @@ dependencies = [
 
 [[package]]
 name = "overwatch-derive"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "async-trait",
  "convert_case",
@@ -221,7 +221,7 @@ checksum = "8b870d8c151b6f2fb93e84a13146138f05d02ed11c7e7c54f8826aaaf7c9f184"
 
 [[package]]
 name = "ping_pong"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "async-trait",
  "const_format",

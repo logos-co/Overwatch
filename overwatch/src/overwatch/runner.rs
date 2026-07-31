@@ -27,7 +27,10 @@ pub const OVERWATCH_THREAD_NAME: &str = "Overwatch";
 
 /// Handle a running [`Overwatch`].
 ///
-/// It's usually one-shot.
+/// It's one-shot: once it stops running, whether by a graceful shutdown or
+/// otherwise, there is no mechanism to restart it. A new [`Overwatch`] instance
+/// must be created instead. This implies that existing services, relays and
+/// other allocated resources will be dropped.
 ///
 /// It only contains what's required to run [`Overwatch`] as a main loop and to
 /// be able to stop it.
