@@ -33,7 +33,7 @@ jobs:
       - name: Run taplo lint
         run: taplo lint
       - name: Run taplo fmt
-        run: taplo fmt --check          
+        run: taplo fmt --check
 
   cargo-deny:
     name: Check cargo-deny rules
@@ -43,20 +43,27 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@85e6279cec87321a52edac9c87bce653a07cf6c2  # Version 4.2.2
-      - name: Run `cargo deny`
-        uses: EmbarkStudios/cargo-deny-action@3fd3802e88374d3fe9159b834c7714ec57d6c979 # Version 2.0.15
+
+      - name: Install Rust toolchain
+        uses: actions-rust-lang/setup-rust-toolchain@46268bd060767258de96ed93c1251119784f2ab6 # Version 1.16.1
+
+      # `cargo-deny`'s action is compiled and run using `musl` but we generally use `gnu` in our local machines.
+      # Thus, results may differ from local runs.
+      # To avoid this, we install and run `cargo-deny` manually.
+      - name: Install cargo-deny
+        run: cargo install cargo-deny --locked --version 0.20.2
+
+      - name: Run cargo-deny
         env:
           CARGO_BUILD_WARNINGS: deny
-        with:
-          arguments: "--locked"
-          command-arguments: "--hide-inclusion-graph -c .cargo-deny.toml --show-stats"
+        run: cargo-deny --locked --config .cargo-deny.toml check --hide-inclusion-graph --show-stats -D warnings
 
   features:
     name: Check packages feature combinations
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-latest, windows-latest, macos-latest]
+        os: [ ubuntu-latest, windows-latest, macos-latest ]
     runs-on: ${{ matrix.os }}
     steps:
       - name: Checkout repository
@@ -85,7 +92,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-latest, windows-latest, macos-latest]
+        os: [ ubuntu-latest, windows-latest, macos-latest ]
     runs-on: ${{ matrix.os }}
     steps:
       - name: Checkout repository
@@ -103,7 +110,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-latest, windows-latest, macos-latest]
+        os: [ ubuntu-latest, windows-latest, macos-latest ]
     runs-on: ${{ matrix.os }}
     env:
       CARGO_BUILD_WARNINGS: deny
@@ -114,7 +121,7 @@ jobs:
         uses: ./.github/actions/setup-cargo-cache
         with:
           key: ${{ github.ref }}->${{ github.workflow }}->${{ github.job }}->${{ matrix.os }}
-          github-token: ${{ secrets.GITHUB_TOKEN }}        
+          github-token: ${{ secrets.GITHUB_TOKEN }}
       - name: Run cargo clippy
         uses: actions-rs/cargo@9e120dd99b0fbad1c065f686657e914e76bd7b72  # Version 1.0.1
         with:
@@ -131,7 +138,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-latest, windows-latest, macos-latest]
+        os: [ ubuntu-latest, windows-latest, macos-latest ]
     runs-on: ${{ matrix.os }}
     steps:
       - name: Checkout repository

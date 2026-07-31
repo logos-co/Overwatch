@@ -6,17 +6,20 @@ repos:
         entry: cargo +nightly-2026-05-22 fmt
       - id: clippy
   - repo: https://github.com/EmbarkStudios/cargo-deny
-    rev: 0.18.0
+    rev: 0.20.2
     hooks:
       - id: cargo-deny
         args:
-          - CARGO_BUILD_WARNINGS
-          - deny
+          - --locked
+          - --config
+          - .cargo-deny.toml
           - check
           - --hide-inclusion-graph
-          - -c
-          - .cargo-deny.toml
           - --show-stats
+          - -D
+          - warnings
+        env:
+          CARGO_BUILD_WARNINGS: deny
   - repo: https://github.com/ComPWA/taplo-pre-commit
     rev: v0.9.3
     hooks:
