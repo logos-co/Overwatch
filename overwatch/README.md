@@ -62,7 +62,7 @@ This crate provides the fundamental building blocks for creating modular, interc
 
 ## 🏗️ Architecture Overview
 
-```
+```text
                     ┌─────────────────────────┐
                     │    OverwatchRunner      │
                     │  ─────────────────────  │
@@ -114,7 +114,7 @@ Every service implements two traits:
 
 #### 1. `ServiceData` - Define Types
 
-```rust
+```rust,ignore
 impl ServiceData for MyService {
     type Settings = MySettings;      // Configuration
     type State = MyState;            // Persistent state
@@ -125,7 +125,7 @@ impl ServiceData for MyService {
 
 #### 2. `ServiceCore` - Define Behavior
 
-```rust
+```rust,ignore
 #[async_trait]
 impl ServiceCore<RuntimeServiceId> for MyService {
     fn init(
@@ -151,7 +151,7 @@ impl ServiceCore<RuntimeServiceId> for MyService {
 
 Services communicate via **relays** - type-safe async channels:
 
-```rust
+```rust,ignore
 // Get a relay to another service
 let other_relay = self.handle
     .overwatch_handle
@@ -173,7 +173,7 @@ while let Some(msg) = self.handle.inbound_relay.recv().await {
 
 ### No State (Stateless Services)
 
-```rust
+```rust,ignore
 impl ServiceData for StatelessService {
     type State = NoState<Self::Settings>;
     type StateOperator = NoOperator<Self::State>;
@@ -183,7 +183,7 @@ impl ServiceData for StatelessService {
 
 ### With State (Stateful Services)
 
-```rust
+```rust,ignore
 #[derive(Default, Clone, Serialize, Deserialize)]
 struct MyState {
     counter: u32,
@@ -203,7 +203,7 @@ impl ServiceState for MyState {
 
 State operators handle persistence:
 
-```rust
+```rust,ignore
 #[async_trait]
 impl<RuntimeServiceId> StateOperator<RuntimeServiceId> for MyOperator {
     type State = MyState;
@@ -232,7 +232,7 @@ impl<RuntimeServiceId> StateOperator<RuntimeServiceId> for MyOperator {
 
 Control services programmatically:
 
-```rust
+```rust,ignore
 let handle = app.handle();
 
 // Start all services
