@@ -22,7 +22,7 @@ impl<State> StateWatcher<State> {
         Self { receiver }
     }
 
-    /// Get the internal [`Receiver`].
+    /// Get the internal [`Receiver`](tokio::sync::watch::Receiver).
     #[must_use]
     pub const fn receiver(&self) -> &Receiver<State> {
         &self.receiver

@@ -28,7 +28,7 @@ impl<Message> ReplyChannel<Message> {
 ///
 /// Commands can only be sent to other services that are aggregated under the
 /// same `RuntimeServiceId`, i.e. they are part of the same
-/// [`Overwatch`](overwatch::Overwatch) runtime.
+/// [`Overwatch`](crate::overwatch::Overwatch) runtime.
 #[derive(Debug)]
 pub struct RelayCommand<RuntimeServiceId> {
     pub(crate) service_id: RuntimeServiceId,
@@ -61,38 +61,38 @@ pub struct ServiceAllCommand {
     pub sender: finished_signal::Sender,
 }
 
-/// Commands for managing [`Service`](crate::services::Service)s lifecycle.
+/// Commands for managing [`Service`](crate::services::ServiceCore)s lifecycle.
 #[derive(Debug)]
 pub enum ServiceLifecycleCommand<RuntimeServiceId> {
     /// Starts a `Service` associated with an
-    /// [`Overwatch`](overwatch::Overwatch) instance.
+    /// [`Overwatch`](crate::overwatch::Overwatch) instance.
     StartService(ServiceSingleCommand<RuntimeServiceId>),
     /// Starts a sequence of `Service`s associated with an
-    /// [`Overwatch`](overwatch::Overwatch) instance.
+    /// [`Overwatch`](crate::overwatch::Overwatch) instance.
     StartServiceSequence(ServiceSequenceCommand<RuntimeServiceId>),
     /// Starts all `Service`s associated with an
-    /// [`Overwatch`](overwatch::Overwatch) instance.
+    /// [`Overwatch`](crate::overwatch::Overwatch) instance.
     StartAllServices(ServiceAllCommand),
     /// Stops a `Service` associated with an
-    /// [`Overwatch`](overwatch::Overwatch) instance.
+    /// [`Overwatch`](crate::overwatch::Overwatch) instance.
     StopService(ServiceSingleCommand<RuntimeServiceId>),
     /// Stops a sequence of `Service`s associated with an
-    /// [`Overwatch`](overwatch::Overwatch) instance.
+    /// [`Overwatch`](crate::overwatch::Overwatch) instance.
     StopServiceSequence(ServiceSequenceCommand<RuntimeServiceId>),
     /// Stops all `Service`s associated with an
-    /// [`Overwatch`](overwatch::Overwatch) instance.
+    /// [`Overwatch`](crate::overwatch::Overwatch) instance.
     StopAllServices(ServiceAllCommand),
 }
 
-/// Command for everything [`Overwatch`](overwatch::Overwatch)-level operations.
+/// Command for everything [`Overwatch`](crate::overwatch::Overwatch)-level operations.
 #[derive(Debug)]
 pub enum OverwatchManagementCommand<RuntimeServiceId> {
     /// Retrieves the list of all the `Service`s' `RuntimeServiceId`s
     RetrieveServiceIds(ReplyChannel<Vec<RuntimeServiceId>>),
-    /// Shuts down [`Overwatch`](overwatch::Overwatch), sending the
+    /// Shuts down [`Overwatch`](crate::overwatch::Overwatch), sending the
     /// `finish_runner_signal`
-    /// to [`Overwatch`](overwatch::Overwatch). It's the signal which
-    /// [`Overwatch::wait_finished`](overwatch::Overwatch::wait_finished)
+    /// to [`Overwatch`](crate::overwatch::Overwatch). It's the signal which
+    /// [`Overwatch::wait_finished`](crate::overwatch::Overwatch::wait_finished)
     /// awaits.
     ///
     /// This message is final: It stops all `Service`s (and their respective
@@ -101,11 +101,11 @@ pub enum OverwatchManagementCommand<RuntimeServiceId> {
     Shutdown(finished_signal::Sender),
 }
 
-/// [`Overwatch`](overwatch::Overwatch) settings update command.
+/// [`Overwatch`](crate::overwatch::Overwatch) settings update command.
 #[derive(Debug)]
 pub struct SettingsCommand(pub(crate) AnySettings);
 
-/// [`Overwatch`](overwatch::Overwatch) tasks related commands.
+/// [`Overwatch`](crate::overwatch::Overwatch) tasks related commands.
 #[derive(Debug)]
 pub enum OverwatchCommand<RuntimeServiceId> {
     Relay(RelayCommand<RuntimeServiceId>),

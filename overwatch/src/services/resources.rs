@@ -196,7 +196,7 @@ where
         }
     }
 
-    /// Create a new [`ServiceResourcesHandle`](ServiceResourcesHandle) from the
+    /// Create a new [`ServiceResourcesHandle`] from the
     /// current `ServiceResources`.
     ///
     /// It requires `inbound_relay` to be set.

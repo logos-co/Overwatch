@@ -22,7 +22,7 @@ use crate::{
 
 /// Overwatch thread identifier.
 ///
-/// It's used for creating the [`Runtime`] that Overwatch uses internally.
+/// It's used for creating the [`Runtime`](tokio::runtime::Runtime) that Overwatch uses internally.
 pub const OVERWATCH_THREAD_NAME: &str = "Overwatch";
 
 /// Handle a running [`Overwatch`].
@@ -53,7 +53,7 @@ where
 {
     /// Start the Overwatch runner process.
     ///
-    /// Create the [`Runtime`], initialize the [`Services`] and start listening
+    /// Create the [`Runtime`](tokio::runtime::Runtime), initialize the [`Services`] and start listening
     /// for [`Overwatch`] related tasks.
     ///
     /// Return the [`Overwatch`] instance that handles this runner.
