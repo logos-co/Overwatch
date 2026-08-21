@@ -21,7 +21,9 @@ pub trait ServiceState: Sized {
 
     /// Initialize a state using the provided settings.
     ///
-    /// This is called when [`StateOperator::try_load`] doesn't return a state.
+    /// This is called when
+    /// [`StateOperator::try_load`](crate::services::state::StateOperator::try_load)
+    /// doesn't return a state.
     ///
     /// # Errors
     ///

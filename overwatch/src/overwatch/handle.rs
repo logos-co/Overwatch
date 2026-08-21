@@ -320,7 +320,7 @@ where
         })
     }
 
-    /// Send a [`ServiceLifecycleCommand::Shutdown`] command to the
+    /// Send an [`OverwatchManagementCommand::Shutdown`] command to the
     /// [`OverwatchRunner`](crate::overwatch::OverwatchRunner).
     ///
     /// This triggers sending the `finish_runner_signal` to
