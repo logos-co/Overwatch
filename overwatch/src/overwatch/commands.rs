@@ -84,7 +84,8 @@ pub enum ServiceLifecycleCommand<RuntimeServiceId> {
     StopAllServices(ServiceAllCommand),
 }
 
-/// Command for everything [`Overwatch`](crate::overwatch::Overwatch)-level operations.
+/// Command for everything [`Overwatch`](crate::overwatch::Overwatch)-level
+/// operations.
 #[derive(Debug)]
 pub enum OverwatchManagementCommand<RuntimeServiceId> {
     /// Retrieves the list of all the `Service`s' `RuntimeServiceId`s
