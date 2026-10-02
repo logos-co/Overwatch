@@ -14,15 +14,22 @@ pub enum ServiceStatus {
     /// It can be restarted by sending the appropriate
     /// [`LifecycleMessage`](crate::services::lifecycle::LifecycleMessage).
     Stopped,
+    /// The `Service` has been stopped because its
+    /// [`run`](crate::services::ServiceCore::run) panicked.
+    ///
+    /// Like [`Self::Stopped`], it can be restarted by sending the appropriate
+    /// [`LifecycleMessage`](crate::services::lifecycle::LifecycleMessage).
+    Failed,
 }
 
 impl Display for ServiceStatus {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        use ServiceStatus::{Ready, Starting, Stopped};
+        use ServiceStatus::{Failed, Ready, Starting, Stopped};
         let service_status = match self {
             Starting => "ServiceStatus::Starting",
             Ready => "ServiceStatus::Ready",
             Stopped => "ServiceStatus::Stopped",
+            Failed => "ServiceStatus::Failed",
         };
         write!(f, "{service_status}")
     }

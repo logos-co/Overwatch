@@ -1,7 +1,7 @@
 use tokio::sync::oneshot;
 
 use crate::{
-    overwatch::AnySettings,
+    overwatch::{AnySettings, exit::ServicePanic},
     services::{relay::AnyMessage, status::StatusWatcher},
     utils::finished_signal,
 };
@@ -100,6 +100,14 @@ pub enum OverwatchManagementCommand<RuntimeServiceId> {
     /// [`ServiceRunner`](crate::services::runner::ServiceRunner)s) so
     /// `Service`s can't be started again.
     Shutdown(finished_signal::Sender),
+    /// Reports that a `Service`'s [`run`](crate::services::ServiceCore::run)
+    /// panicked.
+    ///
+    /// Sent by the
+    /// [`ServiceRunner`](crate::services::runner::ServiceRunner). What happens
+    /// next depends on the
+    /// [`ServicePanicPolicy`](crate::overwatch::ServicePanicPolicy).
+    ServicePanicked(ServicePanic<RuntimeServiceId>),
 }
 
 /// [`Overwatch`](crate::overwatch::Overwatch) settings update command.

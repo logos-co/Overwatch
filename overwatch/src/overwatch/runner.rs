@@ -1,6 +1,9 @@
 use std::fmt::Debug;
 
-use tokio::{runtime::Handle, sync::mpsc::Receiver};
+use tokio::{
+    runtime::Handle,
+    sync::{mpsc::Receiver, oneshot},
+};
 #[cfg(feature = "instrumentation")]
 use tracing::instrument;
 use tracing::{error, info};
@@ -8,7 +11,7 @@ use tracing::{error, info};
 use crate::{
     DynError,
     overwatch::{
-        Error, Overwatch, Services,
+        Error, Overwatch, OverwatchExit, ServicePanicPolicy, Services,
         commands::{
             OverwatchCommand, OverwatchManagementCommand, RelayCommand, ServiceAllCommand,
             ServiceLifecycleCommand, ServiceSequenceCommand, ServiceSingleCommand, SettingsCommand,
@@ -39,7 +42,8 @@ pub const OVERWATCH_THREAD_NAME: &str = "Overwatch";
 /// That is, it's responsible for [`Overwatch`]'s application lifecycle.
 pub struct GenericOverwatchRunner<Services, RuntimeServiceId> {
     services: Services,
-    finish_signal_sender: finished_signal::Sender,
+    service_panic_policy: ServicePanicPolicy,
+    finish_signal_sender: oneshot::Sender<OverwatchExit<RuntimeServiceId>>,
     commands_receiver: Receiver<OverwatchCommand<RuntimeServiceId>>,
 }
 
@@ -59,6 +63,10 @@ where
     ///
     /// Return the [`Overwatch`] instance that handles this runner.
     ///
+    /// A panic in a `Service` is handled with the default
+    /// [`ServicePanicPolicy`]. Use [`Self::run_with_panic_policy`] to choose a
+    /// different one.
+    ///
     /// # Errors
     ///
     /// If the runner process cannot be created.
@@ -66,18 +74,32 @@ where
         settings: ServicesImpl::Settings,
         handle: Option<Handle>,
     ) -> Result<Overwatch<ServicesImpl::RuntimeServiceId>, DynError> {
+        Self::run_with_panic_policy(settings, handle, ServicePanicPolicy::default())
+    }
+
+    /// Same as [`Self::run`], choosing what happens when a `Service` panics.
+    ///
+    /// # Errors
+    ///
+    /// If the runner process cannot be created.
+    pub fn run_with_panic_policy(
+        settings: ServicesImpl::Settings,
+        handle: Option<Handle>,
+        service_panic_policy: ServicePanicPolicy,
+    ) -> Result<Overwatch<ServicesImpl::RuntimeServiceId>, DynError> {
         let runtime = handle.map_or_else(
             || OverwatchRuntime::TokioRuntime(default_multithread_runtime()),
             OverwatchRuntime::TokioHandle,
         );
 
-        let (finish_signal_sender, finish_runner_signal) = finished_signal::channel();
+        let (finish_signal_sender, finish_runner_signal) = oneshot::channel();
         let (commands_sender, commands_receiver) = tokio::sync::mpsc::channel(16);
         let handle = OverwatchHandle::new(runtime.handle().clone(), commands_sender);
         let services = ServicesImpl::new(settings, handle.clone())?;
 
         let runner = Self {
             services,
+            service_panic_policy,
             finish_signal_sender,
             commands_receiver,
         };
@@ -98,9 +120,11 @@ where
     async fn run_(self) {
         let Self {
             mut services,
+            service_panic_policy,
             finish_signal_sender,
             mut commands_receiver,
         } = self;
+        let mut exit = OverwatchExit::Shutdown;
         while let Some(command) = commands_receiver.recv().await {
             info!(command = ?command, "Overwatch command received");
             match command {
@@ -124,16 +148,26 @@ where
                         }
                     }
                     OverwatchManagementCommand::Shutdown(sender) => {
-                        if let Err(error) = services.stop_all().await {
-                            error!(error=?error, "Error stopping all services during teardown.");
-                        }
-                        if let Err(error) = services.teardown().await {
-                            error!(error=?error, "Error tearing down services.");
-                        }
+                        Self::shutdown(services).await;
                         if let Err(error) = sender.send(()) {
                             error!(error=?error, "Error sending Shutdown finished signal.");
                         }
                         break;
+                    }
+                    OverwatchManagementCommand::ServicePanicked(service_panic) => {
+                        match service_panic_policy {
+                            ServicePanicPolicy::ShutdownOverwatch => {
+                                error!(
+                                    "Service {:?} panicked, shutting down Overwatch.",
+                                    service_panic.service_id
+                                );
+                                Self::shutdown(services).await;
+                                exit = OverwatchExit::ServicePanicked(service_panic);
+                                break;
+                            }
+                            // The `ServiceRunner` stops the `Service` on its own.
+                            ServicePanicPolicy::StopService => {}
+                        }
                     }
                 },
                 OverwatchCommand::Settings(settings) => {
@@ -145,8 +179,18 @@ where
         // Signal that we finished execution
         info!("OverwatchRunner finished execution, sending the finish signal.");
         finish_signal_sender
-            .send(())
+            .send(exit)
             .expect("Overwatch run finish signal to be sent properly");
+    }
+
+    /// Stop every `Service` and tear the [`Services`] down.
+    async fn shutdown(mut services: ServicesImpl) {
+        if let Err(error) = services.stop_all().await {
+            error!(error=?error, "Error stopping all services during teardown.");
+        }
+        if let Err(error) = services.teardown().await {
+            error!(error=?error, "Error tearing down services.");
+        }
     }
 
     /// Handle a [`RelayCommand`].

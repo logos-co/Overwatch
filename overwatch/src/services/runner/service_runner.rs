@@ -1,13 +1,21 @@
-use std::fmt::Display;
+use std::{
+    fmt::{Debug, Display},
+    panic::AssertUnwindSafe,
+};
 
+use futures::FutureExt as _;
 use tokio::task::JoinHandle;
 use tokio_stream::StreamExt as _;
 use tracing::{debug, error, info};
 
 use crate::{
-    overwatch::handle::OverwatchHandle,
+    overwatch::{
+        ServicePanic,
+        commands::{OverwatchCommand, OverwatchManagementCommand},
+        handle::OverwatchHandle,
+    },
     services::{
-        ServiceCore,
+        AsServiceId, ServiceCore,
         lifecycle::LifecycleMessage,
         resources::ServiceResources,
         runner::ServiceRunnerHandle,
@@ -126,9 +134,10 @@ where
         Service: ServiceCore<RuntimeServiceId, Settings = Settings, State = State, Message = Message>
             + 'static,
         StateOp: Clone,
-        RuntimeServiceId: crate::services::AsServiceId<Service> + crate::services::ServiceTaskNames,
+        RuntimeServiceId:
+            AsServiceId<Service> + Debug + Display + Sync + crate::services::ServiceTaskNames,
     {
-        let service_id = <RuntimeServiceId as crate::services::AsServiceId<Service>>::SERVICE_ID;
+        let service_id = <RuntimeServiceId as AsServiceId<Service>>::SERVICE_ID;
         let task_names = TaskNames {
             service: service_id.service_task_name(),
             state: service_id.state_task_name(),
@@ -152,6 +161,7 @@ where
         Service: ServiceCore<RuntimeServiceId, Settings = Settings, State = State, Message = Message>
             + 'static,
         StateOp: Clone,
+        RuntimeServiceId: AsServiceId<Service> + Debug + Display + Sync,
     {
         self.spawn_runner::<Service>(None)
     }
@@ -164,6 +174,7 @@ where
         Service: ServiceCore<RuntimeServiceId, Settings = Settings, State = State, Message = Message>
             + 'static,
         StateOp: Clone,
+        RuntimeServiceId: AsServiceId<Service> + Debug + Display + Sync,
     {
         let service_handle = ServiceHandle::from(&self.service_resources);
         let runtime = self.service_resources.overwatch_handle().runtime().clone();
@@ -177,6 +188,7 @@ where
         Service: ServiceCore<RuntimeServiceId, Settings = Settings, State = State, Message = Message>
             + 'static,
         StateOp: Clone,
+        RuntimeServiceId: AsServiceId<Service> + Debug + Display + Sync,
     {
         let Self {
             mut service_resources,
@@ -256,6 +268,7 @@ where
         Service: ServiceCore<RuntimeServiceId, Settings = Settings, State = State, Message = Message>
             + 'static,
         StateOp: Clone,
+        RuntimeServiceId: AsServiceId<Service> + Debug + Display + Sync,
     {
         let initial_state = service_resources
             .get_service_initial_state()
@@ -301,11 +314,17 @@ where
         Service: ServiceCore<RuntimeServiceId, Settings = Settings, State = State, Message = Message>
             + 'static,
         StateOp: StateOperator<RuntimeServiceId, State = State> + Clone,
+        RuntimeServiceId: AsServiceId<Service> + Debug + Display + Sync,
     {
         let runtime = service_resources.overwatch_handle().runtime().clone();
         let service_task = {
             let task = service.run();
             let lifecycle_notifier = service_resources.lifecycle_handle().notifier().clone();
+            let overwatch_handle = service_resources.overwatch_handle().clone();
+            let status_updater = service_resources
+                .status_handle()
+                .service_runner_updater()
+                .clone();
 
             // Receiver is ignored because it's pointless:
             // - If we wait for it, the Stop message will eventually abort it before the
@@ -317,8 +336,28 @@ where
             // When the `Service`'s task finishes, a [`LifecycleMessage::Stop`] is sent to
             // the `ServiceRunner` to ensure proper cleanup.
             async move {
-                if let Err(error) = task.await {
-                    error!("Error while waiting for Service's task to be completed: {error}");
+                match AssertUnwindSafe(task).catch_unwind().await {
+                    Ok(Ok(())) => {}
+                    Ok(Err(error)) => {
+                        error!("Error while waiting for Service's task to be completed: {error}");
+                    }
+                    Err(panic_payload) => {
+                        let service_panic = ServicePanic::new(
+                            <RuntimeServiceId as AsServiceId<Service>>::SERVICE_ID,
+                            panic_payload.as_ref(),
+                        );
+                        error!("{service_panic}");
+                        status_updater.notify_failed();
+                        // Reported before the Stop below: handling the Stop aborts this
+                        // task if it's still running. The reply isn't awaited, so this
+                        // can't deadlock with an Overwatch that is stopping this `Service`.
+                        let command = OverwatchCommand::OverwatchManagement(
+                            OverwatchManagementCommand::ServicePanicked(service_panic),
+                        );
+                        if let Err(error) = overwatch_handle.send(command).await {
+                            error!("Error while reporting the panic to Overwatch: {error}");
+                        }
+                    }
                 }
                 if let Err(error) = lifecycle_notifier
                     .send(LifecycleMessage::Stop(sender))
@@ -354,7 +393,7 @@ where
     /// - Final cleanup is performed.
     ///
     /// 2. **Service self-termination**: The `Service` finishes execution on its
-    ///    own. In this case:
+    ///    own, whether by returning or by panicking. In this case:
     /// - The `Service` task is already stopped.
     /// - A `fuse` is sent to the
     ///   [`StatusHandle`](crate::services::status::StatusHandle), so its task

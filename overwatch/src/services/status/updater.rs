@@ -16,7 +16,8 @@ use crate::services::status::{
 /// - `Service` uses the [`StatusUpdater`] to signal when it is ready to
 ///   operate.
 /// - [`ServiceRunnerAPI`] uses the [`StatusUpdater`] to signal when the
-///   `Service` is either in the process of starting or has been stopped.
+///   `Service` is either in the process of starting, has been stopped or has
+///   failed.
 ///
 /// # Note
 ///
@@ -66,8 +67,22 @@ impl StatusUpdater<ServiceRunnerAPI> {
     }
 
     /// Shorthand for sending a [`ServiceStatus::Stopped`] message.
+    ///
+    /// A [`ServiceStatus::Failed`] status is kept: it already implies the
+    /// `Service` is stopped.
     pub fn notify_stopped(&self) {
-        self.send(ServiceStatus::Stopped);
+        self.sender.send_if_modified(|status| {
+            if *status == ServiceStatus::Failed {
+                return false;
+            }
+            *status = ServiceStatus::Stopped;
+            true
+        });
+    }
+
+    /// Shorthand for sending a [`ServiceStatus::Failed`] message.
+    pub fn notify_failed(&self) {
+        self.send(ServiceStatus::Failed);
     }
 }
 
