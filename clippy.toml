@@ -1,0 +1,3 @@
+# TODO: Remove once `tracing-attributes` supports syn 3 (https://github.com/tokio-rs/tracing/pull/3594), so that the
+# whole dependency tree can move to syn 3.
+allowed-duplicate-crates = ["syn"]

@@ -42,7 +42,7 @@ pub fn extract_type_from(ty: &Type) -> manyhow::Result<Type> {
     let stringify_type = ty.clone().into_token_stream().to_string();
 
     let Type::Path(TypePath { path, .. }) = ty else {
-        bail!("Expected a type path, found {}", stringify_type)
+        bail!("Expected a type path, found {}", stringify_type);
     };
 
     let last_segment = path.segments.last().unwrap();
@@ -72,7 +72,7 @@ pub fn extract_type_from(ty: &Type) -> manyhow::Result<Type> {
             Ok(ty.clone())
         }
         PathArguments::Parenthesized(_) => {
-            bail!("Unexpected type argument format in {}", stringify_type)
+            bail!("Unexpected type argument format in {}", stringify_type);
         }
     }
 }
