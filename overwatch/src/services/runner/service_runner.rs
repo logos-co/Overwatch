@@ -1,4 +1,4 @@
-use std::fmt::Display;
+use std::{any::Any, fmt::Display};
 
 use tokio::task::{JoinError, JoinHandle};
 use tokio_stream::StreamExt as _;
@@ -21,6 +21,18 @@ type ServiceTaskHandle = JoinHandle<Result<(), DynError>>;
 /// How the `Service` task ended: the value returned by the `Service`, or the
 /// reason why its task didn't complete (a panic, or being aborted).
 type ServiceTaskResult = Result<Result<(), DynError>, JoinError>;
+
+/// Extracts the message from the payload of a panic.
+///
+/// `panic!` produces either a `&str` or a `String`. Anything else comes from
+/// `std::panic::panic_any`.
+fn panic_message(payload: &(dyn Any + Send)) -> String {
+    payload
+        .downcast_ref::<&str>()
+        .map(|message| (*message).to_owned())
+        .or_else(|| payload.downcast_ref::<String>().cloned())
+        .unwrap_or_else(|| "Non-string panic payload".to_owned())
+}
 
 #[derive(Clone, Copy)]
 struct TaskNames {
@@ -450,7 +462,7 @@ where
 
         let service_panic = ServicePanic::new(
             <RuntimeServiceId as AsServiceId<Service>>::SERVICE_ID,
-            panic_payload.as_ref(),
+            panic_message(panic_payload.as_ref()),
         );
         error!("{service_panic}");
         status_updater.notify_failed();

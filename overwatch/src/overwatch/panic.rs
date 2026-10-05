@@ -1,5 +1,4 @@
 use std::{
-    any::Any,
     error::Error,
     fmt::{Debug, Display, Formatter},
 };
@@ -19,15 +18,10 @@ pub struct ServicePanic<RuntimeServiceId> {
 }
 
 impl<RuntimeServiceId> ServicePanic<RuntimeServiceId> {
-    pub(crate) fn new(service_id: RuntimeServiceId, payload: &(dyn Any + Send)) -> Self {
-        let message = payload
-            .downcast_ref::<&str>()
-            .map(|message| (*message).to_owned())
-            .or_else(|| payload.downcast_ref::<String>().cloned())
-            .unwrap_or_else(|| "Non-string panic payload".to_owned());
+    pub(crate) fn new(service_id: RuntimeServiceId, message: impl Into<String>) -> Self {
         Self {
             service_id,
-            message,
+            message: message.into(),
         }
     }
 }
