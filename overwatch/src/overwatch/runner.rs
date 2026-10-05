@@ -11,7 +11,7 @@ use tracing::{error, info};
 use crate::{
     DynError,
     overwatch::{
-        Error, Overwatch, ServicePanic, Services,
+        Error, ExitResult, Overwatch, Services,
         commands::{
             OverwatchCommand, OverwatchManagementCommand, RelayCommand, ServiceAllCommand,
             ServiceLifecycleCommand, ServiceSequenceCommand, ServiceSingleCommand, SettingsCommand,
@@ -42,7 +42,7 @@ pub const OVERWATCH_THREAD_NAME: &str = "Overwatch";
 /// That is, it's responsible for [`Overwatch`]'s application lifecycle.
 pub struct GenericOverwatchRunner<Services, RuntimeServiceId> {
     services: Services,
-    finish_signal_sender: oneshot::Sender<Result<(), ServicePanic<RuntimeServiceId>>>,
+    finish_signal_sender: oneshot::Sender<ExitResult<RuntimeServiceId>>,
     commands_receiver: Receiver<OverwatchCommand<RuntimeServiceId>>,
 }
 

@@ -34,6 +34,10 @@ impl<RuntimeServiceId: Display> Display for ServicePanic<RuntimeServiceId> {
 
 impl<RuntimeServiceId: Debug + Display> Error for ServicePanic<RuntimeServiceId> {}
 
+/// How [`Overwatch`](crate::overwatch::Overwatch) finished executing: `Ok`
+/// after a regular shutdown, or the [`ServicePanic`] that caused the shutdown.
+pub type ExitResult<RuntimeServiceId> = Result<(), ServicePanic<RuntimeServiceId>>;
+
 /// What to do when a `Service`'s [`run`](crate::services::ServiceCore::run)
 /// panics.
 ///
