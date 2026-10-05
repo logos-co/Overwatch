@@ -196,8 +196,8 @@ fn test_lifecycle() {
     let service_value = assert_receiver.recv().unwrap();
     assert_eq!(service_value, 0);
 
-    // To avoid test failures, wait until StateOperator has saved the last expected
-    // state
+    // To avoid test failures, wait until StateOperator has saved the last
+    // expected state
     while let Ok(value) = saved_state_receiver.recv() {
         if value == 1 {
             break;
@@ -243,8 +243,8 @@ fn test_lifecycle() {
     let service_value = assert_receiver.recv().unwrap();
     assert_eq!(service_value, 2);
 
-    // To avoid test failures, wait until StateOperator has saved the last expected
-    // state
+    // To avoid test failures, wait until StateOperator has saved the last
+    // expected state
     while let Ok(value) = saved_state_receiver.recv() {
         if value == 3 {
             break;

@@ -10,9 +10,7 @@ use std::{
 use async_trait::async_trait;
 use overwatch::{
     DynError, OpaqueServiceResourcesHandle,
-    overwatch::{
-        Overwatch, OverwatchHandle, OverwatchRunner, PanicPolicy, ServicePanic, Shutdown,
-    },
+    overwatch::{Overwatch, OverwatchHandle, OverwatchRunner, PanicPolicy, ServicePanic, Shutdown},
     services::{
         AsServiceId, ServiceCore, ServiceData,
         state::{NoOperator, NoState},

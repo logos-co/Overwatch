@@ -55,8 +55,8 @@ pub fn extract_type_from(ty: &Type) -> manyhow::Result<Type> {
                 );
             }
 
-            // Backward-compatible: Extract **only the first generic argument** (previous
-            // behavior)
+            // Backward-compatible: Extract **only the first generic argument**
+            // (previous behavior)
             let first_generic = params.args.iter().next().unwrap();
 
             let GenericArgument::Type(inner_ty) = first_generic else {

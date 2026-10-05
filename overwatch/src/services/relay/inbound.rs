@@ -60,12 +60,14 @@ impl<Message> Drop for InboundRelay<Message> {
         } = self;
 
         // Instantiate a fake receiver to swap with the original one
-        // This is a hack to take ownership of the receiver, required to send it back
+        // This is a hack to take ownership of the receiver, required to send it
+        // back
         let (_sender, mut swapped_receiver) = relay_channel(*buffer_size);
         mem::swap(&mut swapped_receiver, receiver);
 
         // Instantiate a fake return sender to swap with the original one
-        // This is a hack to take ownership of the sender, required to call `send`
+        // This is a hack to take ownership of the sender, required to call
+        // `send`
         let (mut swapped_retriever_sender, _oneshot_rx) = inbound_relay_retriever::channel();
         mem::swap(&mut swapped_retriever_sender, retriever_sender);
 

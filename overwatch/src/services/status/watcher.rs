@@ -35,8 +35,8 @@ impl StatusWatcher {
             return Ok(current);
         }
         let timeout_duration = timeout_duration.unwrap_or_else(|| Duration::from_secs(u64::MAX));
-        // A failure that predates this call is not reported: the `Service` might be
-        // about to be restarted.
+        // A failure that predates this call is not reported: the `Service`
+        // might be about to be restarted.
         let stop_on_failure = current != ServiceStatus::Failed;
         let reached = tokio::time::timeout(
             timeout_duration,

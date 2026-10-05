@@ -51,7 +51,8 @@ impl ServiceCore<RuntimeServiceId> for SettingsService {
             }
             // TODO: when [this](https://github.com/ockam-network/ockam/issues/2479)
             // or (https://github.com/tokio-rs/tokio/issues/2002) lands
-            // update so this panic is not just a print and the test get actually aborted
+            // update so this panic is not just a print and the test get
+            // actually aborted
             assert!(asserted);
         };
         print.await;

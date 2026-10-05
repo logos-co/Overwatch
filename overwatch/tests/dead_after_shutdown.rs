@@ -91,8 +91,9 @@ async fn status_watcher_after_shutdown_returns_error_instead_of_panicking() {
         .await
         .expect("Overwatch should finish without a service panic.");
 
-    // The command receiver has been dropped, so the send inside `status_watcher`
-    // fails. This must surface as an error rather than panicking.
+    // The command receiver has been dropped, so the send inside
+    // `status_watcher` fails. This must surface as an error rather than
+    // panicking.
     let result = handle.status_watcher::<IdleService>().await;
     assert!(
         matches!(result, Err(Error::Dead(_))),
