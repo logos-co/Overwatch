@@ -1,6 +1,6 @@
 use overwatch::{
     DynError, OpaqueServiceResourcesHandle,
-    overwatch::OverwatchRunner,
+    overwatch::{OverwatchRunner, Shutdown},
     services::{
         ServiceCore, ServiceData,
         state::{NoOperator, NoState},
@@ -59,7 +59,7 @@ impl Drop for OnStopService {
     }
 }
 
-#[derive_services]
+#[derive_services(panic_policy = Shutdown)]
 struct App {
     on_stop_service: OnStopService,
 }
@@ -94,5 +94,7 @@ fn on_stop() {
         .expect("Failed to receive the on_stop signal");
 
     let _ = runtime.block_on(handle.shutdown());
-    overwatch.blocking_wait_finished();
+    overwatch
+        .blocking_wait_finished()
+        .expect("Overwatch should finish without a service panic.");
 }

@@ -3,7 +3,7 @@ use std::time::Duration;
 use async_trait::async_trait;
 use overwatch::{
     OpaqueServiceResourcesHandle, derive_services,
-    overwatch::OverwatchRunner,
+    overwatch::{OverwatchRunner, Shutdown},
     services::{
         ServiceCore, ServiceData,
         state::{NoOperator, NoState},
@@ -51,7 +51,8 @@ impl ServiceCore<RuntimeServiceId> for SettingsService {
             }
             // TODO: when [this](https://github.com/ockam-network/ockam/issues/2479)
             // or (https://github.com/tokio-rs/tokio/issues/2002) lands
-            // update so this panic is not just a print and the test get actually aborted
+            // update so this panic is not just a print and the test get
+            // actually aborted
             assert!(asserted);
         };
         print.await;
@@ -59,7 +60,7 @@ impl ServiceCore<RuntimeServiceId> for SettingsService {
     }
 }
 
-#[derive_services]
+#[derive_services(panic_policy = Shutdown)]
 struct TestApp {
     settings_service: SettingsService,
 }
@@ -86,5 +87,7 @@ fn settings_service_update_settings() {
         let _ = handle2.shutdown().await;
     });
 
-    overwatch.blocking_wait_finished();
+    overwatch
+        .blocking_wait_finished()
+        .expect("Overwatch should finish without a service panic.");
 }

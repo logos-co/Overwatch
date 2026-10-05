@@ -3,7 +3,7 @@ use std::{convert::Infallible, time::Duration};
 use async_trait::async_trait;
 use overwatch::{
     OpaqueServiceResourcesHandle, derive_services,
-    overwatch::{OverwatchHandle, OverwatchRunner},
+    overwatch::{OverwatchHandle, OverwatchRunner, Shutdown},
     services::{
         ServiceCore, ServiceData,
         state::{ServiceState, StateOperator},
@@ -106,7 +106,7 @@ impl ServiceCore<RuntimeServiceId> for UpdateStateService {
     }
 }
 
-#[derive_services]
+#[derive_services(panic_policy = Shutdown)]
 struct TestApp {
     update_state_service: UpdateStateService,
 }
@@ -128,5 +128,7 @@ fn state_update_service() {
         sleep(Duration::from_secs(1)).await;
         let _ = handle.shutdown().await;
     });
-    overwatch.blocking_wait_finished();
+    overwatch
+        .blocking_wait_finished()
+        .expect("Overwatch should finish without a service panic.");
 }

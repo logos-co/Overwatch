@@ -4,7 +4,7 @@ use async_trait::async_trait;
 use futures::future::select;
 use overwatch::{
     derive_services,
-    overwatch::OverwatchRunner,
+    overwatch::{OverwatchRunner, Shutdown},
     services::{
         ServiceCore, ServiceData,
         resources::ServiceResourcesHandle,
@@ -86,7 +86,7 @@ impl ServiceCore<RuntimeServiceId> for GenericService {
     }
 }
 
-#[derive_services]
+#[derive_services(panic_policy = Shutdown)]
 struct TestApp {
     generic_service: GenericService,
 }
@@ -128,5 +128,7 @@ fn derive_generic_service() {
         sleep(Duration::from_secs(1)).await;
         let _ = handle.shutdown().await;
     });
-    overwatch.blocking_wait_finished();
+    overwatch
+        .blocking_wait_finished()
+        .expect("Overwatch should finish without a service panic.");
 }

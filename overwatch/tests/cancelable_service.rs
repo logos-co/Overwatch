@@ -3,7 +3,7 @@ use std::time::Duration;
 use overwatch::{
     DynError, OpaqueServiceResourcesHandle, derive_services,
     overwatch::{
-        OverwatchRunner,
+        OverwatchRunner, Shutdown,
         commands::{OverwatchCommand, ServiceLifecycleCommand, ServiceSingleCommand},
     },
     services::{
@@ -47,7 +47,7 @@ impl ServiceCore<RuntimeServiceId> for CancellableService {
     }
 }
 
-#[derive_services]
+#[derive_services(panic_policy = Shutdown)]
 struct CancelableServices {
     cancelable: CancellableService,
 }
@@ -77,5 +77,7 @@ fn run_overwatch_then_shutdown_service_and_kill() {
 
         let _ = handle.shutdown().await;
     });
-    overwatch.blocking_wait_finished();
+    overwatch
+        .blocking_wait_finished()
+        .expect("Overwatch should finish without a service panic.");
 }

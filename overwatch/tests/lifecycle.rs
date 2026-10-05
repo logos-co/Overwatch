@@ -10,7 +10,7 @@ use async_trait::async_trait;
 use overwatch::{
     DynError, OpaqueServiceResourcesHandle,
     overwatch::{
-        OverwatchRunner,
+        OverwatchRunner, Shutdown,
         commands::{OverwatchCommand, ServiceLifecycleCommand, ServiceSingleCommand},
         handle::OverwatchHandle,
     },
@@ -139,7 +139,7 @@ impl ServiceCore<RuntimeServiceId> for LifecycleService {
     }
 }
 
-#[derive_services]
+#[derive_services(panic_policy = Shutdown)]
 struct App {
     lifecycle_service: LifecycleService,
 }
@@ -196,8 +196,8 @@ fn test_lifecycle() {
     let service_value = assert_receiver.recv().unwrap();
     assert_eq!(service_value, 0);
 
-    // To avoid test failures, wait until StateOperator has saved the last expected
-    // state
+    // To avoid test failures, wait until StateOperator has saved the last
+    // expected state
     while let Ok(value) = saved_state_receiver.recv() {
         if value == 1 {
             break;
@@ -243,8 +243,8 @@ fn test_lifecycle() {
     let service_value = assert_receiver.recv().unwrap();
     assert_eq!(service_value, 2);
 
-    // To avoid test failures, wait until StateOperator has saved the last expected
-    // state
+    // To avoid test failures, wait until StateOperator has saved the last
+    // expected state
     while let Ok(value) = saved_state_receiver.recv() {
         if value == 3 {
             break;
@@ -277,5 +277,6 @@ fn test_lifecycle() {
     assert_eq!(state_value, 3);
 
     let _ = runtime.block_on(handle.shutdown());
-    app.blocking_wait_finished();
+    app.blocking_wait_finished()
+        .expect("Overwatch should finish without a service panic.");
 }

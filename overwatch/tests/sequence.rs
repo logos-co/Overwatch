@@ -2,7 +2,7 @@ use std::time::Duration;
 
 use overwatch::{
     DynError, OpaqueServiceResourcesHandle, derive_services,
-    overwatch::OverwatchRunner,
+    overwatch::{OverwatchRunner, Shutdown},
     services::{
         ServiceCore, ServiceData,
         state::{NoOperator, NoState},
@@ -133,7 +133,7 @@ impl ServiceCore<RuntimeServiceId> for AwaitService3 {
     }
 }
 
-#[derive_services]
+#[derive_services(panic_policy = Shutdown)]
 struct SequenceServices {
     c: AwaitService3,
     b: AwaitService2,
@@ -156,5 +156,7 @@ fn sequenced_services_startup() {
         tokio::time::sleep(Duration::from_secs(1)).await;
         let _ = handle.shutdown().await;
     });
-    overwatch.blocking_wait_finished();
+    overwatch
+        .blocking_wait_finished()
+        .expect("Overwatch should finish without a service panic.");
 }

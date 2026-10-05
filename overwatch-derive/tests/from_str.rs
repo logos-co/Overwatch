@@ -3,6 +3,7 @@ use std::str::FromStr as _;
 use async_trait::async_trait;
 use overwatch::{
     OpaqueServiceResourcesHandle,
+    overwatch::Shutdown,
     services::{
         ServiceCore, ServiceData,
         state::{NoOperator, NoState},
@@ -56,7 +57,7 @@ impl ServiceCore<RuntimeServiceId> for OtherService {
     }
 }
 
-#[derive_services]
+#[derive_services(panic_policy = Shutdown)]
 struct App {
     my_service: MyService,             // Variant name follows the service name
     alternative_service: OtherService, // Variant name is different from the service name

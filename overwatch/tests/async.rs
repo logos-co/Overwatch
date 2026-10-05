@@ -1,7 +1,7 @@
 use async_trait::async_trait;
 use overwatch::{
     OpaqueServiceResourcesHandle,
-    overwatch::OverwatchRunner,
+    overwatch::{OverwatchRunner, Shutdown},
     services::{
         ServiceCore, ServiceData,
         state::{NoOperator, NoState},
@@ -41,7 +41,7 @@ impl ServiceCore<RuntimeServiceId> for MyService {
     }
 }
 
-#[derive_services]
+#[derive_services(panic_policy = Shutdown)]
 struct App {
     my_service: MyService,
 }
@@ -58,5 +58,7 @@ async fn test_initialisation_from_async_context() {
         .await
         .expect("Services should be started successfully.");
 
-    app.wait_finished().await;
+    app.wait_finished()
+        .await
+        .expect("Overwatch should finish without a service panic.");
 }

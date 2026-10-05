@@ -7,7 +7,7 @@ use std::{
 use async_trait::async_trait;
 use overwatch::{
     DynError, OpaqueServiceResourcesHandle, derive_services,
-    overwatch::{OverwatchHandle, OverwatchRunner},
+    overwatch::{OverwatchHandle, OverwatchRunner, Shutdown},
     services::{
         ServiceCore, ServiceData,
         state::{ServiceState, StateOperator},
@@ -98,7 +98,7 @@ impl ServiceCore<RuntimeServiceId> for TryLoad {
     }
 }
 
-#[derive_services]
+#[derive_services(panic_policy = Shutdown)]
 struct TryLoadApp {
     try_load: TryLoad,
 }
@@ -120,7 +120,8 @@ fn load_state_from_operator() {
         .block_on(handle.start_service::<TryLoad>())
         .expect("service to start successfully.");
 
-    app.blocking_wait_finished();
+    app.blocking_wait_finished()
+        .expect("Overwatch should finish without a service panic.");
 
     // Check if the origin was called
     thread::sleep(Duration::from_secs(1));
@@ -151,5 +152,6 @@ fn load_error_fails_service_start() {
         .runtime()
         .block_on(handle.shutdown())
         .expect("Overwatch to shut down successfully.");
-    app.blocking_wait_finished();
+    app.blocking_wait_finished()
+        .expect("Overwatch should finish without a service panic.");
 }

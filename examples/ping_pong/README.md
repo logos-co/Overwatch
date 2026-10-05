@@ -199,7 +199,7 @@ impl ServiceCore<RuntimeServiceId> for PingService {
 ### 6. Compose Application (`main.rs`)
 
 ```rust
-#[derive_services]
+#[derive_services(panic_policy = ShutdownOverwatch)]
 struct PingPong {
     ping: PingService,
     pong: PongService,
@@ -219,7 +219,8 @@ fn main() {
         .block_on(app.handle().start_all_services())
         .expect("Failed to start services");
     
-    app.blocking_wait_finished();
+    app.blocking_wait_finished()
+        .expect("A service panicked");
 }
 ```
 

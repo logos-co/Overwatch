@@ -3,7 +3,7 @@ use async_trait::async_trait;
 use overwatch::services::ServiceTaskNames as _;
 use overwatch::{
     DynError, OpaqueServiceResourcesHandle,
-    overwatch::{Overwatch, OverwatchRunner},
+    overwatch::{Overwatch, OverwatchRunner, Shutdown},
     services::{
         AsServiceId, ServiceCore, ServiceData,
         state::{NoOperator, ServiceState},
@@ -145,7 +145,7 @@ impl ServiceCore<RuntimeServiceId> for ServiceC {
     }
 }
 
-#[derive_services]
+#[derive_services(panic_policy = Shutdown)]
 struct App {
     service_a: ServiceA,
     service_b: ServiceB,
@@ -444,8 +444,8 @@ fn test_stop_list() {
         .block_on(overwatch.handle().stop_service_sequence(services));
 
     // Because stop_service_list does not have a synchronisation mechanism,
-    // we need to wait for the status to change, as the services may take some time
-    // to stop.
+    // we need to wait for the status to change, as the services may take some
+    // time to stop.
     let runtime = overwatch.runtime().handle();
     wait_for_status(runtime, &mut status_watcher_a, ServiceStatus::Stopped);
     wait_for_status(runtime, &mut status_watcher_b, ServiceStatus::Stopped);
@@ -490,8 +490,8 @@ fn test_stop_all() {
         .block_on(overwatch.handle().stop_all_services());
 
     // Because stop_service_list does not have a synchronisation mechanism,
-    // we need to wait for the status to change, as the services may take some time
-    // to stop.
+    // we need to wait for the status to change, as the services may take some
+    // time to stop.
     let handle = overwatch.runtime().handle();
     wait_for_status(handle, &mut status_watcher_a, ServiceStatus::Stopped);
     wait_for_status(handle, &mut status_watcher_b, ServiceStatus::Stopped);

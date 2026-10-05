@@ -1,4 +1,7 @@
-use overwatch::{derive_services, overwatch::OverwatchRunner};
+use overwatch::{
+    derive_services,
+    overwatch::{OverwatchRunner, Shutdown},
+};
 
 use crate::{service_ping::PingService, service_pong::PongService, settings::PingSettings};
 
@@ -9,7 +12,7 @@ mod service_pong;
 mod settings;
 mod states;
 
-#[derive_services]
+#[derive_services(panic_policy = Shutdown)]
 struct PingPong {
     ping: PingService,
     pong: PongService,
@@ -39,5 +42,7 @@ fn main() {
         .block_on(overwatch_handle.start_all_services())
         .expect("Error starting overwatch service");
 
-    ping_pong.blocking_wait_finished();
+    ping_pong
+        .blocking_wait_finished()
+        .expect("Overwatch should finish without a service panic.");
 }
