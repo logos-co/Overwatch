@@ -194,7 +194,8 @@ fn main() {
         .block_on(app.handle().start_all_services())
         .expect("Failed to start services");
     
-    app.blocking_wait_finished();
+    app.blocking_wait_finished()
+        .expect("A service panicked");
 }
 ```
 

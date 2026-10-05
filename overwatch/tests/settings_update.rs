@@ -86,5 +86,7 @@ fn settings_service_update_settings() {
         let _ = handle2.shutdown().await;
     });
 
-    overwatch.blocking_wait_finished();
+    overwatch
+        .blocking_wait_finished()
+        .expect("Overwatch should finish without a service panic.");
 }

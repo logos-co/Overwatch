@@ -1,6 +1,7 @@
 use std::{
     any::Any,
-    fmt::{Display, Formatter},
+    error::Error,
+    fmt::{Debug, Display, Formatter},
 };
 
 /// What [`Overwatch`](crate::overwatch::Overwatch) does when a `Service`'s
@@ -14,7 +15,7 @@ pub enum ServicePanicPolicy {
     /// Shut [`Overwatch`](crate::overwatch::Overwatch) down: every `Service`
     /// is stopped and
     /// [`Overwatch::wait_finished`](crate::overwatch::Overwatch::wait_finished)
-    /// returns [`OverwatchExit::ServicePanicked`].
+    /// returns the [`ServicePanic`] as an error.
     #[default]
     ShutdownOverwatch,
     /// Stop only the `Service` that panicked. The rest keep running.
@@ -50,13 +51,4 @@ impl<RuntimeServiceId: Display> Display for ServicePanic<RuntimeServiceId> {
     }
 }
 
-/// Why [`Overwatch`](crate::overwatch::Overwatch) finished executing.
-#[derive(Clone, Debug, Eq, PartialEq)]
-pub enum OverwatchExit<RuntimeServiceId> {
-    /// A shutdown was requested through
-    /// [`OverwatchHandle::shutdown`](crate::overwatch::OverwatchHandle::shutdown).
-    Shutdown,
-    /// A `Service` panicked and the [`ServicePanicPolicy`] was
-    /// [`ServicePanicPolicy::ShutdownOverwatch`].
-    ServicePanicked(ServicePanic<RuntimeServiceId>),
-}
+impl<RuntimeServiceId: Debug + Display> Error for ServicePanic<RuntimeServiceId> {}

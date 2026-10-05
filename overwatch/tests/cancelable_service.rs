@@ -77,5 +77,7 @@ fn run_overwatch_then_shutdown_service_and_kill() {
 
         let _ = handle.shutdown().await;
     });
-    overwatch.blocking_wait_finished();
+    overwatch
+        .blocking_wait_finished()
+        .expect("Overwatch should finish without a service panic.");
 }

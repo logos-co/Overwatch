@@ -58,5 +58,7 @@ async fn test_initialisation_from_async_context() {
         .await
         .expect("Services should be started successfully.");
 
-    app.wait_finished().await;
+    app.wait_finished()
+        .await
+        .expect("Overwatch should finish without a service panic.");
 }

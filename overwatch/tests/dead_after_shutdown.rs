@@ -59,7 +59,9 @@ async fn relay_after_shutdown_returns_error_instead_of_panicking() {
         .shutdown()
         .await
         .expect("Overwatch should shut down successfully.");
-    app.wait_finished().await;
+    app.wait_finished()
+        .await
+        .expect("Overwatch should finish without a service panic.");
 
     // The command receiver has been dropped, so the send inside `relay` fails.
     // This must surface as an error rather than panicking.
@@ -85,7 +87,9 @@ async fn status_watcher_after_shutdown_returns_error_instead_of_panicking() {
         .shutdown()
         .await
         .expect("Overwatch should shut down successfully.");
-    app.wait_finished().await;
+    app.wait_finished()
+        .await
+        .expect("Overwatch should finish without a service panic.");
 
     // The command receiver has been dropped, so the send inside `status_watcher`
     // fails. This must surface as an error rather than panicking.

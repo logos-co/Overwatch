@@ -11,7 +11,7 @@ use tracing::{error, info};
 use crate::{
     DynError,
     overwatch::{
-        Error, Overwatch, OverwatchExit, ServicePanicPolicy, Services,
+        Error, Overwatch, ServicePanic, ServicePanicPolicy, Services,
         commands::{
             OverwatchCommand, OverwatchManagementCommand, RelayCommand, ServiceAllCommand,
             ServiceLifecycleCommand, ServiceSequenceCommand, ServiceSingleCommand, SettingsCommand,
@@ -43,7 +43,7 @@ pub const OVERWATCH_THREAD_NAME: &str = "Overwatch";
 pub struct GenericOverwatchRunner<Services, RuntimeServiceId> {
     services: Services,
     service_panic_policy: ServicePanicPolicy,
-    finish_signal_sender: oneshot::Sender<OverwatchExit<RuntimeServiceId>>,
+    finish_signal_sender: oneshot::Sender<Result<(), ServicePanic<RuntimeServiceId>>>,
     commands_receiver: Receiver<OverwatchCommand<RuntimeServiceId>>,
 }
 
@@ -124,7 +124,7 @@ where
             finish_signal_sender,
             mut commands_receiver,
         } = self;
-        let mut exit = OverwatchExit::Shutdown;
+        let mut exit = Ok(());
         while let Some(command) = commands_receiver.recv().await {
             info!(command = ?command, "Overwatch command received");
             match command {
@@ -162,7 +162,7 @@ where
                                     service_panic.service_id
                                 );
                                 Self::shutdown(services).await;
-                                exit = OverwatchExit::ServicePanicked(service_panic);
+                                exit = Err(service_panic);
                                 break;
                             }
                             // The `ServiceRunner` stops the `Service` on its own.

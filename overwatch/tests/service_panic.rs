@@ -7,7 +7,7 @@ use std::time::Duration;
 use async_trait::async_trait;
 use overwatch::{
     DynError, OpaqueServiceResourcesHandle,
-    overwatch::{Overwatch, OverwatchExit, OverwatchRunner, ServicePanic, ServicePanicPolicy},
+    overwatch::{Overwatch, OverwatchRunner, ServicePanic, ServicePanicPolicy},
     services::{
         AsServiceId, ServiceCore, ServiceData,
         state::{NoOperator, NoState},
@@ -156,7 +156,7 @@ async fn panic_shuts_overwatch_down_by_default() {
 
     assert_eq!(
         exit,
-        OverwatchExit::ServicePanicked(ServicePanic {
+        Err(ServicePanic {
             service_id: <RuntimeServiceId as AsServiceId<FaultyService>>::SERVICE_ID,
             message: PANIC_MESSAGE.to_owned(),
         })
@@ -194,7 +194,7 @@ async fn panic_stops_only_the_service_with_stop_service_policy() {
     let exit = timeout(TIMEOUT, app.wait_finished())
         .await
         .expect("Overwatch should finish after a shutdown.");
-    assert_eq!(exit, OverwatchExit::Shutdown);
+    assert_eq!(exit, Ok(()));
 }
 
 #[tokio::test]
@@ -225,9 +225,10 @@ async fn failed_service_can_be_restarted() {
         .expect("A restarted service should leave the failed status.");
 
     let _ = app.handle().shutdown().await;
-    timeout(TIMEOUT, app.wait_finished())
+    let exit = timeout(TIMEOUT, app.wait_finished())
         .await
         .expect("Overwatch should finish after a shutdown.");
+    assert_eq!(exit, Ok(()));
 }
 
 #[tokio::test]
@@ -247,9 +248,10 @@ async fn waiting_for_another_status_returns_early_on_failure() {
     assert_eq!(result, Err(ServiceStatus::Failed));
 
     let _ = app.handle().shutdown().await;
-    timeout(TIMEOUT, app.wait_finished())
+    let exit = timeout(TIMEOUT, app.wait_finished())
         .await
         .expect("Overwatch should finish after a shutdown.");
+    assert_eq!(exit, Ok(()));
 }
 
 #[tokio::test]
@@ -273,5 +275,5 @@ async fn error_return_stops_only_the_service() {
     let exit = timeout(TIMEOUT, app.wait_finished())
         .await
         .expect("Overwatch should finish after a shutdown.");
-    assert_eq!(exit, OverwatchExit::Shutdown);
+    assert_eq!(exit, Ok(()));
 }

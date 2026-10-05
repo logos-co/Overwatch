@@ -94,5 +94,7 @@ fn on_stop() {
         .expect("Failed to receive the on_stop signal");
 
     let _ = runtime.block_on(handle.shutdown());
-    overwatch.blocking_wait_finished();
+    overwatch
+        .blocking_wait_finished()
+        .expect("Overwatch should finish without a service panic.");
 }

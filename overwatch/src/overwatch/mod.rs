@@ -9,7 +9,7 @@ pub mod services;
 use std::any::Any;
 
 pub use errors::{DynError, Error};
-pub use exit::{OverwatchExit, ServicePanic, ServicePanicPolicy};
+pub use exit::{ServicePanic, ServicePanicPolicy};
 pub use handle::OverwatchHandle;
 pub use runner::{GenericOverwatchRunner, OVERWATCH_THREAD_NAME, OverwatchRunner};
 pub use services::Services;
@@ -25,7 +25,7 @@ pub type AnySettings = Box<dyn Any + Send>;
 pub struct Overwatch<RuntimeServiceId> {
     runtime: OverwatchRuntime,
     handle: OverwatchHandle<RuntimeServiceId>,
-    finish_runner_signal: oneshot::Receiver<OverwatchExit<RuntimeServiceId>>,
+    finish_runner_signal: oneshot::Receiver<Result<(), ServicePanic<RuntimeServiceId>>>,
 }
 
 impl<RuntimeServiceId> Overwatch<RuntimeServiceId> {
@@ -52,14 +52,15 @@ impl<RuntimeServiceId> Overwatch<RuntimeServiceId> {
 
     /// Wait until [`Overwatch`] finishes executing.
     ///
-    /// # Returns
+    /// # Errors
     ///
-    /// The reason why [`Overwatch`] finished.
+    /// If [`Overwatch`] finished because a `Service` panicked. See
+    /// [`ServicePanicPolicy`].
     ///
     /// # Panics
     ///
     /// If the termination signal is never received.
-    pub async fn wait_finished(self) -> OverwatchExit<RuntimeServiceId> {
+    pub async fn wait_finished(self) -> Result<(), ServicePanic<RuntimeServiceId>> {
         let Self {
             finish_runner_signal,
             ..
@@ -70,14 +71,15 @@ impl<RuntimeServiceId> Overwatch<RuntimeServiceId> {
 
     /// Block until [`Overwatch`] finishes executing.
     ///
-    /// # Returns
+    /// # Errors
     ///
-    /// The reason why [`Overwatch`] finished.
+    /// If [`Overwatch`] finished because a `Service` panicked. See
+    /// [`ServicePanicPolicy`].
     ///
     /// # Panics
     ///
     /// If the termination signal is never received.
-    pub fn blocking_wait_finished(self) -> OverwatchExit<RuntimeServiceId> {
+    pub fn blocking_wait_finished(self) -> Result<(), ServicePanic<RuntimeServiceId>> {
         let Self {
             runtime,
             finish_runner_signal,
@@ -92,8 +94,8 @@ impl<RuntimeServiceId> Overwatch<RuntimeServiceId> {
 
 /// Handle the finish signal for [`Overwatch`]
 async fn handle_finish_signal<RuntimeServiceId>(
-    finish_runner_signal: oneshot::Receiver<OverwatchExit<RuntimeServiceId>>,
-) -> OverwatchExit<RuntimeServiceId> {
+    finish_runner_signal: oneshot::Receiver<Result<(), ServicePanic<RuntimeServiceId>>>,
+) -> Result<(), ServicePanic<RuntimeServiceId>> {
     let signal_result = finish_runner_signal.await;
     signal_result.expect("A finished signal arrived")
 }
@@ -187,7 +189,7 @@ mod test {
             let _ = handle.shutdown().await;
         });
 
-        overwatch.blocking_wait_finished();
+        overwatch.blocking_wait_finished().unwrap();
     }
 
     #[test]
@@ -200,6 +202,6 @@ mod test {
             let _ = handle.shutdown().await;
         });
 
-        overwatch.blocking_wait_finished();
+        overwatch.blocking_wait_finished().unwrap();
     }
 }

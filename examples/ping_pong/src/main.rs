@@ -39,5 +39,7 @@ fn main() {
         .block_on(overwatch_handle.start_all_services())
         .expect("Error starting overwatch service");
 
-    ping_pong.blocking_wait_finished();
+    ping_pong
+        .blocking_wait_finished()
+        .expect("Overwatch should finish without a service panic.");
 }
