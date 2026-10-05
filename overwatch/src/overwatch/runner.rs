@@ -62,8 +62,9 @@ where
     ///
     /// Return the [`Overwatch`] instance that handles this runner.
     ///
-    /// A panic in a `Service` is handled by the
-    /// [`Services::PanicPolicy`].
+    /// A panic in a `Service` is handled by the default instance of the
+    /// [`Services::PanicPolicy`]. Use [`Self::run_with_panic_policy`] to
+    /// provide the instance.
     ///
     /// # Errors
     ///
@@ -71,6 +72,23 @@ where
     pub fn run(
         settings: ServicesImpl::Settings,
         handle: Option<Handle>,
+    ) -> Result<Overwatch<ServicesImpl::RuntimeServiceId>, DynError>
+    where
+        ServicesImpl::PanicPolicy: Default,
+    {
+        Self::run_with_panic_policy(settings, handle, ServicesImpl::PanicPolicy::default())
+    }
+
+    /// Same as [`Self::run`], providing the instance of the
+    /// [`Services::PanicPolicy`] that handles a panic in a `Service`.
+    ///
+    /// # Errors
+    ///
+    /// If the runner process cannot be created.
+    pub fn run_with_panic_policy(
+        settings: ServicesImpl::Settings,
+        handle: Option<Handle>,
+        panic_policy: ServicesImpl::PanicPolicy,
     ) -> Result<Overwatch<ServicesImpl::RuntimeServiceId>, DynError> {
         let runtime = handle.map_or_else(
             || OverwatchRuntime::TokioRuntime(default_multithread_runtime()),
@@ -80,7 +98,7 @@ where
         let (finish_signal_sender, finish_runner_signal) = oneshot::channel();
         let (commands_sender, commands_receiver) = tokio::sync::mpsc::channel(16);
         let handle = OverwatchHandle::new(runtime.handle().clone(), commands_sender)
-            .with_panic_policy(ServicesImpl::PanicPolicy::default());
+            .with_panic_policy(panic_policy);
         let services = ServicesImpl::new(settings, handle.clone())?;
 
         let runner = Self {

@@ -3,10 +3,7 @@
 //! `PanicPolicy` decides what happens next.
 
 use std::{
-    sync::{
-        OnceLock,
-        atomic::{AtomicBool, Ordering},
-    },
+    sync::atomic::{AtomicBool, Ordering},
     time::Duration,
 };
 
@@ -113,28 +110,43 @@ macro_rules! app_with_panic_policy {
             }
 
             #[derive_services(panic_policy = $panic_policy)]
-            struct App {
+            pub struct App {
                 faulty_service: FaultyService,
                 idle_service: IdleService,
             }
 
-            /// Starts the application.
+            pub const fn settings(fault: Fault) -> AppServiceSettings {
+                AppServiceSettings {
+                    faulty_service: fault,
+                    idle_service: (),
+                }
+            }
+
+            /// Runs the application with the given panic policy instance and
+            /// starts its services.
+            pub async fn start(
+                fault: Fault,
+                panic_policy: $panic_policy,
+            ) -> (Overwatch<RuntimeServiceId>, StatusWatcher, StatusWatcher) {
+                let runtime_handle = Some(tokio::runtime::Handle::current());
+                let app = OverwatchRunner::<App>::run_with_panic_policy(
+                    settings(fault),
+                    runtime_handle,
+                    panic_policy,
+                )
+                .expect("OverwatchRunner should start.");
+                start_services(app).await
+            }
+
+            /// Starts the services.
             ///
             /// # Returns
             ///
             /// Overwatch and the status watchers of the faulty and the idle
             /// service, in that order.
-            pub async fn start(
-                fault: Fault,
+            pub async fn start_services(
+                app: Overwatch<RuntimeServiceId>,
             ) -> (Overwatch<RuntimeServiceId>, StatusWatcher, StatusWatcher) {
-                let settings = AppServiceSettings {
-                    faulty_service: fault,
-                    idle_service: (),
-                };
-                let runtime_handle = Some(tokio::runtime::Handle::current());
-                let app = OverwatchRunner::<App>::run(settings, runtime_handle)
-                    .expect("OverwatchRunner should start.");
-
                 let faulty_status = app
                     .handle()
                     .status_watcher::<FaultyService>()
@@ -164,7 +176,13 @@ app_with_panic_policy!(plain_shutdown, PlainShutdown);
 
 #[tokio::test]
 async fn shutdown_overwatch_policy_shuts_overwatch_down() {
-    let (app, faulty_status, idle_status) = shutdown_overwatch::start(Fault::Panic).await;
+    // `run` builds the policy with `Default`.
+    let app = OverwatchRunner::<shutdown_overwatch::App>::run(
+        shutdown_overwatch::settings(Fault::Panic),
+        Some(tokio::runtime::Handle::current()),
+    )
+    .expect("OverwatchRunner should start.");
+    let (app, faulty_status, idle_status) = shutdown_overwatch::start_services(app).await;
 
     let exit = timeout(TIMEOUT, app.wait_finished())
         .await
@@ -185,7 +203,7 @@ async fn shutdown_overwatch_policy_shuts_overwatch_down() {
 
 #[tokio::test]
 async fn no_policy_stops_only_the_panicked_service() {
-    let (app, mut faulty_status, idle_status) = no_policy::start(Fault::Panic).await;
+    let (app, mut faulty_status, idle_status) = no_policy::start(Fault::Panic, NoPolicy).await;
 
     faulty_status
         .wait_for(ServiceStatus::Failed, Some(TIMEOUT))
@@ -216,15 +234,15 @@ async fn no_policy_stops_only_the_panicked_service() {
 
 type RestartOnceCall = (ServicePanic<restart_once::RuntimeServiceId>, ServiceStatus);
 
-static RESTART_ONCE_RESTARTED: AtomicBool = AtomicBool::new(false);
-static RESTART_ONCE_CALLS: OnceLock<mpsc::UnboundedSender<RestartOnceCall>> = OnceLock::new();
-
 /// Reports every call, with the status the panicked service had at that point,
 /// and restarts the service the first time.
 ///
-/// A policy is built with `Default`, so its state lives in statics.
-#[derive(Default)]
-struct RestartOnce;
+/// It can't be built with `Default`, so it has to be given to
+/// `OverwatchRunner::run_with_panic_policy`.
+pub struct RestartOnce {
+    restarted: AtomicBool,
+    calls: mpsc::UnboundedSender<RestartOnceCall>,
+}
 
 #[async_trait]
 impl PanicPolicy<restart_once::RuntimeServiceId> for RestartOnce {
@@ -238,12 +256,9 @@ impl PanicPolicy<restart_once::RuntimeServiceId> for RestartOnce {
             .await
             .expect("Status watcher should be available.")
             .current();
-        let calls = RESTART_ONCE_CALLS
-            .get()
-            .expect("The test should set the calls channel.");
-        let _ = calls.send((service_panic, status));
+        let _ = self.calls.send((service_panic, status));
 
-        if !RESTART_ONCE_RESTARTED.swap(true, Ordering::SeqCst) {
+        if !self.restarted.swap(true, Ordering::SeqCst) {
             overwatch_handle
                 .start_service::<restart_once::FaultyService>()
                 .await
@@ -255,11 +270,12 @@ impl PanicPolicy<restart_once::RuntimeServiceId> for RestartOnce {
 #[tokio::test]
 async fn custom_policy_can_restart_the_failed_service() {
     let (calls, mut calls_receiver) = mpsc::unbounded_channel();
-    RESTART_ONCE_CALLS
-        .set(calls)
-        .expect("Only this test should set the calls channel.");
+    let panic_policy = RestartOnce {
+        restarted: AtomicBool::new(false),
+        calls,
+    };
 
-    let (app, ..) = restart_once::start(Fault::Panic).await;
+    let (app, ..) = restart_once::start(Fault::Panic, panic_policy).await;
 
     // The second call can only happen if the restart worked: the restarted
     // service panics again.
@@ -291,8 +307,7 @@ async fn custom_policy_can_restart_the_failed_service() {
 }
 
 /// Shuts Overwatch down without reporting the panic as the cause.
-#[derive(Default)]
-struct PlainShutdown;
+pub struct PlainShutdown;
 
 #[async_trait]
 impl PanicPolicy<plain_shutdown::RuntimeServiceId> for PlainShutdown {
@@ -310,7 +325,8 @@ impl PanicPolicy<plain_shutdown::RuntimeServiceId> for PlainShutdown {
 
 #[tokio::test]
 async fn custom_policy_can_shut_overwatch_down() {
-    let (app, faulty_status, idle_status) = plain_shutdown::start(Fault::Panic).await;
+    let (app, faulty_status, idle_status) =
+        plain_shutdown::start(Fault::Panic, PlainShutdown).await;
 
     let exit = timeout(TIMEOUT, app.wait_finished())
         .await
@@ -323,7 +339,7 @@ async fn custom_policy_can_shut_overwatch_down() {
 
 #[tokio::test]
 async fn waiting_for_another_status_returns_early_on_failure() {
-    let (app, mut faulty_status, _idle_status) = no_policy::start(Fault::Panic).await;
+    let (app, mut faulty_status, _idle_status) = no_policy::start(Fault::Panic, NoPolicy).await;
 
     let result = timeout(
         TIMEOUT,
@@ -342,7 +358,8 @@ async fn waiting_for_another_status_returns_early_on_failure() {
 
 #[tokio::test]
 async fn error_return_stops_only_the_service() {
-    let (app, mut faulty_status, idle_status) = shutdown_overwatch::start(Fault::Error).await;
+    let (app, mut faulty_status, idle_status) =
+        shutdown_overwatch::start(Fault::Error, ShutdownOverwatch).await;
 
     faulty_status
         .wait_for(ServiceStatus::Stopped, Some(TIMEOUT))

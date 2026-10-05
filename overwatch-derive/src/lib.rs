@@ -42,8 +42,10 @@ mod utils;
 /// `OpaqueServiceHandle<T>` and deriving the `Services` trait
 /// to manage service lifecycle operations.
 ///
-/// The `panic_policy` argument is mandatory. It's the
+/// The `panic_policy` argument is mandatory. It's the type of the
 /// `overwatch::overwatch::PanicPolicy` called when any of the services panics.
+/// `OverwatchRunner::run` builds it with `Default`; a policy that needs to be
+/// constructed is given to `OverwatchRunner::run_with_panic_policy`.
 ///
 /// # Example
 /// ```rust,ignore

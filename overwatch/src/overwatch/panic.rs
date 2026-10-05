@@ -44,8 +44,10 @@ impl<RuntimeServiceId: Debug + Display> Error for ServicePanic<RuntimeServiceId>
 /// panics.
 ///
 /// There is a single policy for all the `Service`s of an
-/// [`Overwatch`](crate::overwatch::Overwatch):
-/// [`Services::PanicPolicy`](crate::overwatch::Services::PanicPolicy).
+/// [`Overwatch`](crate::overwatch::Overwatch). Its type is
+/// [`Services::PanicPolicy`](crate::overwatch::Services::PanicPolicy) and its
+/// instance is either the type's default or the one given to
+/// [`OverwatchRunner::run_with_panic_policy`](crate::overwatch::OverwatchRunner::run_with_panic_policy).
 ///
 /// By the time the policy is called, the `Service` has already been cleaned
 /// up and its status is

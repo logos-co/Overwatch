@@ -33,7 +33,12 @@ pub trait Services: Sized {
     ///
     /// With the [`#[derive_services]`](overwatch_derive::derive_services)
     /// macro, it's the mandatory `panic_policy` argument.
-    type PanicPolicy: PanicPolicy<Self::RuntimeServiceId> + Default;
+    ///
+    /// The instance is built by
+    /// [`OverwatchRunner::run`](crate::overwatch::OverwatchRunner::run) if the
+    /// type implements [`Default`], or given to
+    /// [`OverwatchRunner::run_with_panic_policy`](crate::overwatch::OverwatchRunner::run_with_panic_policy).
+    type PanicPolicy: PanicPolicy<Self::RuntimeServiceId>;
 
     /// Spawn a new instance of the [`Services`] object.
     ///
