@@ -8,7 +8,7 @@
 use async_trait::async_trait;
 use overwatch::{
     DynError, OpaqueServiceResourcesHandle,
-    overwatch::{Error, OverwatchRunner, ShutdownOverwatch},
+    overwatch::{Error, OverwatchRunner, Shutdown},
     services::{
         ServiceCore, ServiceData,
         state::{NoOperator, NoState},

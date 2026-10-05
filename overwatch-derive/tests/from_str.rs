@@ -3,7 +3,7 @@ use std::str::FromStr as _;
 use async_trait::async_trait;
 use overwatch::{
     OpaqueServiceResourcesHandle,
-    overwatch::ShutdownOverwatch,
+    overwatch::Shutdown,
     services::{
         ServiceCore, ServiceData,
         state::{NoOperator, NoState},

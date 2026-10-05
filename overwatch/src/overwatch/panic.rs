@@ -68,10 +68,10 @@ pub trait PanicPolicy<RuntimeServiceId>: Send + Sync + 'static {
 /// [`Overwatch::wait_finished`](crate::overwatch::Overwatch::wait_finished)
 /// returns the [`ServicePanic`] as an error.
 #[derive(Copy, Clone, Debug, Default)]
-pub struct ShutdownOverwatch;
+pub struct Shutdown;
 
 #[async_trait]
-impl<RuntimeServiceId> PanicPolicy<RuntimeServiceId> for ShutdownOverwatch
+impl<RuntimeServiceId> PanicPolicy<RuntimeServiceId> for Shutdown
 where
     RuntimeServiceId: Debug + Display + Send + Sync + 'static,
 {

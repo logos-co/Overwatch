@@ -4,7 +4,7 @@ use async_trait::async_trait;
 use futures::future::select;
 use overwatch::{
     OpaqueServiceResourcesHandle, derive_services,
-    overwatch::{OverwatchRunner, ShutdownOverwatch},
+    overwatch::{OverwatchRunner, Shutdown},
     services::{
         ServiceCore, ServiceData,
         state::{NoOperator, NoState},

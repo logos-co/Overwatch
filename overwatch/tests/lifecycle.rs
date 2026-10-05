@@ -10,7 +10,7 @@ use async_trait::async_trait;
 use overwatch::{
     DynError, OpaqueServiceResourcesHandle,
     overwatch::{
-        OverwatchRunner, ShutdownOverwatch,
+        OverwatchRunner, Shutdown,
         commands::{OverwatchCommand, ServiceLifecycleCommand, ServiceSingleCommand},
         handle::OverwatchHandle,
     },

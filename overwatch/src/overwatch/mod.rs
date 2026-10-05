@@ -10,7 +10,7 @@ use std::any::Any;
 
 pub use errors::{DynError, Error};
 pub use handle::OverwatchHandle;
-pub use panic::{ExitResult, PanicPolicy, ServicePanic, ShutdownOverwatch};
+pub use panic::{ExitResult, PanicPolicy, ServicePanic, Shutdown};
 pub use runner::{GenericOverwatchRunner, OVERWATCH_THREAD_NAME, OverwatchRunner};
 pub use services::Services;
 use tokio::{sync::oneshot, task::JoinHandle};
@@ -108,7 +108,7 @@ mod test {
     use tokio::time::sleep;
 
     use crate::{
-        overwatch::{Error, OverwatchRunner, Services, ShutdownOverwatch, handle::OverwatchHandle},
+        overwatch::{Error, OverwatchRunner, Services, Shutdown, handle::OverwatchHandle},
         services::{lifecycle::LifecycleNotifier, relay::AnyMessage, status::StatusWatcher},
     };
 
@@ -118,7 +118,7 @@ mod test {
     impl Services for EmptyServices {
         type Settings = ();
         type RuntimeServiceId = String;
-        type PanicPolicy = Option<ShutdownOverwatch>;
+        type PanicPolicy = Option<Shutdown>;
 
         fn new(
             _settings: Self::Settings,

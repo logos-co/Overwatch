@@ -3,7 +3,7 @@ use std::time::Duration;
 use overwatch::{
     DynError, OpaqueServiceResourcesHandle, derive_services,
     overwatch::{
-        OverwatchRunner, ShutdownOverwatch,
+        OverwatchRunner, Shutdown,
         commands::{OverwatchCommand, ServiceLifecycleCommand, ServiceSingleCommand},
     },
     services::{

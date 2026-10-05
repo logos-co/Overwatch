@@ -3,7 +3,7 @@ use std::{convert::Infallible, time::Duration};
 use async_trait::async_trait;
 use overwatch::{
     OpaqueServiceResourcesHandle, derive_services,
-    overwatch::{OverwatchHandle, OverwatchRunner, ShutdownOverwatch},
+    overwatch::{OverwatchHandle, OverwatchRunner, Shutdown},
     services::{
         ServiceCore, ServiceData,
         state::{ServiceState, StateOperator},

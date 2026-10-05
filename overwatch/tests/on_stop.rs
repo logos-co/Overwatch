@@ -1,6 +1,6 @@
 use overwatch::{
     DynError, OpaqueServiceResourcesHandle,
-    overwatch::{OverwatchRunner, ShutdownOverwatch},
+    overwatch::{OverwatchRunner, Shutdown},
     services::{
         ServiceCore, ServiceData,
         state::{NoOperator, NoState},

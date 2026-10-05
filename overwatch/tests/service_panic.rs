@@ -11,7 +11,7 @@ use async_trait::async_trait;
 use overwatch::{
     DynError, OpaqueServiceResourcesHandle,
     overwatch::{
-        Overwatch, OverwatchHandle, OverwatchRunner, PanicPolicy, ServicePanic, ShutdownOverwatch,
+        Overwatch, OverwatchHandle, OverwatchRunner, PanicPolicy, ServicePanic, Shutdown,
     },
     services::{
         AsServiceId, ServiceCore, ServiceData,
@@ -168,8 +168,8 @@ macro_rules! app_with_panic_policy {
     };
 }
 
-app_with_panic_policy!(shutdown_overwatch, ShutdownOverwatch);
-app_with_panic_policy!(optional_policy, Option<ShutdownOverwatch>);
+app_with_panic_policy!(shutdown_overwatch, Shutdown);
+app_with_panic_policy!(optional_policy, Option<Shutdown>);
 app_with_panic_policy!(restart_once, RestartOnce);
 app_with_panic_policy!(plain_shutdown, PlainShutdown);
 
@@ -235,7 +235,7 @@ async fn none_policy_stops_only_the_panicked_service() {
 #[tokio::test]
 async fn some_policy_behaves_as_the_policy_it_holds() {
     let (app, faulty_status, idle_status) =
-        optional_policy::start(Fault::Panic, Some(ShutdownOverwatch)).await;
+        optional_policy::start(Fault::Panic, Some(Shutdown)).await;
 
     let exit = timeout(TIMEOUT, app.wait_finished())
         .await
@@ -381,7 +381,7 @@ async fn waiting_for_another_status_returns_early_on_failure() {
 #[tokio::test]
 async fn error_return_stops_only_the_service() {
     let (app, mut faulty_status, idle_status) =
-        shutdown_overwatch::start(Fault::Error, ShutdownOverwatch).await;
+        shutdown_overwatch::start(Fault::Error, Shutdown).await;
 
     faulty_status
         .wait_for(ServiceStatus::Stopped, Some(TIMEOUT))

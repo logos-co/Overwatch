@@ -3,7 +3,7 @@ use async_trait::async_trait;
 use overwatch::services::ServiceTaskNames as _;
 use overwatch::{
     DynError, OpaqueServiceResourcesHandle,
-    overwatch::{Overwatch, OverwatchRunner, ShutdownOverwatch},
+    overwatch::{Overwatch, OverwatchRunner, Shutdown},
     services::{
         AsServiceId, ServiceCore, ServiceData,
         state::{NoOperator, ServiceState},
