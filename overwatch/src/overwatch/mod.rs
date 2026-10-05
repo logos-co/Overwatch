@@ -1,7 +1,7 @@
 pub mod commands;
 pub mod errors;
-pub mod panic;
 pub mod handle;
+pub mod panic;
 pub mod runner;
 mod runtime;
 pub mod services;
@@ -9,8 +9,8 @@ pub mod services;
 use std::any::Any;
 
 pub use errors::{DynError, Error};
-pub use panic::{NoPolicy, PanicPolicy, ServicePanic, ShutdownOverwatch};
 pub use handle::OverwatchHandle;
+pub use panic::{NoPolicy, PanicPolicy, ServicePanic, ShutdownOverwatch};
 pub use runner::{GenericOverwatchRunner, OVERWATCH_THREAD_NAME, OverwatchRunner};
 pub use services::Services;
 use tokio::{sync::oneshot, task::JoinHandle};

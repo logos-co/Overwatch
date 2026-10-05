@@ -243,7 +243,7 @@ where
                             //  the service was already stopped or not.
                             if let Err(error) = finished_signal_sender.send(()) {
                                 debug!(
-                                    "Error while sending the LifecycleMessage::Stop finished signal: {error:?}. Likely due to the receiver being already dropped in the Service::run task."
+                                    "Error while sending the LifecycleMessage::Stop finished signal: {error:?}.",
                                 );
                             }
                         }
