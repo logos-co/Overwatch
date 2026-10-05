@@ -3,7 +3,7 @@ use async_trait::async_trait;
 use overwatch::services::ServiceTaskNames as _;
 use overwatch::{
     DynError, OpaqueServiceResourcesHandle,
-    overwatch::{Overwatch, OverwatchRunner},
+    overwatch::{Overwatch, OverwatchRunner, ShutdownOverwatch},
     services::{
         AsServiceId, ServiceCore, ServiceData,
         state::{NoOperator, ServiceState},
@@ -145,7 +145,7 @@ impl ServiceCore<RuntimeServiceId> for ServiceC {
     }
 }
 
-#[derive_services]
+#[derive_services(panic_policy = ShutdownOverwatch)]
 struct App {
     service_a: ServiceA,
     service_b: ServiceB,

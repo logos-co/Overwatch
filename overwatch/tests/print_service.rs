@@ -4,7 +4,7 @@ use async_trait::async_trait;
 use futures::future::select;
 use overwatch::{
     OpaqueServiceResourcesHandle, derive_services,
-    overwatch::OverwatchRunner,
+    overwatch::{OverwatchRunner, ShutdownOverwatch},
     services::{
         ServiceCore, ServiceData,
         state::{NoOperator, NoState},
@@ -79,7 +79,7 @@ impl ServiceCore<RuntimeServiceId> for PrintService {
     }
 }
 
-#[derive_services]
+#[derive_services(panic_policy = ShutdownOverwatch)]
 struct TestApp {
     print_service: PrintService,
 }

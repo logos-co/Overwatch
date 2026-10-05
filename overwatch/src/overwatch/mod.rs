@@ -1,6 +1,6 @@
 pub mod commands;
 pub mod errors;
-pub mod exit;
+pub mod panic;
 pub mod handle;
 pub mod runner;
 mod runtime;
@@ -9,7 +9,7 @@ pub mod services;
 use std::any::Any;
 
 pub use errors::{DynError, Error};
-pub use exit::{ServicePanic, ServicePanicPolicy};
+pub use panic::{NoPolicy, PanicPolicy, ServicePanic, ShutdownOverwatch};
 pub use handle::OverwatchHandle;
 pub use runner::{GenericOverwatchRunner, OVERWATCH_THREAD_NAME, OverwatchRunner};
 pub use services::Services;
@@ -54,8 +54,8 @@ impl<RuntimeServiceId> Overwatch<RuntimeServiceId> {
     ///
     /// # Errors
     ///
-    /// If [`Overwatch`] finished because a `Service` panicked. See
-    /// [`ServicePanicPolicy`].
+    /// If [`Overwatch`] was shut down because a `Service` panicked. See
+    /// [`OverwatchHandle::shutdown_with_panic`].
     ///
     /// # Panics
     ///
@@ -73,8 +73,8 @@ impl<RuntimeServiceId> Overwatch<RuntimeServiceId> {
     ///
     /// # Errors
     ///
-    /// If [`Overwatch`] finished because a `Service` panicked. See
-    /// [`ServicePanicPolicy`].
+    /// If [`Overwatch`] was shut down because a `Service` panicked. See
+    /// [`OverwatchHandle::shutdown_with_panic`].
     ///
     /// # Panics
     ///
@@ -108,7 +108,7 @@ mod test {
     use tokio::time::sleep;
 
     use crate::{
-        overwatch::{Error, OverwatchRunner, Services, handle::OverwatchHandle},
+        overwatch::{Error, NoPolicy, OverwatchRunner, Services, handle::OverwatchHandle},
         services::{lifecycle::LifecycleNotifier, relay::AnyMessage, status::StatusWatcher},
     };
 
@@ -118,6 +118,7 @@ mod test {
     impl Services for EmptyServices {
         type Settings = ();
         type RuntimeServiceId = String;
+        type PanicPolicy = NoPolicy;
 
         fn new(
             _settings: Self::Settings,

@@ -1,4 +1,7 @@
-use std::fmt::{Debug, Display};
+use std::{
+    fmt::{Debug, Display, Formatter},
+    sync::Arc,
+};
 
 use tokio::{
     runtime::Handle,
@@ -10,7 +13,7 @@ use tracing::{debug, error, info};
 
 use crate::{
     overwatch::{
-        Error, Services,
+        Error, PanicPolicy, ServicePanic, Services,
         commands::{
             OverwatchCommand, OverwatchManagementCommand, RelayCommand, ReplyChannel,
             ServiceAllCommand, ServiceLifecycleCommand, ServiceSequenceCommand,
@@ -31,13 +34,25 @@ use crate::{
 /// [`OverwatchRunner`](crate::overwatch::OverwatchRunner) for services that are
 /// part of the same runtime, i.e., aggregated under the same
 /// `RuntimeServiceId`.
-#[derive(Clone, Debug)]
+#[derive(Clone)]
 pub struct OverwatchHandle<RuntimeServiceId> {
     runtime_handle: Handle,
     sender: Sender<OverwatchCommand<RuntimeServiceId>>,
+    panic_policy: Option<Arc<dyn PanicPolicy<RuntimeServiceId>>>,
+}
+
+impl<RuntimeServiceId> Debug for OverwatchHandle<RuntimeServiceId> {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("OverwatchHandle")
+            .field("runtime_handle", &self.runtime_handle)
+            .field("sender", &self.sender)
+            .finish_non_exhaustive()
+    }
 }
 
 impl<RuntimeServiceId> OverwatchHandle<RuntimeServiceId> {
+    /// Create an [`OverwatchHandle`] without a [`PanicPolicy`]: a `Service`
+    /// that panics is only stopped.
     #[must_use]
     pub const fn new(
         runtime_handle: Handle,
@@ -46,7 +61,19 @@ impl<RuntimeServiceId> OverwatchHandle<RuntimeServiceId> {
         Self {
             runtime_handle,
             sender,
+            panic_policy: None,
         }
+    }
+
+    /// Set the [`PanicPolicy`] called when a `Service` panics.
+    #[must_use]
+    pub fn with_panic_policy(mut self, panic_policy: impl PanicPolicy<RuntimeServiceId>) -> Self {
+        self.panic_policy = Some(Arc::new(panic_policy));
+        self
+    }
+
+    pub(crate) const fn panic_policy(&self) -> Option<&Arc<dyn PanicPolicy<RuntimeServiceId>>> {
+        self.panic_policy.as_ref()
     }
 
     #[must_use]
@@ -336,10 +363,39 @@ where
         info!("Shutting down Overwatch");
 
         let (sender, receiver) = finished_signal::channel();
-        let command =
-            OverwatchCommand::OverwatchManagement(OverwatchManagementCommand::Shutdown(sender));
+        self.send_shutdown(OverwatchManagementCommand::Shutdown(sender), receiver)
+            .await
+    }
 
-        self.send(command)
+    /// Same as [`Self::shutdown`], for a shutdown caused by a `Service` panic.
+    ///
+    /// [`Overwatch::wait_finished`](crate::overwatch::Overwatch::wait_finished)
+    /// returns the [`ServicePanic`] as an error.
+    ///
+    /// # Errors
+    ///
+    /// If the command cannot be sent, or if the
+    /// [`Signal`](finished_signal::Signal) is not received.
+    pub async fn shutdown_with_panic(
+        &self,
+        service_panic: ServicePanic<RuntimeServiceId>,
+    ) -> Result<(), Error> {
+        error!("Shutting down Overwatch: {service_panic}");
+
+        let (sender, receiver) = finished_signal::channel();
+        self.send_shutdown(
+            OverwatchManagementCommand::ShutdownWithPanic(service_panic, sender),
+            receiver,
+        )
+        .await
+    }
+
+    async fn send_shutdown(
+        &self,
+        command: OverwatchManagementCommand<RuntimeServiceId>,
+        receiver: finished_signal::Receiver,
+    ) -> Result<(), Error> {
+        self.send(OverwatchCommand::OverwatchManagement(command))
             .await
             .map_err(|_error| OverwatchManagementError::Shutdown)?;
 

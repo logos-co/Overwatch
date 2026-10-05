@@ -1,6 +1,6 @@
 use overwatch::{
     DynError, OpaqueServiceResourcesHandle,
-    overwatch::OverwatchRunner,
+    overwatch::{OverwatchRunner, ShutdownOverwatch},
     services::{
         ServiceCore, ServiceData,
         state::{NoOperator, NoState},
@@ -59,7 +59,7 @@ impl Drop for OnStopService {
     }
 }
 
-#[derive_services]
+#[derive_services(panic_policy = ShutdownOverwatch)]
 struct App {
     on_stop_service: OnStopService,
 }

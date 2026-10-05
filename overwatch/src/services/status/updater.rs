@@ -67,17 +67,8 @@ impl StatusUpdater<ServiceRunnerAPI> {
     }
 
     /// Shorthand for sending a [`ServiceStatus::Stopped`] message.
-    ///
-    /// A [`ServiceStatus::Failed`] status is kept: it already implies the
-    /// `Service` is stopped.
     pub fn notify_stopped(&self) {
-        self.sender.send_if_modified(|status| {
-            if *status == ServiceStatus::Failed {
-                return false;
-            }
-            *status = ServiceStatus::Stopped;
-            true
-        });
+        self.send(ServiceStatus::Stopped);
     }
 
     /// Shorthand for sending a [`ServiceStatus::Failed`] message.

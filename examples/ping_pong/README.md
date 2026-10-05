@@ -199,7 +199,7 @@ impl ServiceCore<RuntimeServiceId> for PingService {
 ### 6. Compose Application (`main.rs`)
 
 ```rust
-#[derive_services]
+#[derive_services(panic_policy = ShutdownOverwatch)]
 struct PingPong {
     ping: PingService,
     pong: PongService,

@@ -131,7 +131,7 @@ Here's the simplest possible Overwatch application:
 use async_trait::async_trait;
 use overwatch::{
     derive_services,
-    overwatch::OverwatchRunner,
+    overwatch::{OverwatchRunner, ShutdownOverwatch},
     services::{
         ServiceCore, ServiceData,
         state::{NoOperator, NoState},
@@ -176,7 +176,7 @@ impl ServiceCore<RuntimeServiceId> for HelloService {
 }
 
 // 4️⃣ Compose your application
-#[derive_services]
+#[derive_services(panic_policy = ShutdownOverwatch)]
 struct MyApp {
     hello: HelloService,
 }

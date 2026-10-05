@@ -1,7 +1,7 @@
 use async_trait::async_trait;
 use overwatch::{
     OpaqueServiceResourcesHandle,
-    overwatch::OverwatchRunner,
+    overwatch::{OverwatchRunner, ShutdownOverwatch},
     services::{
         ServiceCore, ServiceData,
         state::{NoOperator, NoState},
@@ -41,7 +41,7 @@ impl ServiceCore<RuntimeServiceId> for MyService {
     }
 }
 
-#[derive_services]
+#[derive_services(panic_policy = ShutdownOverwatch)]
 struct App {
     my_service: MyService,
 }

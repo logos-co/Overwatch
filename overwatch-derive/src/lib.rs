@@ -7,8 +7,9 @@
 //!
 //! # Provided Macros
 //!
-//! - `#[derive_services]`: Modifies a struct by changing its fields to
-//!   `OpaqueServiceHandle<T>` and automatically derives the `Services` trait.
+//! - `#[derive_services(panic_policy = ...)]`: Modifies a struct by changing
+//!   its fields to `OpaqueServiceHandle<T>` and automatically derives the
+//!   `Services` trait.
 //! - `#[derive(Services)]`: Implements the `Services` trait for a struct,
 //!   generating necessary service lifecycle methods and runtime service ID
 //!   management. **This derive macro is not meant to be used directly**.
@@ -25,8 +26,12 @@ use proc_macro::TokenStream;
 use proc_macro2::{Ident, Span};
 use quote::{format_ident, quote};
 use syn::{
-    Data, DeriveInput, Field, Fields, GenericArgument, Generics, ItemStruct, PathArguments, Type,
-    parse, parse_macro_input, parse_str, punctuated::Punctuated, token::Comma,
+    Data, DeriveInput, Field, Fields, GenericArgument, Generics, ItemStruct, PathArguments, Token,
+    Type, parse,
+    parse::{Parse, ParseStream},
+    parse_macro_input, parse_str,
+    punctuated::Punctuated,
+    token::Comma,
 };
 
 mod utils;
@@ -37,11 +42,15 @@ mod utils;
 /// `OpaqueServiceHandle<T>` and deriving the `Services` trait
 /// to manage service lifecycle operations.
 ///
+/// The `panic_policy` argument is mandatory. It's the
+/// `overwatch::overwatch::PanicPolicy` called when any of the services panics.
+///
 /// # Example
 /// ```rust,ignore
+/// use overwatch::overwatch::ShutdownOverwatch;
 /// use overwatch_derive::derive_services;
 ///
-/// #[derive_services]
+/// #[derive_services(panic_policy = ShutdownOverwatch)]
 /// struct MyServices {
 ///     database: DatabaseService,
 ///     cache: CacheService,
@@ -65,7 +74,8 @@ mod utils;
     reason = "We will add docs to this macro later on."
 )]
 #[proc_macro_attribute]
-pub fn derive_services(_attr: TokenStream, item: TokenStream) -> TokenStream {
+pub fn derive_services(attr: TokenStream, item: TokenStream) -> TokenStream {
+    let DeriveServicesArgs { panic_policy } = parse_macro_input!(attr as DeriveServicesArgs);
     let input = parse_macro_input!(item as ItemStruct);
     let struct_name = &input.ident;
     let visibility = &input.vis;
@@ -95,6 +105,7 @@ pub fn derive_services(_attr: TokenStream, item: TokenStream) -> TokenStream {
     // Generate the modified struct with #[derive(Services)]
     let modified_struct = quote! {
         #[derive(::overwatch::Services)]
+        #[panic_policy(#panic_policy)]
         #visibility struct #struct_name #generics {
             #(#modified_fields),*
         }
@@ -102,6 +113,32 @@ pub fn derive_services(_attr: TokenStream, item: TokenStream) -> TokenStream {
 
     modified_struct.into()
 }
+
+/// Arguments of the `derive_services` macro: `panic_policy = <type>`.
+struct DeriveServicesArgs {
+    panic_policy: Type,
+}
+
+impl Parse for DeriveServicesArgs {
+    fn parse(input: ParseStream) -> syn::Result<Self> {
+        const USAGE: &str = "`derive_services` requires a panic policy: `#[derive_services(panic_policy = <PanicPolicy type>)]`";
+
+        if input.is_empty() {
+            return Err(syn::Error::new(Span::call_site(), USAGE));
+        }
+        let name: Ident = input.parse()?;
+        if name != PANIC_POLICY_ATTRIBUTE {
+            return Err(syn::Error::new(name.span(), USAGE));
+        }
+        input.parse::<Token![=]>()?;
+        let panic_policy = input.parse()?;
+        Ok(Self { panic_policy })
+    }
+}
+
+/// Helper attribute carrying the panic policy type from `derive_services` to
+/// the `Services` derive.
+const PANIC_POLICY_ATTRIBUTE: &str = "panic_policy";
 
 /// Returns default instrumentation settings if the `instrumentation` feature is
 /// enabled.
@@ -163,13 +200,14 @@ fn get_default_instrumentation_without_settings() -> proc_macro2::TokenStream {
 /// use overwatch::OpaqueServiceHandle;
 ///
 /// #[derive(Services)]
+/// #[panic_policy(ShutdownOverwatch)]
 /// struct MyServices {
 ///     database: OpaqueServiceHandle<DatabaseService>,
 ///     cache: OpaqueServiceHandle<CacheService>,
 /// }
 /// ```
 #[manyhow]
-#[proc_macro_derive(Services)]
+#[proc_macro_derive(Services, attributes(panic_policy))]
 pub fn services_derive(input: TokenStream) -> manyhow::Result<TokenStream> {
     let parsed_input: DeriveInput = parse(input).expect("A syn parseable token stream");
     let derived = impl_services(&parsed_input)?;
@@ -243,6 +281,14 @@ fn impl_services(input: &DeriveInput) -> manyhow::Result<proc_macro2::TokenStrea
     let struct_identifier = &input.ident;
     let data = &input.data;
     let generics = &input.generics;
+    let Some(panic_policy_attribute) = input
+        .attrs
+        .iter()
+        .find(|attribute| attribute.path().is_ident(PANIC_POLICY_ATTRIBUTE))
+    else {
+        bail!("Deriving Services requires a `#[panic_policy(<PanicPolicy type>)]` attribute.");
+    };
+    let panic_policy = panic_policy_attribute.parse_args::<Type>()?;
     match data {
         Data::Struct(DataStruct {
             fields: Fields::Named(fields),
@@ -251,6 +297,7 @@ fn impl_services(input: &DeriveInput) -> manyhow::Result<proc_macro2::TokenStrea
             struct_identifier,
             generics,
             &fields.named,
+            &panic_policy,
         )?),
         _ => {
             bail!("Deriving Services is only supported for named structs with at least one field.");
@@ -270,6 +317,7 @@ fn impl_services(input: &DeriveInput) -> manyhow::Result<proc_macro2::TokenStrea
 /// * `identifier` - The struct identifier
 /// * `generics` - The struct's generic parameters
 /// * `fields` - The struct's fields
+/// * `panic_policy` - The panic policy type
 ///
 /// # Returns
 ///
@@ -278,10 +326,11 @@ fn impl_services_for_struct(
     identifier: &Ident,
     generics: &Generics,
     fields: &Punctuated<Field, Comma>,
+    panic_policy: &Type,
 ) -> manyhow::Result<proc_macro2::TokenStream> {
     let runtime_service_type = generate_runtime_service_types(fields);
     let settings = generate_services_settings(identifier, generics, fields)?;
-    let services_impl = generate_services_impl(identifier, generics, fields)?;
+    let services_impl = generate_services_impl(identifier, generics, fields, panic_policy)?;
 
     Ok(quote! {
         #runtime_service_type
@@ -348,6 +397,7 @@ fn get_runtime_service_id_type_name() -> Type {
 /// * `services_identifier` - The identifier of the services struct
 /// * `generics` - The generic parameters of the services struct
 /// * `fields` - The fields of the services struct
+/// * `panic_policy` - The panic policy type
 ///
 /// # Returns
 ///
@@ -356,6 +406,7 @@ fn generate_services_impl(
     services_identifier: &Ident,
     generics: &Generics,
     fields: &Punctuated<Field, Comma>,
+    panic_policy: &Type,
 ) -> manyhow::Result<proc_macro2::TokenStream> {
     let services_settings_identifier = service_settings_identifier_from(services_identifier);
     let impl_new = generate_new_impl(fields)?;
@@ -380,6 +431,7 @@ fn generate_services_impl(
         impl #impl_generics ::overwatch::overwatch::Services for #services_identifier #ty_generics #where_clause {
             type Settings = #services_settings_identifier #ty_generics;
             type RuntimeServiceId = #runtime_service_id_type_name;
+            type PanicPolicy = #panic_policy;
 
             #impl_new
 

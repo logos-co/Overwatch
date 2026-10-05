@@ -7,7 +7,7 @@ use std::{
 use async_trait::async_trait;
 use overwatch::{
     DynError, OpaqueServiceResourcesHandle, derive_services,
-    overwatch::{OverwatchHandle, OverwatchRunner},
+    overwatch::{OverwatchHandle, OverwatchRunner, ShutdownOverwatch},
     services::{
         ServiceCore, ServiceData,
         state::{ServiceState, StateOperator},
@@ -98,7 +98,7 @@ impl ServiceCore<RuntimeServiceId> for TryLoad {
     }
 }
 
-#[derive_services]
+#[derive_services(panic_policy = ShutdownOverwatch)]
 struct TryLoadApp {
     try_load: TryLoad,
 }

@@ -8,7 +8,7 @@
 use async_trait::async_trait;
 use overwatch::{
     DynError, OpaqueServiceResourcesHandle,
-    overwatch::{Error, OverwatchRunner},
+    overwatch::{Error, OverwatchRunner, ShutdownOverwatch},
     services::{
         ServiceCore, ServiceData,
         state::{NoOperator, NoState},
@@ -39,7 +39,7 @@ impl ServiceCore<RuntimeServiceId> for IdleService {
     }
 }
 
-#[derive_services]
+#[derive_services(panic_policy = ShutdownOverwatch)]
 struct App {
     idle_service: IdleService,
 }

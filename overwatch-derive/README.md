@@ -67,9 +67,9 @@ The main macro that transforms a struct into a complete Overwatch application.
 #### After (With Macro)
 
 ```rust
-use overwatch::derive_services;
+use overwatch::{derive_services, overwatch::ShutdownOverwatch};
 
-#[derive_services]
+#[derive_services(panic_policy = ShutdownOverwatch)]
 struct MyApp {
     service_a: ServiceA,
     service_b: ServiceB,
@@ -125,7 +125,7 @@ This ensures that two services cannot communicate with each other if they are no
 use async_trait::async_trait;
 use overwatch::{
     derive_services,
-    overwatch::OverwatchRunner,
+    overwatch::{OverwatchRunner, ShutdownOverwatch},
     services::{
         ServiceCore, ServiceData,
         state::{NoOperator, NoState},
@@ -141,7 +141,7 @@ struct ApiServer { /* ... */ }
 // Implement ServiceData and ServiceCore for each...
 
 // Compose your application
-#[derive_services]
+#[derive_services(panic_policy = ShutdownOverwatch)]
 struct MyApp {
     logger: Logger,
     database: Database,

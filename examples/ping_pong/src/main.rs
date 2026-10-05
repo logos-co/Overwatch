@@ -1,4 +1,7 @@
-use overwatch::{derive_services, overwatch::OverwatchRunner};
+use overwatch::{
+    derive_services,
+    overwatch::{OverwatchRunner, ShutdownOverwatch},
+};
 
 use crate::{service_ping::PingService, service_pong::PongService, settings::PingSettings};
 
@@ -9,7 +12,7 @@ mod service_pong;
 mod settings;
 mod states;
 
-#[derive_services]
+#[derive_services(panic_policy = ShutdownOverwatch)]
 struct PingPong {
     ping: PingService,
     pong: PongService,

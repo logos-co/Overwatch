@@ -2,7 +2,7 @@ use async_trait::async_trait;
 
 use crate::{
     DynError,
-    overwatch::{Error, handle::OverwatchHandle},
+    overwatch::{Error, PanicPolicy, handle::OverwatchHandle},
     services::{lifecycle::LifecycleNotifier, relay::AnyMessage, status::StatusWatcher},
 };
 
@@ -25,6 +25,15 @@ pub trait Services: Sized {
     /// This type is used by the services themselves to communicate with each
     /// other and to verify whether two services are part of the same runtime.
     type RuntimeServiceId;
+
+    /// What to do when a `Service`'s
+    /// [`run`](crate::services::ServiceCore::run) panics.
+    ///
+    /// It applies to every `Service` attached to the trait implementer.
+    ///
+    /// With the [`#[derive_services]`](overwatch_derive::derive_services)
+    /// macro, it's the mandatory `panic_policy` argument.
+    type PanicPolicy: PanicPolicy<Self::RuntimeServiceId> + Default;
 
     /// Spawn a new instance of the [`Services`] object.
     ///

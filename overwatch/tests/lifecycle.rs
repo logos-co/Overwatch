@@ -10,7 +10,7 @@ use async_trait::async_trait;
 use overwatch::{
     DynError, OpaqueServiceResourcesHandle,
     overwatch::{
-        OverwatchRunner,
+        OverwatchRunner, ShutdownOverwatch,
         commands::{OverwatchCommand, ServiceLifecycleCommand, ServiceSingleCommand},
         handle::OverwatchHandle,
     },
@@ -139,7 +139,7 @@ impl ServiceCore<RuntimeServiceId> for LifecycleService {
     }
 }
 
-#[derive_services]
+#[derive_services(panic_policy = ShutdownOverwatch)]
 struct App {
     lifecycle_service: LifecycleService,
 }

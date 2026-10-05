@@ -11,7 +11,7 @@ use tracing::{error, info};
 use crate::{
     DynError,
     overwatch::{
-        Error, Overwatch, ServicePanic, ServicePanicPolicy, Services,
+        Error, Overwatch, ServicePanic, Services,
         commands::{
             OverwatchCommand, OverwatchManagementCommand, RelayCommand, ServiceAllCommand,
             ServiceLifecycleCommand, ServiceSequenceCommand, ServiceSingleCommand, SettingsCommand,
@@ -42,7 +42,6 @@ pub const OVERWATCH_THREAD_NAME: &str = "Overwatch";
 /// That is, it's responsible for [`Overwatch`]'s application lifecycle.
 pub struct GenericOverwatchRunner<Services, RuntimeServiceId> {
     services: Services,
-    service_panic_policy: ServicePanicPolicy,
     finish_signal_sender: oneshot::Sender<Result<(), ServicePanic<RuntimeServiceId>>>,
     commands_receiver: Receiver<OverwatchCommand<RuntimeServiceId>>,
 }
@@ -63,9 +62,8 @@ where
     ///
     /// Return the [`Overwatch`] instance that handles this runner.
     ///
-    /// A panic in a `Service` is handled with the default
-    /// [`ServicePanicPolicy`]. Use [`Self::run_with_panic_policy`] to choose a
-    /// different one.
+    /// A panic in a `Service` is handled by the
+    /// [`Services::PanicPolicy`].
     ///
     /// # Errors
     ///
@@ -74,19 +72,6 @@ where
         settings: ServicesImpl::Settings,
         handle: Option<Handle>,
     ) -> Result<Overwatch<ServicesImpl::RuntimeServiceId>, DynError> {
-        Self::run_with_panic_policy(settings, handle, ServicePanicPolicy::default())
-    }
-
-    /// Same as [`Self::run`], choosing what happens when a `Service` panics.
-    ///
-    /// # Errors
-    ///
-    /// If the runner process cannot be created.
-    pub fn run_with_panic_policy(
-        settings: ServicesImpl::Settings,
-        handle: Option<Handle>,
-        service_panic_policy: ServicePanicPolicy,
-    ) -> Result<Overwatch<ServicesImpl::RuntimeServiceId>, DynError> {
         let runtime = handle.map_or_else(
             || OverwatchRuntime::TokioRuntime(default_multithread_runtime()),
             OverwatchRuntime::TokioHandle,
@@ -94,12 +79,12 @@ where
 
         let (finish_signal_sender, finish_runner_signal) = oneshot::channel();
         let (commands_sender, commands_receiver) = tokio::sync::mpsc::channel(16);
-        let handle = OverwatchHandle::new(runtime.handle().clone(), commands_sender);
+        let handle = OverwatchHandle::new(runtime.handle().clone(), commands_sender)
+            .with_panic_policy(ServicesImpl::PanicPolicy::default());
         let services = ServicesImpl::new(settings, handle.clone())?;
 
         let runner = Self {
             services,
-            service_panic_policy,
             finish_signal_sender,
             commands_receiver,
         };
@@ -120,7 +105,6 @@ where
     async fn run_(self) {
         let Self {
             mut services,
-            service_panic_policy,
             finish_signal_sender,
             mut commands_receiver,
         } = self;
@@ -154,20 +138,13 @@ where
                         }
                         break;
                     }
-                    OverwatchManagementCommand::ServicePanicked(service_panic) => {
-                        match service_panic_policy {
-                            ServicePanicPolicy::ShutdownOverwatch => {
-                                error!(
-                                    "Service {:?} panicked, shutting down Overwatch.",
-                                    service_panic.service_id
-                                );
-                                Self::shutdown(services).await;
-                                exit = Err(service_panic);
-                                break;
-                            }
-                            // The `ServiceRunner` stops the `Service` on its own.
-                            ServicePanicPolicy::StopService => {}
+                    OverwatchManagementCommand::ShutdownWithPanic(service_panic, sender) => {
+                        Self::shutdown(services).await;
+                        exit = Err(service_panic);
+                        if let Err(error) = sender.send(()) {
+                            error!(error=?error, "Error sending Shutdown finished signal.");
                         }
+                        break;
                     }
                 },
                 OverwatchCommand::Settings(settings) => {
