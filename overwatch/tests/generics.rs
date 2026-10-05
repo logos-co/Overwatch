@@ -86,7 +86,7 @@ impl ServiceCore<RuntimeServiceId> for GenericService {
     }
 }
 
-#[derive_services(panic_policy = ShutdownOverwatch)]
+#[derive_services(panic_policy = Shutdown)]
 struct TestApp {
     generic_service: GenericService,
 }

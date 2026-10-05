@@ -106,7 +106,7 @@ impl ServiceCore<RuntimeServiceId> for UpdateStateService {
     }
 }
 
-#[derive_services(panic_policy = ShutdownOverwatch)]
+#[derive_services(panic_policy = Shutdown)]
 struct TestApp {
     update_state_service: UpdateStateService,
 }

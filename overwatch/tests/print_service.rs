@@ -79,7 +79,7 @@ impl ServiceCore<RuntimeServiceId> for PrintService {
     }
 }
 
-#[derive_services(panic_policy = ShutdownOverwatch)]
+#[derive_services(panic_policy = Shutdown)]
 struct TestApp {
     print_service: PrintService,
 }

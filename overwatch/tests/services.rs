@@ -145,7 +145,7 @@ impl ServiceCore<RuntimeServiceId> for ServiceC {
     }
 }
 
-#[derive_services(panic_policy = ShutdownOverwatch)]
+#[derive_services(panic_policy = Shutdown)]
 struct App {
     service_a: ServiceA,
     service_b: ServiceB,

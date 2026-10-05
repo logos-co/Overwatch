@@ -139,7 +139,7 @@ impl ServiceCore<RuntimeServiceId> for LifecycleService {
     }
 }
 
-#[derive_services(panic_policy = ShutdownOverwatch)]
+#[derive_services(panic_policy = Shutdown)]
 struct App {
     lifecycle_service: LifecycleService,
 }

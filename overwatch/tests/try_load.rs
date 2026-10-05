@@ -98,7 +98,7 @@ impl ServiceCore<RuntimeServiceId> for TryLoad {
     }
 }
 
-#[derive_services(panic_policy = ShutdownOverwatch)]
+#[derive_services(panic_policy = Shutdown)]
 struct TryLoadApp {
     try_load: TryLoad,
 }

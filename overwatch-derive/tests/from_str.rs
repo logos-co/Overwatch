@@ -57,7 +57,7 @@ impl ServiceCore<RuntimeServiceId> for OtherService {
     }
 }
 
-#[derive_services(panic_policy = ShutdownOverwatch)]
+#[derive_services(panic_policy = Shutdown)]
 struct App {
     my_service: MyService,             // Variant name follows the service name
     alternative_service: OtherService, // Variant name is different from the service name

@@ -47,7 +47,7 @@ impl ServiceCore<RuntimeServiceId> for CancellableService {
     }
 }
 
-#[derive_services(panic_policy = ShutdownOverwatch)]
+#[derive_services(panic_policy = Shutdown)]
 struct CancelableServices {
     cancelable: CancellableService,
 }

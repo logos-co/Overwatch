@@ -59,7 +59,7 @@ impl Drop for OnStopService {
     }
 }
 
-#[derive_services(panic_policy = ShutdownOverwatch)]
+#[derive_services(panic_policy = Shutdown)]
 struct App {
     on_stop_service: OnStopService,
 }

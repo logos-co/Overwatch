@@ -133,7 +133,7 @@ impl ServiceCore<RuntimeServiceId> for AwaitService3 {
     }
 }
 
-#[derive_services(panic_policy = ShutdownOverwatch)]
+#[derive_services(panic_policy = Shutdown)]
 struct SequenceServices {
     c: AwaitService3,
     b: AwaitService2,
