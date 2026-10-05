@@ -86,21 +86,36 @@ where
     }
 }
 
-/// Do nothing besides logging the panic: only the `Service` that panicked is
-/// stopped, the rest keep running.
-#[derive(Copy, Clone, Debug, Default)]
-pub struct NoPolicy;
-
+/// An optional policy.
+///
+/// `Some` behaves as the policy it holds. `None` does nothing besides logging
+/// the panic: only the `Service` that panicked is stopped, the rest keep
+/// running.
+///
+/// The default is `None`, which is what
+/// [`OverwatchRunner::run`](crate::overwatch::OverwatchRunner::run) uses.
 #[async_trait]
-impl<RuntimeServiceId> PanicPolicy<RuntimeServiceId> for NoPolicy
+impl<RuntimeServiceId, Policy> PanicPolicy<RuntimeServiceId> for Option<Policy>
 where
     RuntimeServiceId: Display + Send + Sync + 'static,
+    Policy: PanicPolicy<RuntimeServiceId>,
 {
     async fn on_service_panic(
         &self,
         service_panic: ServicePanic<RuntimeServiceId>,
-        _overwatch_handle: &OverwatchHandle<RuntimeServiceId>,
+        overwatch_handle: &OverwatchHandle<RuntimeServiceId>,
     ) {
-        warn!("No panic policy, Overwatch keeps running after a service panic: {service_panic}");
+        match self {
+            Some(panic_policy) => {
+                panic_policy
+                    .on_service_panic(service_panic, overwatch_handle)
+                    .await;
+            }
+            None => {
+                warn!(
+                    "No panic policy, Overwatch keeps running after a service panic: {service_panic}"
+                );
+            }
+        }
     }
 }
