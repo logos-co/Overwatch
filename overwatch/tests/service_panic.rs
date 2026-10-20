@@ -14,7 +14,7 @@ use overwatch::{
     services::{
         AsServiceId, ServiceCore, ServiceData,
         state::{NoOperator, NoState},
-        status::{ServiceStatus, StatusWatcher},
+        status::{ServiceStatus, StatusWatcher, WaitForError},
     },
 };
 use overwatch_derive::derive_services;
@@ -360,6 +360,7 @@ async fn custom_policy_can_shut_overwatch_down() {
 #[tokio::test]
 async fn waiting_for_another_status_returns_early_on_failure() {
     let (app, mut faulty_status, _idle_status) = optional_policy::start(Fault::Panic, None).await;
+    let initial_status = faulty_status.current();
 
     let result = timeout(
         TIMEOUT,
@@ -367,7 +368,7 @@ async fn waiting_for_another_status_returns_early_on_failure() {
     )
     .await
     .expect("Waiting on a failed service should not hang.");
-    assert_eq!(result, Err(ServiceStatus::Failed));
+    assert_eq!(result, Err(WaitForError::ServiceFailed { initial_status }));
 
     let _ = app.handle().shutdown().await;
     let exit = timeout(TIMEOUT, app.wait_finished())

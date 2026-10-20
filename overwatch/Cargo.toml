@@ -31,7 +31,7 @@ tracing          = "0.1"
 
 [dev-dependencies]
 overwatch = { features = ["derive"], path = "." }
-tokio     = { features = ["io-std", "io-util", "macros", "rt-multi-thread", "sync", "time"], version = "1.17" }
+tokio     = { features = ["io-std", "io-util", "macros", "rt-multi-thread", "sync", "test-util", "time"], version = "1.17" }
 
 [lints]
 workspace = true
