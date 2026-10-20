@@ -96,7 +96,16 @@ where
                  }
                 Some(state) = state_stream.next() => {
                     trace!("StateHandle's Stream received a state. Forwarding to Operator.");
-                    Self::process_state(&mut operator, state).await;
+                    // The fuse must be able to interrupt an in-flight operator
+                    // run, otherwise an operator blocked mid-`run` (e.g.
+                    // awaiting a relay reply) deadlocks shutdown (issue #150).
+                    tokio::select! {
+                        _ = operator_fuse_receiver.recv() => {
+                            debug!("StateHandle's Operator loop received a fuse signal during state processing.");
+                            break;
+                        }
+                        () = Self::process_state(&mut operator, state) => {}
+                    }
                 }
             }
         }
@@ -169,6 +178,55 @@ mod test {
                 .expect("stop Output wrote");
             assert!(value < 10);
         }
+    }
+
+    struct StuckOperator;
+
+    #[async_trait]
+    impl StateOperator<()> for StuckOperator {
+        type State = UsizeCounter;
+        type LoadError = Infallible;
+
+        fn try_load(
+            _settings: &<Self::State as ServiceState>::Settings,
+        ) -> Result<Option<Self::State>, Self::LoadError> {
+            Ok(None)
+        }
+
+        fn from_settings(
+            _settings: &<Self::State as ServiceState>::Settings,
+            _overwatch_handle: crate::overwatch::OverwatchHandle<()>,
+        ) -> Self {
+            Self
+        }
+
+        async fn run(&mut self, _state: Self::State) {
+            // Simulates an operator waiting for a reply that only the blocked
+            // Runner can send (see the shutdown deadlock in issue #150).
+            futures::future::pending::<()>().await;
+        }
+    }
+
+    /// Regression test for the shutdown deadlock: a fuse signal must stop the
+    /// [`StateHandle`] even while the operator's `run` method is in-flight.
+    #[tokio::test]
+    async fn fuse_stops_state_handle_during_operator_run() {
+        let (operator_fuse_sender, operator_fuse_receiver) = fuse::channel();
+        let (handle, updater): (StateHandle<UsizeCounter, StuckOperator, ()>, _) =
+            StateHandle::new(StuckOperator, None, operator_fuse_receiver);
+        let run_task = tokio::spawn(handle.run());
+
+        updater.update(Some(UsizeCounter(1)));
+        // Let the StateHandle enter `StuckOperator::run` and get stuck.
+        sleep(Duration::from_millis(50)).await;
+        operator_fuse_sender
+            .send(())
+            .expect("fuse signal must be delivered");
+
+        tokio::time::timeout(Duration::from_secs(1), run_task)
+            .await
+            .expect("StateHandle::run must finish after a fuse, even mid operator run")
+            .expect("StateHandle task must not panic");
     }
 
     #[tokio::test]
