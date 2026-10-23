@@ -1,5 +1,7 @@
 use std::time::Duration;
 
+use tokio::time::timeout;
+
 use crate::services::status::{Receiver, service_status::ServiceStatus};
 
 /// Error returned by [`StatusWatcher::wait_for`] and
@@ -144,7 +146,7 @@ impl StatusWatcher {
             observed == &status || policy.stopping_error(initial_status, *observed).is_some()
         });
         let outcome = match timeout_duration {
-            Some(timeout_duration) => match tokio::time::timeout(timeout_duration, wait).await {
+            Some(timeout_duration) => match timeout(timeout_duration, wait).await {
                 Ok(Ok(observed)) => WaitOutcome::Reached(*observed),
                 Ok(Err(_)) => WaitOutcome::Boundary(WaitBoundary::ChannelClosed),
                 Err(_) => WaitOutcome::Boundary(WaitBoundary::Timeout),
@@ -735,7 +737,7 @@ mod tests {
         drop(sender);
 
         assert_eq!(
-            tokio::time::timeout(
+            timeout(
                 Duration::from_secs(1),
                 watcher.wait_for_fail_fast(ServiceStatus::Ready, None)
             )
