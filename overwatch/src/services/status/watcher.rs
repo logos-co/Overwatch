@@ -4,8 +4,7 @@ use tokio::time::timeout;
 
 use crate::services::status::{Receiver, service_status::ServiceStatus};
 
-/// Error returned by [`StatusWatcher::wait_for`] and
-/// [`StatusWatcher::wait_for_fail_fast`].
+/// Error returned by [`StatusWatcher::wait_with_policy`].
 ///
 /// `initial_status` is captured when the wait begins executing. Boundary
 /// errors also contain the latest status sampled when they are classified.
@@ -62,72 +61,48 @@ impl StatusWatcher {
         Self { receiver }
     }
 
-    /// Wait for a [`ServiceStatus`], allowing services to start or restart.
+    /// Wait for a [`ServiceStatus`] using an explicit [`WaitPolicy`].
     ///
+    /// [`WaitPolicy::RestartFriendly`] allows services to start or restart:
     /// [`ServiceStatus::Stopped`] does not end the wait unless requested.
-    /// If the wait begins in [`ServiceStatus::Failed`], later failures also
-    /// remain tolerated for the entire wait, including after an intervening
-    /// [`ServiceStatus::Starting`].
+    /// If the wait begins in [`ServiceStatus::Failed`], later failures remain
+    /// tolerated for the entire wait, including after an intervening
+    /// [`ServiceStatus::Starting`]. Otherwise, an unexpected `Failed` ends it.
     ///
-    /// `Some(duration)` bounds the wait; `None` imposes no deadline.
+    /// [`WaitPolicy::FailFast`] ends the wait on an unexpected initial or
+    /// subsequently observed [`ServiceStatus::Stopped`] or
+    /// [`ServiceStatus::Failed`]. When waiting for [`ServiceStatus::Ready`],
+    /// use this policy only after the service's startup boundary has been
+    /// acknowledged. The current status alone cannot distinguish a service
+    /// that has not started yet from one that has already stopped.
     ///
-    /// # Errors
-    ///
-    /// Returns [`WaitForError::ServiceFailed`] for an unexpected
-    /// [`ServiceStatus::Failed`] when the initial status was not `Failed`,
-    /// [`WaitForError::Timeout`] when the bounded wait expires, or
-    /// [`WaitForError::ChannelClosed`] when status notifications close.
-    /// All errors include the initial status; boundary errors also include the
-    /// latest sampled status.
-    ///
-    /// # Compatibility
-    ///
-    /// The error type is now [`WaitForError`] rather than [`ServiceStatus`].
-    /// Consumers must update their error matches and propagation types.
-    pub async fn wait_for(
-        &mut self,
-        status: ServiceStatus,
-        timeout_duration: Option<Duration>,
-    ) -> Result<ServiceStatus, WaitForError> {
-        self.wait_for_inner(status, timeout_duration, WaitPolicy::RestartFriendly)
-            .await
-    }
-
-    /// Wait for a [`ServiceStatus`] unless the service stops or fails.
-    ///
-    /// When waiting for [`ServiceStatus::Ready`], call this only after the
-    /// service's startup boundary has been acknowledged. The current status
-    /// alone cannot distinguish a service that has not started yet from one
-    /// that has already stopped.
-    ///
+    /// Both policies succeed when the requested status is observed, including
+    /// explicit requests for `Stopped` or `Failed`.
     /// `Some(duration)` bounds the wait; `None` imposes no deadline.
     ///
     /// At a timeout or channel-closure boundary, the requested status takes
-    /// precedence if it is currently visible; otherwise an unexpected
-    /// [`ServiceStatus::Stopped`] or [`ServiceStatus::Failed`] takes precedence
-    /// over the boundary error. Tokio's watch channel exposes only its latest
-    /// status, so intermediate overwritten transitions cannot always be
-    /// identified.
+    /// precedence if it is currently visible, followed by errors under the
+    /// selected policy, followed by the boundary error. Tokio's watch channel
+    /// exposes only its latest status, so intermediate overwritten transitions
+    /// cannot always be identified. Dropping the wait future cancels it.
     ///
     /// # Errors
     ///
     /// Returns [`WaitForError::ServiceStopped`] or
     /// [`WaitForError::ServiceFailed`] for an unexpected
-    /// [`ServiceStatus::Stopped`] or [`ServiceStatus::Failed`],
+    /// [`ServiceStatus::Stopped`] or [`ServiceStatus::Failed`] that ends the
+    /// wait under the selected policy,
     /// [`WaitForError::Timeout`] when the bounded wait expires, or
     /// [`WaitForError::ChannelClosed`] when status notifications close before
-    /// the requested status is reached. Boundary errors include the latest
-    /// status available when they are classified.
-    pub async fn wait_for_fail_fast(
-        &mut self,
-        status: ServiceStatus,
-        timeout_duration: Option<Duration>,
-    ) -> Result<ServiceStatus, WaitForError> {
-        self.wait_for_inner(status, timeout_duration, WaitPolicy::FailFast)
-            .await
-    }
-
-    async fn wait_for_inner(
+    /// the requested status is reached. All errors include the initial status;
+    /// boundary errors also include the latest sampled status.
+    ///
+    /// # Compatibility
+    ///
+    /// This method replaces `wait_for` and `wait_for_fail_fast`. Callers must
+    /// select a policy explicitly. Errors use [`WaitForError`] rather than the
+    /// original `wait_for` method's [`ServiceStatus`] error type.
+    pub async fn wait_with_policy(
         &mut self,
         status: ServiceStatus,
         timeout_duration: Option<Duration>,
@@ -187,9 +162,17 @@ enum WaitOutcome {
     Boundary(WaitBoundary),
 }
 
+/// Controls which unexpected status observations end a status wait.
 #[derive(Debug, Clone, Copy, Eq, PartialEq)]
-enum WaitPolicy {
+pub enum WaitPolicy {
+    /// Allow starts and restarts, continuing through
+    /// [`ServiceStatus::Stopped`]. Tolerate failures if the wait began in
+    /// [`ServiceStatus::Failed`]; otherwise, an unexpected `Failed` ends
+    /// it.
     RestartFriendly,
+    /// End on an unexpected `Stopped` or `Failed`, including the initial
+    /// status. For readiness, the caller must first acknowledge the startup
+    /// boundary.
     FailFast,
 }
 
@@ -258,9 +241,10 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn default_waits_for_ready_from_initially_stopped() {
+    async fn restart_friendly_waits_for_ready_from_initially_stopped() {
         let (mut watcher, sender) = watcher_with(ServiceStatus::Stopped);
-        let wait = watcher.wait_for(ServiceStatus::Ready, None);
+        let wait =
+            watcher.wait_with_policy(ServiceStatus::Ready, None, WaitPolicy::RestartFriendly);
         tokio::pin!(wait);
 
         assert!(futures::poll!(wait.as_mut()).is_pending());
@@ -272,9 +256,10 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn default_waits_for_ready_after_initial_failure_and_restart() {
+    async fn restart_friendly_waits_for_ready_after_initial_failure_and_restart() {
         let (mut watcher, sender) = watcher_with(ServiceStatus::Failed);
-        let wait = watcher.wait_for(ServiceStatus::Ready, None);
+        let wait =
+            watcher.wait_with_policy(ServiceStatus::Ready, None, WaitPolicy::RestartFriendly);
         tokio::pin!(wait);
 
         assert!(futures::poll!(wait.as_mut()).is_pending());
@@ -286,9 +271,10 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn default_waits_through_observed_stop_and_restart() {
+    async fn restart_friendly_waits_through_observed_stop_and_restart() {
         let (mut watcher, sender) = watcher_with(ServiceStatus::Starting);
-        let wait = watcher.wait_for(ServiceStatus::Ready, None);
+        let wait =
+            watcher.wait_with_policy(ServiceStatus::Ready, None, WaitPolicy::RestartFriendly);
         tokio::pin!(wait);
 
         assert!(futures::poll!(wait.as_mut()).is_pending());
@@ -302,9 +288,10 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn default_wait_tolerates_repeated_failures_after_initial_failure() {
+    async fn restart_friendly_wait_tolerates_repeated_failures_after_initial_failure() {
         let (mut watcher, sender) = watcher_with(ServiceStatus::Failed);
-        let wait = watcher.wait_for(ServiceStatus::Ready, None);
+        let wait =
+            watcher.wait_with_policy(ServiceStatus::Ready, None, WaitPolicy::RestartFriendly);
         tokio::pin!(wait);
 
         assert!(futures::poll!(wait.as_mut()).is_pending());
@@ -322,10 +309,10 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn default_wait_can_request_stopped_or_failed() {
+    async fn restart_friendly_wait_can_request_stopped_or_failed() {
         for status in [ServiceStatus::Stopped, ServiceStatus::Failed] {
             let (mut watcher, sender) = watcher_with(ServiceStatus::Starting);
-            let wait = watcher.wait_for(status, None);
+            let wait = watcher.wait_with_policy(status, None, WaitPolicy::RestartFriendly);
             tokio::pin!(wait);
 
             assert!(futures::poll!(wait.as_mut()).is_pending());
@@ -336,7 +323,7 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn both_wait_methods_succeed_when_already_at_requested_status() {
+    async fn both_policies_succeed_when_already_at_requested_status() {
         for status in [
             ServiceStatus::Starting,
             ServiceStatus::Ready,
@@ -345,12 +332,14 @@ mod tests {
         ] {
             let (mut watcher, _sender) = watcher_with(status);
             assert_eq!(
-                watcher.wait_for(status, Some(Duration::ZERO)).await,
+                watcher
+                    .wait_with_policy(status, Some(Duration::ZERO), WaitPolicy::RestartFriendly)
+                    .await,
                 Ok(status)
             );
             assert_eq!(
                 watcher
-                    .wait_for_fail_fast(status, Some(Duration::ZERO))
+                    .wait_with_policy(status, Some(Duration::ZERO), WaitPolicy::FailFast)
                     .await,
                 Ok(status)
             );
@@ -360,7 +349,7 @@ mod tests {
     #[tokio::test]
     async fn initial_status_is_captured_when_wait_begins_executing() {
         let (mut watcher, sender) = watcher_with(ServiceStatus::Stopped);
-        let wait = watcher.wait_for_fail_fast(ServiceStatus::Ready, None);
+        let wait = watcher.wait_with_policy(ServiceStatus::Ready, None, WaitPolicy::FailFast);
         tokio::pin!(wait);
 
         sender.send_replace(ServiceStatus::Starting);
@@ -376,9 +365,10 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn default_reports_new_failure_transition() {
+    async fn restart_friendly_reports_new_failure_transition() {
         let (mut watcher, sender) = watcher_with(ServiceStatus::Starting);
-        let wait = watcher.wait_for(ServiceStatus::Ready, None);
+        let wait =
+            watcher.wait_with_policy(ServiceStatus::Ready, None, WaitPolicy::RestartFriendly);
         tokio::pin!(wait);
 
         assert!(futures::poll!(wait.as_mut()).is_pending());
@@ -393,14 +383,18 @@ mod tests {
     }
 
     #[tokio::test(start_paused = true)]
-    async fn default_timeout_reports_initial_and_latest_status() {
+    async fn restart_friendly_timeout_reports_initial_and_latest_status() {
         for (initial_status, latest_status) in [
             (ServiceStatus::Stopped, ServiceStatus::Starting),
             (ServiceStatus::Starting, ServiceStatus::Stopped),
             (ServiceStatus::Failed, ServiceStatus::Failed),
         ] {
             let (mut watcher, sender) = watcher_with(initial_status);
-            let wait = watcher.wait_for(ServiceStatus::Ready, Some(Duration::from_secs(5)));
+            let wait = watcher.wait_with_policy(
+                ServiceStatus::Ready,
+                Some(Duration::from_secs(5)),
+                WaitPolicy::RestartFriendly,
+            );
             tokio::pin!(wait);
 
             assert!(futures::poll!(wait.as_mut()).is_pending());
@@ -421,14 +415,15 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn default_channel_closure_reports_initial_and_latest_status() {
+    async fn restart_friendly_channel_closure_reports_initial_and_latest_status() {
         for (initial_status, latest_status) in [
             (ServiceStatus::Failed, ServiceStatus::Starting),
             (ServiceStatus::Starting, ServiceStatus::Stopped),
             (ServiceStatus::Failed, ServiceStatus::Failed),
         ] {
             let (mut watcher, sender) = watcher_with(initial_status);
-            let wait = watcher.wait_for(ServiceStatus::Ready, None);
+            let wait =
+                watcher.wait_with_policy(ServiceStatus::Ready, None, WaitPolicy::RestartFriendly);
             tokio::pin!(wait);
 
             assert!(futures::poll!(wait.as_mut()).is_pending());
@@ -466,7 +461,9 @@ mod tests {
         ] {
             let (mut watcher, _sender) = watcher_with(status);
             assert_eq!(
-                watcher.wait_for_fail_fast(ServiceStatus::Ready, None).await,
+                watcher
+                    .wait_with_policy(ServiceStatus::Ready, None, WaitPolicy::FailFast)
+                    .await,
                 Err(error)
             );
         }
@@ -489,7 +486,7 @@ mod tests {
             ),
         ] {
             let (mut watcher, sender) = watcher_with(ServiceStatus::Starting);
-            let wait = watcher.wait_for_fail_fast(ServiceStatus::Ready, None);
+            let wait = watcher.wait_with_policy(ServiceStatus::Ready, None, WaitPolicy::FailFast);
             tokio::pin!(wait);
 
             assert!(futures::poll!(wait.as_mut()).is_pending());
@@ -505,7 +502,11 @@ mod tests {
     #[tokio::test(start_paused = true)]
     async fn wait_timeout_reports_latest_status() {
         let (mut watcher, sender) = watcher_with(ServiceStatus::Starting);
-        let wait = watcher.wait_for_fail_fast(ServiceStatus::Stopped, Some(Duration::from_secs(5)));
+        let wait = watcher.wait_with_policy(
+            ServiceStatus::Stopped,
+            Some(Duration::from_secs(5)),
+            WaitPolicy::FailFast,
+        );
         tokio::pin!(wait);
 
         assert!(futures::poll!(wait.as_mut()).is_pending());
@@ -525,7 +526,7 @@ mod tests {
     #[tokio::test]
     async fn wait_reports_latest_status_when_channel_closes() {
         let (mut watcher, sender) = watcher_with(ServiceStatus::Starting);
-        let wait = watcher.wait_for_fail_fast(ServiceStatus::Stopped, None);
+        let wait = watcher.wait_with_policy(ServiceStatus::Stopped, None, WaitPolicy::FailFast);
         tokio::pin!(wait);
 
         assert!(futures::poll!(wait.as_mut()).is_pending());
@@ -594,7 +595,7 @@ mod tests {
     }
 
     #[test]
-    fn default_boundaries_preserve_restart_policy() {
+    fn restart_friendly_boundaries_preserve_restart_policy() {
         for boundary in [WaitBoundary::Timeout, WaitBoundary::ChannelClosed] {
             for (initial_status, latest_status) in [
                 (ServiceStatus::Stopped, ServiceStatus::Starting),
@@ -642,10 +643,11 @@ mod tests {
     #[tokio::test]
     async fn wait_succeeds_when_starting_becomes_ready() {
         let (mut watcher, sender) = watcher_with(ServiceStatus::Starting);
-        let wait =
-            tokio::spawn(
-                async move { watcher.wait_for_fail_fast(ServiceStatus::Ready, None).await },
-            );
+        let wait = tokio::spawn(async move {
+            watcher
+                .wait_with_policy(ServiceStatus::Ready, None, WaitPolicy::FailFast)
+                .await
+        });
 
         tokio::task::yield_now().await;
         sender.send_replace(ServiceStatus::Ready);
@@ -663,7 +665,11 @@ mod tests {
 
         assert_eq!(
             watcher
-                .wait_for_fail_fast(ServiceStatus::Ready, Some(Duration::from_secs(10)))
+                .wait_with_policy(
+                    ServiceStatus::Ready,
+                    Some(Duration::from_secs(10)),
+                    WaitPolicy::FailFast
+                )
                 .await,
             Ok(ServiceStatus::Ready)
         );
@@ -675,7 +681,11 @@ mod tests {
 
         assert_eq!(
             watcher
-                .wait_for_fail_fast(ServiceStatus::Ready, Some(Duration::from_secs(5)))
+                .wait_with_policy(
+                    ServiceStatus::Ready,
+                    Some(Duration::from_secs(5)),
+                    WaitPolicy::FailFast
+                )
                 .await,
             Err(WaitForError::Timeout {
                 initial_status: ServiceStatus::Starting,
@@ -694,8 +704,12 @@ mod tests {
         };
 
         let (restart_friendly_result, fail_fast_result, ()) = tokio::join!(
-            restart_friendly_watcher.wait_for(ServiceStatus::Ready, None),
-            watcher.wait_for_fail_fast(ServiceStatus::Ready, None),
+            restart_friendly_watcher.wait_with_policy(
+                ServiceStatus::Ready,
+                None,
+                WaitPolicy::RestartFriendly
+            ),
+            watcher.wait_with_policy(ServiceStatus::Ready, None, WaitPolicy::FailFast),
             notify_ready,
         );
         assert_eq!(restart_friendly_result, Ok(ServiceStatus::Ready));
@@ -707,7 +721,7 @@ mod tests {
         let (mut stopped_watcher, _sender) = watcher_with(ServiceStatus::Stopped);
         assert_eq!(
             stopped_watcher
-                .wait_for_fail_fast(ServiceStatus::Stopped, None)
+                .wait_with_policy(ServiceStatus::Stopped, None, WaitPolicy::FailFast)
                 .await,
             Ok(ServiceStatus::Stopped)
         );
@@ -715,7 +729,7 @@ mod tests {
         let (mut failed_watcher, _sender) = watcher_with(ServiceStatus::Failed);
         assert_eq!(
             failed_watcher
-                .wait_for_fail_fast(ServiceStatus::Failed, None)
+                .wait_with_policy(ServiceStatus::Failed, None, WaitPolicy::FailFast)
                 .await,
             Ok(ServiceStatus::Failed)
         );
@@ -723,7 +737,7 @@ mod tests {
         let (mut watcher, sender) = watcher_with(ServiceStatus::Starting);
         let wait = tokio::spawn(async move {
             watcher
-                .wait_for_fail_fast(ServiceStatus::Stopped, None)
+                .wait_with_policy(ServiceStatus::Stopped, None, WaitPolicy::FailFast)
                 .await
         });
         tokio::task::yield_now().await;
@@ -739,7 +753,7 @@ mod tests {
         assert_eq!(
             timeout(
                 Duration::from_secs(1),
-                watcher.wait_for_fail_fast(ServiceStatus::Ready, None)
+                watcher.wait_with_policy(ServiceStatus::Ready, None, WaitPolicy::FailFast)
             )
             .await
             .unwrap(),
@@ -754,9 +768,16 @@ mod tests {
     async fn dropping_pending_waits_leaves_watchers_reusable() {
         let (mut watcher, sender) = watcher_with(ServiceStatus::Starting);
         let mut fail_fast_watcher = watcher.clone();
-        let mut wait = Box::pin(watcher.wait_for(ServiceStatus::Ready, None));
-        let mut fail_fast_wait =
-            Box::pin(fail_fast_watcher.wait_for_fail_fast(ServiceStatus::Ready, None));
+        let mut wait = Box::pin(watcher.wait_with_policy(
+            ServiceStatus::Ready,
+            None,
+            WaitPolicy::RestartFriendly,
+        ));
+        let mut fail_fast_wait = Box::pin(fail_fast_watcher.wait_with_policy(
+            ServiceStatus::Ready,
+            None,
+            WaitPolicy::FailFast,
+        ));
 
         assert!(futures::poll!(wait.as_mut()).is_pending());
         assert!(futures::poll!(fail_fast_wait.as_mut()).is_pending());
@@ -765,12 +786,14 @@ mod tests {
         sender.send_replace(ServiceStatus::Ready);
 
         assert_eq!(
-            watcher.wait_for(ServiceStatus::Ready, None).await,
+            watcher
+                .wait_with_policy(ServiceStatus::Ready, None, WaitPolicy::RestartFriendly)
+                .await,
             Ok(ServiceStatus::Ready)
         );
         assert_eq!(
             fail_fast_watcher
-                .wait_for_fail_fast(ServiceStatus::Ready, None)
+                .wait_with_policy(ServiceStatus::Ready, None, WaitPolicy::FailFast)
                 .await,
             Ok(ServiceStatus::Ready)
         );

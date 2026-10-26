@@ -6,7 +6,7 @@ use overwatch::{
     services::{
         ServiceCore, ServiceData,
         state::{NoOperator, NoState},
-        status::{ServiceStatus, StatusWatcher},
+        status::{ServiceStatus, StatusWatcher, WaitPolicy},
     },
 };
 
@@ -82,14 +82,22 @@ impl ServiceCore<RuntimeServiceId> for AwaitService2 {
             .await?;
 
         watcher
-            .wait_for(ServiceStatus::Ready, Some(Duration::from_millis(50)))
+            .wait_with_policy(
+                ServiceStatus::Ready,
+                Some(Duration::from_millis(50)),
+                WaitPolicy::RestartFriendly,
+            )
             .await
             .unwrap();
 
         tokio::time::sleep(Duration::from_millis(100)).await;
 
         watcher
-            .wait_for(ServiceStatus::Stopped, Some(Duration::from_millis(50)))
+            .wait_with_policy(
+                ServiceStatus::Stopped,
+                Some(Duration::from_millis(50)),
+                WaitPolicy::RestartFriendly,
+            )
             .await
             .unwrap();
 
@@ -118,14 +126,22 @@ impl ServiceCore<RuntimeServiceId> for AwaitService3 {
             .await?;
 
         watcher
-            .wait_for(ServiceStatus::Ready, Some(Duration::from_millis(50)))
+            .wait_with_policy(
+                ServiceStatus::Ready,
+                Some(Duration::from_millis(50)),
+                WaitPolicy::RestartFriendly,
+            )
             .await
             .unwrap();
 
         tokio::time::sleep(Duration::from_millis(100)).await;
 
         watcher
-            .wait_for(ServiceStatus::Stopped, Some(Duration::from_millis(50)))
+            .wait_with_policy(
+                ServiceStatus::Stopped,
+                Some(Duration::from_millis(50)),
+                WaitPolicy::RestartFriendly,
+            )
             .await
             .unwrap();
 
