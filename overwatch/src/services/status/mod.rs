@@ -8,7 +8,7 @@ pub mod watcher;
 pub use handle::StatusHandle;
 pub use service_status::ServiceStatus;
 pub use updater::StatusUpdater;
-pub use watcher::StatusWatcher;
+pub use watcher::{StatusWatcher, WaitForError, WaitPolicy};
 
 pub(crate) type Sender = watch::Sender<ServiceStatus>;
 pub(crate) type Receiver = watch::Receiver<ServiceStatus>;

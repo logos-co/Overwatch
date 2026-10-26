@@ -14,7 +14,7 @@ use overwatch::{
     services::{
         AsServiceId, ServiceCore, ServiceData,
         state::{NoOperator, NoState},
-        status::{ServiceStatus, StatusWatcher},
+        status::{ServiceStatus, StatusWatcher, WaitForError, WaitPolicy},
     },
 };
 use overwatch_derive::derive_services;
@@ -203,7 +203,11 @@ async fn none_policy_stops_only_the_panicked_service() {
     let (app, mut faulty_status, idle_status) = optional_policy::start(Fault::Panic, None).await;
 
     faulty_status
-        .wait_for(ServiceStatus::Failed, Some(TIMEOUT))
+        .wait_with_policy(
+            ServiceStatus::Failed,
+            Some(TIMEOUT),
+            WaitPolicy::RestartFriendly,
+        )
         .await
         .expect("The panicked service should be marked as failed.");
 
@@ -360,14 +364,15 @@ async fn custom_policy_can_shut_overwatch_down() {
 #[tokio::test]
 async fn waiting_for_another_status_returns_early_on_failure() {
     let (app, mut faulty_status, _idle_status) = optional_policy::start(Fault::Panic, None).await;
+    let initial_status = faulty_status.current();
 
     let result = timeout(
         TIMEOUT,
-        faulty_status.wait_for(ServiceStatus::Stopped, None),
+        faulty_status.wait_with_policy(ServiceStatus::Stopped, None, WaitPolicy::RestartFriendly),
     )
     .await
     .expect("Waiting on a failed service should not hang.");
-    assert_eq!(result, Err(ServiceStatus::Failed));
+    assert_eq!(result, Err(WaitForError::ServiceFailed { initial_status }));
 
     let _ = app.handle().shutdown().await;
     let exit = timeout(TIMEOUT, app.wait_finished())
@@ -382,7 +387,11 @@ async fn error_return_stops_only_the_service() {
         shutdown_overwatch::start(Fault::Error, Shutdown).await;
 
     faulty_status
-        .wait_for(ServiceStatus::Stopped, Some(TIMEOUT))
+        .wait_with_policy(
+            ServiceStatus::Stopped,
+            Some(TIMEOUT),
+            WaitPolicy::RestartFriendly,
+        )
         .await
         .expect("A service returning an error should be stopped, not failed.");
     assert_eq!(idle_status.current(), ServiceStatus::Ready);
