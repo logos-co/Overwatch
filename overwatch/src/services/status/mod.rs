@@ -1,10 +1,15 @@
 use tokio::sync::watch;
 
+mod all;
 pub mod handle;
 pub mod service_status;
 pub mod updater;
 pub mod watcher;
 
+pub use all::{
+    CompletionPolicy, DependencyObservation, WaitForAllError, WaitForAllErrorKind,
+    wait_for_all_with_policy,
+};
 pub use handle::StatusHandle;
 pub use service_status::ServiceStatus;
 pub use updater::StatusUpdater;
