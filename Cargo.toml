@@ -145,6 +145,7 @@ redundant_lifetimes           = { level = "warn" }
 single_use_lifetimes          = { level = "warn" }
 trivial_numeric_casts         = { level = "warn" }
 unsafe_attr_outside_unsafe    = { level = "warn" }
+unsafe_code                   = { level = "warn" }
 unsafe_op_in_unsafe_fn        = { level = "warn" }
 unstable_features             = { level = "warn" }
 unused_extern_crates          = { level = "warn" }
@@ -172,5 +173,16 @@ tail_expr_drop_order                   = { level = "allow" }
 trivial_casts                          = { level = "allow" }
 unit_bindings                          = { level = "allow" }
 unreachable_pub                        = { level = "allow" }
-unsafe_code                            = { level = "allow" }
 variant_size_differences               = { level = "allow" }
+
+[workspace.lints.cargo]
+
+# Pedantic and allowed pedantic warnings (new lints will warn by default)
+pedantic = { level = "warn", priority = -1 }
+
+# Restriction and allowed restriction warnings (new lints will warn by default)
+restriction = { level = "warn", priority = -1 }
+
+# We use kebab case for features and package names, so we allow the non-snake lint
+non_snake_case_features = { level = "allow" }
+non_snake_case_packages = { level = "allow" }
