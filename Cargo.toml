@@ -1,14 +1,13 @@
 [workspace.package]
 categories = ["asynchronous", "concurrency", "development-tools", "network-programming", "rust-patterns"]
 edition    = "2024"
-homepage   = "https://github.com/logos-co/Overwatch"
 keywords   = ["async", "framework", "services"]
 license    = "MIT or Apache-2.0"
 repository = "https://github.com/logos-co/Overwatch"
 version    = "0.2.0"
 
 [workspace]
-members  = ["examples/ping_pong", "overwatch", "overwatch-derive"]
+members  = ["examples/ping-pong", "overwatch", "overwatch-derive"]
 resolver = "2"
 
 [workspace.dependencies]

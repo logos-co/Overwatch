@@ -52,6 +52,10 @@ pub trait StateOperator<RuntimeServiceId> {
 #[derive(Copy)]
 pub struct NoOperator<StateInput>(PhantomData<*const StateInput>);
 
+#[expect(
+    unsafe_code,
+    reason = "`NoOperator` does not hold anything and is thus Sync."
+)]
 /// SAFETY: `NoOperator` does not hold anything and is thus Sync.
 ///
 /// Note that we don't use `PhantomData<StateInput>` as that would suggest we

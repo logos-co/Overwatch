@@ -248,7 +248,7 @@ async fn run(self) -> Result<(), DynError> {
 
 ### Ping-Pong Example
 
-The [`examples/ping_pong`](examples/ping_pong) directory contains a complete working example demonstrating:
+The [`examples/ping-pong`](examples/ping-pong) directory contains a complete working example demonstrating:
 
 - ✅ Service definition and registration
 - ✅ Inter-service messaging via relays
@@ -259,7 +259,7 @@ The [`examples/ping_pong`](examples/ping_pong) directory contains a complete wor
 **Run it:**
 
 ```bash
-cargo run --example ping_pong
+cargo run --example ping-pong
 ```
 
 **What it does:**
@@ -292,7 +292,7 @@ Overwatch/
 │       └── utils/      # Helper utilities
 ├── overwatch-derive/   # Procedural macros (#[derive_services])
 └── examples/
-    └── ping_pong/      # Complete working example
+    └── ping-pong/      # Complete working example
 ```
 
 ---
@@ -312,7 +312,7 @@ cargo test -- --nocapture
 ### Running Examples
 
 ```bash
-cargo run --example ping_pong
+cargo run --example ping-pong
 ```
 
 ### Generating Documentation
