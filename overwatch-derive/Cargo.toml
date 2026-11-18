@@ -4,11 +4,9 @@ categories  = { workspace = true }
 description = "Overwatch derive macros"
 edition     = { workspace = true }
 exclude     = ["./tests", ".github"]
-homepage    = { workspace = true }
 keywords    = { workspace = true }
 license     = { workspace = true }
 name        = "overwatch-derive"
-readme      = "README.md"
 repository  = { workspace = true }
 version     = { workspace = true }
 

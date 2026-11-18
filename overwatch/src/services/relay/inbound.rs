@@ -56,7 +56,6 @@ impl<Message> Drop for InboundRelay<Message> {
             receiver,
             retriever_sender,
             buffer_size,
-            ..
         } = self;
 
         // Instantiate a fake receiver to swap with the original one

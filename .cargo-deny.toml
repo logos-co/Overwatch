@@ -13,7 +13,7 @@ allow-wildcard-paths = false
 multiple-versions    = "allow"
 
 [licenses]
-allow                  = ["Apache-2.0", "BSL-1.0", "MIT", "Unicode-3.0", "Zlib"]
+allow                  = ["Apache-2.0", "MIT", "Unicode-3.0", "Zlib"]
 private                = { ignore = false }
 unused-allowed-license = "deny"
 

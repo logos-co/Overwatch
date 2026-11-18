@@ -45,7 +45,7 @@ A complete working example demonstrating the core features of the Overwatch fram
 
 ```bash
 # From the repository root
-cargo run --example ping_pong
+cargo run --example ping-pong
 ```
 
 ### Expected Output
@@ -67,7 +67,7 @@ Received 30 Pongs. Exiting...
 ## 📁 File Structure
 
 ```
-ping_pong/
+ping-pong/
 ├── Cargo.toml
 ├── README.md
 ├── saved_states/
@@ -237,15 +237,15 @@ The Ping service demonstrates state persistence:
 Try this:
 ```bash
 # Run until a few pongs
-cargo run --example ping_pong
+cargo run --example ping-pong
 # Ctrl+C to stop
 
 # Check the saved state
-cat examples/ping_pong/saved_states/ping_state.json
+cat examples/ping-pong/saved_states/ping_state.json
 # {"pong_count":5}
 
 # Run again - it will resume from where it left off!
-cargo run --example ping_pong
+cargo run --example ping-pong
 ```
 
 ---

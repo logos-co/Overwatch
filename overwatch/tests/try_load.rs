@@ -85,7 +85,6 @@ impl ServiceCore<RuntimeServiceId> for TryLoad {
     async fn run(self) -> Result<(), DynError> {
         let Self {
             service_resources_handle,
-            ..
         } = self;
         let sender = service_resources_handle
             .settings_handle

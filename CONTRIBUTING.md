@@ -65,7 +65,7 @@ cargo test test_name
 
 ```bash
 # Run the ping-pong example
-cargo run --example ping_pong
+cargo run --example ping-pong
 ```
 
 ### Generate Documentation

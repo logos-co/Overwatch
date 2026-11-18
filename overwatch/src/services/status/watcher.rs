@@ -493,7 +493,8 @@ mod tests {
             sender.send_replace(status);
 
             let result = wait.await;
-            // A later update must not replace the observation that ended the wait.
+            // A later update must not replace the observation that ended the
+            // wait.
             sender.send_replace(ServiceStatus::Ready);
             assert_eq!(result, Err(error));
         }
